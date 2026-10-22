@@ -1,0 +1,1223 @@
+{
+  "env": {
+    "python": "3.13.16",
+    "machine": "x86_64",
+    "system": "Linux-6.18.44-fc-v140-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "dataset": "test_v2.csv",
+    "prototypes": "prototypes.json"
+  },
+  "results": [
+    {
+      "nom": "gemma2-proto",
+      "n": 301,
+      "global": 81.7,
+      "global_tolerant": 83.1,
+      "fr": 80.6,
+      "en": 83.8,
+      "fautes": 81.4,
+      "sans_fautes": 81.8,
+      "n_fautes": 70,
+      "latence_ms": 129.4,
+      "rappel": {
+        "joie": 69.8,
+        "colere": 81.4,
+        "energie": 88.4,
+        "suspense": 88.4,
+        "tristesse": 74.4,
+        "amour": 90.7,
+        "calme": 79.1
+      },
+      "confiance_moy": 0.12,
+      "seuils": {
+        "0.2": {
+          "couverture": 14,
+          "precision": 100.0
+        },
+        "0.3": {
+          "couverture": 6,
+          "precision": 100.0
+        },
+        "0.4": {
+          "couverture": 2,
+          "precision": 100.0
+        },
+        "0.5": {
+          "couverture": 0,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "ahaha t'es vraiment un clown",
+          "joie",
+          "colere"
+        ],
+        [
+          "on a fini premiers au cross du collège 🏃",
+          "joie",
+          "energie"
+        ],
+        [
+          "il neige !!! pas cours demain",
+          "joie",
+          "energie"
+        ],
+        [
+          "le prof a annulé l'interro mdr",
+          "joie",
+          "suspense"
+        ],
+        [
+          "je supporte plus son attitude",
+          "colere",
+          "energie"
+        ],
+        [
+          "grave relou le bus qui part sans nous",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "il a balancé mon secret à toute la classe",
+          "colere",
+          "suspense"
+        ],
+        [
+          "on lâche rien les gars",
+          "energie",
+          "colere"
+        ],
+        [
+          "motivée à mort pour le stage",
+          "energie",
+          "tristesse"
+        ],
+        [
+          "chaud pour la rando de 20 km",
+          "energie",
+          "calme"
+        ],
+        [
+          "pourquoi la directrice a appelé mes parents ?",
+          "suspense",
+          "colere"
+        ],
+        [
+          "je peux pas en parler par message, appelle",
+          "suspense",
+          "calme"
+        ],
+        [
+          "on a reçu une lettre sans nom d'expéditeur",
+          "suspense",
+          "calme"
+        ],
+        [
+          "mon grand-père est parti cette nuit",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "mon meilleur ami change de collège",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "mon vélo a été volé, c'était un cadeau de ma mamie",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "je vais devoir redoubler",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "c'est la dernière fois qu'on se voit avant longtemps",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "mes copines c'est ma deuxième famille",
+          "amour",
+          "suspense"
+        ],
+        [
+          "joyeux anniversaire à la meilleure du monde 🎂",
+          "amour",
+          "joie"
+        ],
+        [
+          "on a sport en 1re heure",
+          "calme",
+          "energie"
+        ],
+        [
+          "t'as fini le chapitre 3 ?",
+          "calme",
+          "suspense"
+        ],
+        [
+          "on se met à côté en techno ?",
+          "calme",
+          "energie"
+        ],
+        [
+          "ok je regarde et je te dis",
+          "calme",
+          "suspense"
+        ],
+        [
+          "j'ai mis les photos sur le drive",
+          "calme",
+          "joie"
+        ],
+        [
+          "mdr t trop marant",
+          "joie",
+          "colere"
+        ],
+        [
+          "jai eu 16 en math je suis choquer",
+          "joie",
+          "suspense"
+        ],
+        [
+          "on va a la mer cette été yesss",
+          "joie",
+          "energie"
+        ],
+        [
+          "arete de m'enerver",
+          "colere",
+          "energie"
+        ],
+        [
+          "pourquoi le prof a garder mon cahier",
+          "suspense",
+          "colere"
+        ],
+        [
+          "ont a perdu la finale",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "merci detre la pour moi",
+          "amour",
+          "calme"
+        ],
+        [
+          "t'es trop chou quand tu rigole",
+          "amour",
+          "joie"
+        ],
+        [
+          "jarrive dans 5 min",
+          "calme",
+          "energie"
+        ],
+        [
+          "c'est quel exercice pour demain",
+          "calme",
+          "energie"
+        ],
+        [
+          "on a quoi en premiere heure",
+          "calme",
+          "suspense"
+        ],
+        [
+          "lol that meme killed me",
+          "joie",
+          "colere"
+        ],
+        [
+          "we're going to the beach this weekend 🌊",
+          "joie",
+          "energie"
+        ],
+        [
+          "school's cancelled tomorrow because of the snow",
+          "joie",
+          "calme"
+        ],
+        [
+          "my mom said I can get a puppy!!!",
+          "joie",
+          "suspense"
+        ],
+        [
+          "WHY DOES NOBODY EVER LISTEN TO ME",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "he read my messages without asking",
+          "colere",
+          "calme"
+        ],
+        [
+          "you said you'd come and you didn't",
+          "colere",
+          "suspense"
+        ],
+        [
+          "she posted that pic of me on purpose",
+          "colere",
+          "suspense"
+        ],
+        [
+          "morning run at 6, who's in?",
+          "energie",
+          "calme"
+        ],
+        [
+          "call me, I can't say it over text",
+          "suspense",
+          "calme"
+        ],
+        [
+          "my parents keep fighting",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "I failed the test again, I'm so dumb",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "we have gym first period",
+          "calme",
+          "energie"
+        ],
+        [
+          "were going to disneyland next weak!!",
+          "joie",
+          "energie"
+        ],
+        [
+          "my cat dyed this morning",
+          "tristesse",
+          "suspense"
+        ]
+      ],
+      "taille_mo": 1084.0,
+      "remarque": "choix typé (proto), PyTorch"
+    },
+    {
+      "nom": "gemma2-fewshot",
+      "n": 301,
+      "global": 82.1,
+      "global_tolerant": 83.1,
+      "fr": 82.1,
+      "en": 81.9,
+      "fautes": 82.9,
+      "sans_fautes": 81.8,
+      "n_fautes": 70,
+      "latence_ms": 123.9,
+      "rappel": {
+        "joie": 76.7,
+        "colere": 72.1,
+        "energie": 88.4,
+        "suspense": 83.7,
+        "tristesse": 81.4,
+        "amour": 90.7,
+        "calme": 81.4
+      },
+      "confiance_moy": 0.3,
+      "seuils": {
+        "0.2": {
+          "couverture": 66,
+          "precision": 93.0
+        },
+        "0.3": {
+          "couverture": 44,
+          "precision": 97.7
+        },
+        "0.4": {
+          "couverture": 26,
+          "precision": 100.0
+        },
+        "0.5": {
+          "couverture": 14,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "ahaha t'es vraiment un clown",
+          "joie",
+          "colere"
+        ],
+        [
+          "on a fini premiers au cross du collège 🏃",
+          "joie",
+          "energie"
+        ],
+        [
+          "il neige !!! pas cours demain",
+          "joie",
+          "energie"
+        ],
+        [
+          "le prof a annulé l'interro mdr",
+          "joie",
+          "suspense"
+        ],
+        [
+          "t'avais promis et t'es pas venu, merci bien",
+          "colere",
+          "amour"
+        ],
+        [
+          "ma sœur a lu mon journal, je vais la tuer",
+          "colere",
+          "joie"
+        ],
+        [
+          "je supporte plus son attitude",
+          "colere",
+          "energie"
+        ],
+        [
+          "grave relou le bus qui part sans nous",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "il a balancé mon secret à toute la classe",
+          "colere",
+          "suspense"
+        ],
+        [
+          "motivée à mort pour le stage",
+          "energie",
+          "tristesse"
+        ],
+        [
+          "chaud pour la rando de 20 km",
+          "energie",
+          "calme"
+        ],
+        [
+          "regarde ta boîte aux lettres 👀",
+          "suspense",
+          "calme"
+        ],
+        [
+          "pourquoi la directrice a appelé mes parents ?",
+          "suspense",
+          "colere"
+        ],
+        [
+          "je peux pas en parler par message, appelle",
+          "suspense",
+          "calme"
+        ],
+        [
+          "on a reçu une lettre sans nom d'expéditeur",
+          "suspense",
+          "calme"
+        ],
+        [
+          "mon vélo a été volé, c'était un cadeau de ma mamie",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "je vais devoir redoubler",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "c'est la dernière fois qu'on se voit avant longtemps",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "mes copines c'est ma deuxième famille",
+          "amour",
+          "joie"
+        ],
+        [
+          "joyeux anniversaire à la meilleure du monde 🎂",
+          "amour",
+          "joie"
+        ],
+        [
+          "on a sport en 1re heure",
+          "calme",
+          "energie"
+        ],
+        [
+          "t'as fini le chapitre 3 ?",
+          "calme",
+          "suspense"
+        ],
+        [
+          "on se met à côté en techno ?",
+          "calme",
+          "energie"
+        ],
+        [
+          "j'ai mis les photos sur le drive",
+          "calme",
+          "joie"
+        ],
+        [
+          "on va a la mer cette été yesss",
+          "joie",
+          "energie"
+        ],
+        [
+          "arete de m'enerver",
+          "colere",
+          "energie"
+        ],
+        [
+          "cette anné je donne tout",
+          "energie",
+          "joie"
+        ],
+        [
+          "pourquoi le prof a garder mon cahier",
+          "suspense",
+          "colere"
+        ],
+        [
+          "ont a perdu la finale",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "merci detre la pour moi",
+          "amour",
+          "calme"
+        ],
+        [
+          "t'es trop chou quand tu rigole",
+          "amour",
+          "joie"
+        ],
+        [
+          "jarrive dans 5 min",
+          "calme",
+          "energie"
+        ],
+        [
+          "c'est quel exercice pour demain",
+          "calme",
+          "energie"
+        ],
+        [
+          "on a quoi en premiere heure",
+          "calme",
+          "suspense"
+        ],
+        [
+          "we're going to the beach this weekend 🌊",
+          "joie",
+          "calme"
+        ],
+        [
+          "school's cancelled tomorrow because of the snow",
+          "joie",
+          "calme"
+        ],
+        [
+          "my mom said I can get a puppy!!!",
+          "joie",
+          "suspense"
+        ],
+        [
+          "WHY DOES NOBODY EVER LISTEN TO ME",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "he read my messages without asking",
+          "colere",
+          "calme"
+        ],
+        [
+          "you said you'd come and you didn't",
+          "colere",
+          "calme"
+        ],
+        [
+          "she posted that pic of me on purpose",
+          "colere",
+          "suspense"
+        ],
+        [
+          "ugh my brother broke my headphones",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "the ref was a joke, we got robbed",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "morning run at 6, who's in?",
+          "energie",
+          "calme"
+        ],
+        [
+          "someone left a note in my locker",
+          "suspense",
+          "calme"
+        ],
+        [
+          "call me, I can't say it over text",
+          "suspense",
+          "calme"
+        ],
+        [
+          "my parents keep fighting",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "I failed the test again, I'm so dumb",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "we have gym first period",
+          "calme",
+          "energie"
+        ],
+        [
+          "were going to disneyland next weak!!",
+          "joie",
+          "energie"
+        ],
+        [
+          "my cat dyed this morning",
+          "tristesse",
+          "suspense"
+        ]
+      ],
+      "taille_mo": 1084.0,
+      "remarque": "choix typé (fewshot), PyTorch"
+    },
+    {
+      "nom": "gemma2-fewshot-512",
+      "n": 301,
+      "global": 81.4,
+      "global_tolerant": 82.4,
+      "fr": 81.1,
+      "en": 81.9,
+      "fautes": 80.0,
+      "sans_fautes": 81.8,
+      "n_fautes": 70,
+      "latence_ms": 120.1,
+      "rappel": {
+        "joie": 74.4,
+        "colere": 76.7,
+        "energie": 88.4,
+        "suspense": 83.7,
+        "tristesse": 76.7,
+        "amour": 90.7,
+        "calme": 79.1
+      },
+      "confiance_moy": 0.3,
+      "seuils": {
+        "0.2": {
+          "couverture": 67,
+          "precision": 92.0
+        },
+        "0.3": {
+          "couverture": 45,
+          "precision": 97.1
+        },
+        "0.4": {
+          "couverture": 26,
+          "precision": 100.0
+        },
+        "0.5": {
+          "couverture": 14,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "ahaha t'es vraiment un clown",
+          "joie",
+          "colere"
+        ],
+        [
+          "on a fini premiers au cross du collège 🏃",
+          "joie",
+          "energie"
+        ],
+        [
+          "il neige !!! pas cours demain",
+          "joie",
+          "energie"
+        ],
+        [
+          "le prof a annulé l'interro mdr",
+          "joie",
+          "suspense"
+        ],
+        [
+          "t'avais promis et t'es pas venu, merci bien",
+          "colere",
+          "amour"
+        ],
+        [
+          "je supporte plus son attitude",
+          "colere",
+          "energie"
+        ],
+        [
+          "grave relou le bus qui part sans nous",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "il a balancé mon secret à toute la classe",
+          "colere",
+          "suspense"
+        ],
+        [
+          "motivée à mort pour le stage",
+          "energie",
+          "tristesse"
+        ],
+        [
+          "chaud pour la rando de 20 km",
+          "energie",
+          "calme"
+        ],
+        [
+          "pourquoi la directrice a appelé mes parents ?",
+          "suspense",
+          "colere"
+        ],
+        [
+          "je peux pas en parler par message, appelle",
+          "suspense",
+          "calme"
+        ],
+        [
+          "on a reçu une lettre sans nom d'expéditeur",
+          "suspense",
+          "calme"
+        ],
+        [
+          "mon vélo a été volé, c'était un cadeau de ma mamie",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "je vais devoir redoubler",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "j'ai fait une crise d'angoisse avant l'oral",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "c'est la dernière fois qu'on se voit avant longtemps",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "mes copines c'est ma deuxième famille",
+          "amour",
+          "joie"
+        ],
+        [
+          "joyeux anniversaire à la meilleure du monde 🎂",
+          "amour",
+          "joie"
+        ],
+        [
+          "on a sport en 1re heure",
+          "calme",
+          "energie"
+        ],
+        [
+          "t'as fini le chapitre 3 ?",
+          "calme",
+          "suspense"
+        ],
+        [
+          "on se met à côté en techno ?",
+          "calme",
+          "energie"
+        ],
+        [
+          "ok je regarde et je te dis",
+          "calme",
+          "suspense"
+        ],
+        [
+          "j'ai mis les photos sur le drive",
+          "calme",
+          "joie"
+        ],
+        [
+          "jai eu 16 en math je suis choquer",
+          "joie",
+          "suspense"
+        ],
+        [
+          "on va a la mer cette été yesss",
+          "joie",
+          "energie"
+        ],
+        [
+          "arete de m'enerver",
+          "colere",
+          "energie"
+        ],
+        [
+          "cette anné je donne tout",
+          "energie",
+          "joie"
+        ],
+        [
+          "pourquoi le prof a garder mon cahier",
+          "suspense",
+          "colere"
+        ],
+        [
+          "personne veut jouer avec moi a la recré",
+          "tristesse",
+          "energie"
+        ],
+        [
+          "ont a perdu la finale",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "merci detre la pour moi",
+          "amour",
+          "calme"
+        ],
+        [
+          "t'es trop chou quand tu rigole",
+          "amour",
+          "joie"
+        ],
+        [
+          "jarrive dans 5 min",
+          "calme",
+          "energie"
+        ],
+        [
+          "c'est quel exercice pour demain",
+          "calme",
+          "energie"
+        ],
+        [
+          "on a quoi en premiere heure",
+          "calme",
+          "suspense"
+        ],
+        [
+          "we're going to the beach this weekend 🌊",
+          "joie",
+          "calme"
+        ],
+        [
+          "school's cancelled tomorrow because of the snow",
+          "joie",
+          "calme"
+        ],
+        [
+          "my mom said I can get a puppy!!!",
+          "joie",
+          "suspense"
+        ],
+        [
+          "WHY DOES NOBODY EVER LISTEN TO ME",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "he read my messages without asking",
+          "colere",
+          "calme"
+        ],
+        [
+          "you said you'd come and you didn't",
+          "colere",
+          "calme"
+        ],
+        [
+          "she posted that pic of me on purpose",
+          "colere",
+          "suspense"
+        ],
+        [
+          "ugh my brother broke my headphones",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "morning run at 6, who's in?",
+          "energie",
+          "calme"
+        ],
+        [
+          "who posted that in the group chat??",
+          "suspense",
+          "colere"
+        ],
+        [
+          "someone left a note in my locker",
+          "suspense",
+          "calme"
+        ],
+        [
+          "call me, I can't say it over text",
+          "suspense",
+          "calme"
+        ],
+        [
+          "my parents keep fighting",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "I failed the test again, I'm so dumb",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "we have gym first period",
+          "calme",
+          "energie"
+        ],
+        [
+          "were going to disneyland next weak!!",
+          "joie",
+          "energie"
+        ],
+        [
+          "my cat dyed this morning",
+          "tristesse",
+          "suspense"
+        ]
+      ],
+      "taille_mo": 1084.0,
+      "remarque": "choix typé (fewshot), PyTorch, 512 dims"
+    },
+    {
+      "nom": "gemma2-fewshot-256",
+      "n": 301,
+      "global": 81.4,
+      "global_tolerant": 82.7,
+      "fr": 80.6,
+      "en": 82.9,
+      "fautes": 81.4,
+      "sans_fautes": 81.4,
+      "n_fautes": 70,
+      "latence_ms": 124.1,
+      "rappel": {
+        "joie": 74.4,
+        "colere": 72.1,
+        "energie": 90.7,
+        "suspense": 83.7,
+        "tristesse": 79.1,
+        "amour": 90.7,
+        "calme": 79.1
+      },
+      "confiance_moy": 0.3,
+      "seuils": {
+        "0.2": {
+          "couverture": 67,
+          "precision": 91.0
+        },
+        "0.3": {
+          "couverture": 44,
+          "precision": 96.9
+        },
+        "0.4": {
+          "couverture": 25,
+          "precision": 100.0
+        },
+        "0.5": {
+          "couverture": 16,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "ahaha t'es vraiment un clown",
+          "joie",
+          "colere"
+        ],
+        [
+          "on a fini premiers au cross du collège 🏃",
+          "joie",
+          "energie"
+        ],
+        [
+          "il neige !!! pas cours demain",
+          "joie",
+          "energie"
+        ],
+        [
+          "le prof a annulé l'interro mdr",
+          "joie",
+          "suspense"
+        ],
+        [
+          "t'avais promis et t'es pas venu, merci bien",
+          "colere",
+          "calme"
+        ],
+        [
+          "ma sœur a lu mon journal, je vais la tuer",
+          "colere",
+          "joie"
+        ],
+        [
+          "je supporte plus son attitude",
+          "colere",
+          "energie"
+        ],
+        [
+          "grave relou le bus qui part sans nous",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "c'est la troisième fois qu'on me vole ma trousse, j'en peux plus",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "motivée à mort pour le stage",
+          "energie",
+          "joie"
+        ],
+        [
+          "chaud pour la rando de 20 km",
+          "energie",
+          "calme"
+        ],
+        [
+          "pourquoi la directrice a appelé mes parents ?",
+          "suspense",
+          "colere"
+        ],
+        [
+          "je peux pas en parler par message, appelle",
+          "suspense",
+          "calme"
+        ],
+        [
+          "on a reçu une lettre sans nom d'expéditeur",
+          "suspense",
+          "calme"
+        ],
+        [
+          "mon vélo a été volé, c'était un cadeau de ma mamie",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "je vais devoir redoubler",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "c'est la dernière fois qu'on se voit avant longtemps",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "mes copines c'est ma deuxième famille",
+          "amour",
+          "joie"
+        ],
+        [
+          "joyeux anniversaire à la meilleure du monde 🎂",
+          "amour",
+          "joie"
+        ],
+        [
+          "on a sport en 1re heure",
+          "calme",
+          "energie"
+        ],
+        [
+          "t'as fini le chapitre 3 ?",
+          "calme",
+          "suspense"
+        ],
+        [
+          "on se met à côté en techno ?",
+          "calme",
+          "energie"
+        ],
+        [
+          "je vais me coucher, à demain",
+          "calme",
+          "energie"
+        ],
+        [
+          "ok je regarde et je te dis",
+          "calme",
+          "suspense"
+        ],
+        [
+          "j'ai mis les photos sur le drive",
+          "calme",
+          "joie"
+        ],
+        [
+          "on a gagnez le match de hand !!",
+          "joie",
+          "energie"
+        ],
+        [
+          "on va a la mer cette été yesss",
+          "joie",
+          "energie"
+        ],
+        [
+          "arete de m'enerver",
+          "colere",
+          "energie"
+        ],
+        [
+          "tu c pas ce que jai vu",
+          "suspense",
+          "colere"
+        ],
+        [
+          "pourquoi le prof a garder mon cahier",
+          "suspense",
+          "colere"
+        ],
+        [
+          "personne veut jouer avec moi a la recré",
+          "tristesse",
+          "energie"
+        ],
+        [
+          "ont a perdu la finale",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "merci detre la pour moi",
+          "amour",
+          "calme"
+        ],
+        [
+          "t'es trop chou quand tu rigole",
+          "amour",
+          "joie"
+        ],
+        [
+          "c'est quel exercice pour demain",
+          "calme",
+          "energie"
+        ],
+        [
+          "on a quoi en premiere heure",
+          "calme",
+          "suspense"
+        ],
+        [
+          "we're going to the beach this weekend 🌊",
+          "joie",
+          "calme"
+        ],
+        [
+          "school's cancelled tomorrow because of the snow",
+          "joie",
+          "calme"
+        ],
+        [
+          "my mom said I can get a puppy!!!",
+          "joie",
+          "suspense"
+        ],
+        [
+          "WHY DOES NOBODY EVER LISTEN TO ME",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "he read my messages without asking",
+          "colere",
+          "calme"
+        ],
+        [
+          "you said you'd come and you didn't",
+          "colere",
+          "calme"
+        ],
+        [
+          "she posted that pic of me on purpose",
+          "colere",
+          "suspense"
+        ],
+        [
+          "ugh my brother broke my headphones",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "the ref was a joke, we got robbed",
+          "colere",
+          "tristesse"
+        ],
+        [
+          "morning run at 6, who's in?",
+          "energie",
+          "calme"
+        ],
+        [
+          "someone left a note in my locker",
+          "suspense",
+          "calme"
+        ],
+        [
+          "call me, I can't say it over text",
+          "suspense",
+          "calme"
+        ],
+        [
+          "I failed the test again, I'm so dumb",
+          "tristesse",
+          "colere"
+        ],
+        [
+          "we have gym first period",
+          "calme",
+          "energie"
+        ],
+        [
+          "were going to disneyland next weak!!",
+          "joie",
+          "energie"
+        ],
+        [
+          "my cat dyed this morning",
+          "tristesse",
+          "suspense"
+        ]
+      ],
+      "taille_mo": 1084.0,
+      "remarque": "choix typé (fewshot), PyTorch, 256 dims"
+    }
+  ]
+}

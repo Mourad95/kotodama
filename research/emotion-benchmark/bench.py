@@ -108,13 +108,14 @@ def zeroshot():
 
 
 # ---------------------------------------------------------------- choix typé
-def embeddings(source: str, mode: str, onnx_file: str | None = None):
+def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_dim: int | None = None):
     """Choix typé local : modèle d'embeddings + prototypes.json.
 
-    source    : id Hugging Face ou dossier local (ex. modèle élagué).
-    mode      : "proto" (émotion la plus proche, aucun entraînement)
-                ou "fewshot" (régression logistique apprise sur les exemples).
-    onnx_file : chemin relatif d'un fichier ONNX dans le dossier (ex. INT8) → backend ONNX Runtime.
+    source       : id Hugging Face ou dossier local (ex. modèle élagué).
+    mode         : "proto" (émotion la plus proche, aucun entraînement)
+                   ou "fewshot" (régression logistique apprise sur les exemples).
+    onnx_file    : chemin relatif d'un fichier ONNX dans le dossier (ex. INT8) → backend ONNX Runtime.
+    truncate_dim : troncature Matryoshka (ex. 512, 256), renormalisée ensuite.
     """
     import numpy as np
     from sentence_transformers import SentenceTransformer
@@ -122,11 +123,20 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None):
     local = Path(source) if Path(source).exists() else hub_dir(
         source, ignore=["onnx/*", "openvino/*", "*.onnx", "*.h5", "*.msgpack", "*.ot"])
     if onnx_file:
-        model = SentenceTransformer(str(local), backend="onnx", device="cpu",
+        model = SentenceTransformer(str(local), backend="onnx", device="cpu", truncate_dim=truncate_dim,
                                     model_kwargs={"file_name": onnx_file, "provider": "CPUExecutionProvider"})
         taille = size_mb(local / onnx_file)
+    elif is_gemma2(local):
+        # Round 3: text tower only (vision/audio encoders not loaded), float32 on CPU (model card:
+        # bfloat16 is slow on CPU, float16 is unsafe).
+        import torch
+
+        model = SentenceTransformer(str(local), device="cpu", truncate_dim=truncate_dim,
+                                    config_kwargs={"vision_config": None, "audio_config": None},
+                                    model_kwargs={"dtype": torch.float32})
+        taille = round(sum(p.numel() for p in model.parameters()) * 4 / 1e6, 1)  # text tower, FP32
     else:
-        model = SentenceTransformer(str(local))
+        model = SentenceTransformer(str(local), truncate_dim=truncate_dim)
         taille = size_mb(local)
 
     prefix = "query: " if "e5" in source.lower() else ""
@@ -169,7 +179,14 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None):
             return max(d, key=d.get), d
 
     backend = f"ONNX {Path(onnx_file).name}" if onnx_file else "PyTorch"
-    return run, {"taille_mo": round(taille, 1), "remarque": f"choix typé ({mode}), {backend}"}
+    dims = f", {truncate_dim} dims" if truncate_dim else ""
+    return run, {"taille_mo": round(taille, 1), "remarque": f"choix typé ({mode}), {backend}{dims}"}
+
+
+def is_gemma2(local: Path) -> bool:
+    """True for an EmbeddingGemma 2 checkpoint (multimodal config: load the text tower only)."""
+    cfg = local / "config.json"
+    return cfg.exists() and json.loads(cfg.read_text(encoding="utf-8")).get("model_type") == "embedding_gemma2"
 
 
 GEMMA = "google/embeddinggemma-300m"
@@ -182,6 +199,8 @@ CANDIDATES = {
     "gemma-fewshot": lambda: embeddings(GEMMA, "fewshot"),
     "gemma2-proto": lambda: embeddings(GEMMA2, "proto"),
     "gemma2-fewshot": lambda: embeddings(GEMMA2, "fewshot"),
+    "gemma2-fewshot-512": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=512),
+    "gemma2-fewshot-256": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=256),
     "minilm-proto": lambda: embeddings(MINILM, "proto"),
     "minilm-fewshot": lambda: embeddings(MINILM, "fewshot"),
     "e5small-proto": lambda: embeddings(E5, "proto"),
