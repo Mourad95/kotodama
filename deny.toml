@@ -1,0 +1,30 @@
+# cargo-deny configuration. docs/legal.md L10: every dependency is checked against this allow-list in CI.
+
+[graph]
+all-features = true
+
+[licenses]
+confidence-threshold = 0.9
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "BSL-1.0",
+    "Zlib",
+    "CC0-1.0",
+    # Weak, file-level copyleft, accepted only because the uniffi crates use it
+    # (docs/legal.md L10). Any other copyleft licence needs an ADR.
+    "MPL-2.0",
+]
+
+[advisories]
+yanked = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

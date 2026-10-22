@@ -17,6 +17,44 @@ use crate::{Embedder, EmotionError};
 /// Maximum number of tokens fed to the model (BOS and EOS included).
 pub const MAX_TOKENS: usize = 512;
 
+/// Maximum number of characters of a message that are tokenized; the rest is dropped (on a
+/// character boundary) before tokenization, to bound the cost of a hostile input. The Python
+/// reference does not truncate characters, so parity messages must stay below this limit (the
+/// 300-character edge case of `parity.json` does).
+pub const MAX_INPUT_CHARS: usize = 2000;
+
+/// Returns `text` cut to at most `max` characters, on a character boundary.
+pub(crate) fn truncate_chars(text: &str, max: usize) -> &str {
+    match text.char_indices().nth(max) {
+        Some((end, _)) => &text[..end],
+        None => text,
+    }
+}
+
+/// Fails with a precise error when `ORT_DYLIB_PATH` is set to a file that does not exist.
+/// (With the variable unset, the dynamic loader searches its default path.)
+pub(crate) fn check_library_path(value: Option<&std::ffi::OsStr>) -> Result<(), EmotionError> {
+    match value {
+        Some(path) if !Path::new(path).is_file() => Err(EmotionError::Embedder(format!(
+            "ONNX Runtime library not found at ORT_DYLIB_PATH={}",
+            Path::new(path).display()
+        ))),
+        _ => Ok(()),
+    }
+}
+
+/// Runs `init`, turning a panic (ort panics when it cannot load its library) into an error.
+pub(crate) fn guard_init<T>(
+    init: impl FnOnce() -> Result<T, EmotionError>,
+) -> Result<T, EmotionError> {
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(init)).unwrap_or_else(|_| {
+        Err(EmotionError::Embedder(
+            "cannot initialise ONNX Runtime: the library could not be loaded (check ORT_DYLIB_PATH)"
+                .into(),
+        ))
+    })
+}
+
 fn embedder_err(context: &str, e: impl std::fmt::Display) -> EmotionError {
     EmotionError::Embedder(format!("{context}: {e}"))
 }
@@ -67,11 +105,14 @@ impl OrtEmbedder {
         prompt: &str,
         dimensions: usize,
     ) -> Result<Self, EmotionError> {
-        let environment = ort::init()
-            .with_name("kotomotion")
-            .with_telemetry(false)
-            .build()
-            .map_err(|e| embedder_err("cannot initialise ONNX Runtime", e))?;
+        check_library_path(std::env::var_os("ORT_DYLIB_PATH").as_deref())?;
+        let environment = guard_init(|| {
+            ort::init()
+                .with_name("kotomotion")
+                .with_telemetry(false)
+                .build()
+                .map_err(|e| embedder_err("cannot initialise ONNX Runtime", e))
+        })?;
         let session = Session::builder(&environment)
             .and_then(|mut b| b.commit_from_file(model))
             .map_err(|e| embedder_err("cannot load model", e))?;
@@ -90,7 +131,10 @@ impl OrtEmbedder {
     pub fn token_ids(&self, text: &str) -> Result<Vec<u32>, EmotionError> {
         let encoding = self
             .tokenizer
-            .encode(assemble_input(&self.prompt, text), true)
+            .encode(
+                assemble_input(&self.prompt, truncate_chars(text, MAX_INPUT_CHARS)),
+                true,
+            )
             .map_err(|e| embedder_err("tokenization failed", e))?;
         Ok(truncate_ids(encoding.get_ids(), MAX_TOKENS))
     }
@@ -150,6 +194,27 @@ mod tests {
         assert_eq!(truncate_ids(&ids, 20), ids);
         assert_eq!(truncate_ids(&ids, 5), vec![0, 1, 2, 3, 9]);
         assert_eq!(truncate_ids(&ids, 10), ids);
+    }
+
+    #[test]
+    fn characters_are_truncated_on_a_boundary() {
+        assert_eq!(truncate_chars("abcdef", 3), "abc");
+        assert_eq!(truncate_chars("abc", 3), "abc");
+        assert_eq!(truncate_chars("éàü", 2), "éà");
+        assert_eq!(truncate_chars("", 0), "");
+    }
+
+    #[test]
+    fn missing_library_is_an_error_not_a_panic() {
+        let missing = std::ffi::OsString::from("/nonexistent/libonnxruntime.so");
+        assert!(matches!(
+            check_library_path(Some(&missing)),
+            Err(EmotionError::Embedder(_))
+        ));
+        assert!(check_library_path(None).is_ok());
+        let panicked: Result<(), _> = guard_init(|| panic!("simulated ort panic"));
+        assert!(matches!(panicked, Err(EmotionError::Embedder(_))));
+        assert_eq!(guard_init(|| Ok(7)).unwrap(), 7);
     }
 
     #[test]

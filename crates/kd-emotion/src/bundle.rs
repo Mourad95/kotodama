@@ -21,6 +21,20 @@ pub const TOKENIZER_FILE: &str = "tokenizer.json";
 /// Quantized model file name.
 pub const MODEL_FILE: &str = "model_q4.onnx";
 
+/// The only manifest format version this engine understands.
+pub const SUPPORTED_SCHEMA: u32 = 1;
+/// Upper bound on `embedding_dim`, so a hostile manifest cannot request huge allocations.
+pub const MAX_EMBEDDING_DIM: usize = 8192;
+
+/// Whitelist for bundle file names: non-empty, `[A-Za-z0-9._-]` only, no leading dot.
+fn is_plain_file_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.starts_with('.')
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+}
+
 /// `manifest.json`. Unknown fields (versions, quality metrics, …) are ignored so the exporter can
 /// extend the manifest without breaking older engines.
 #[derive(Debug, Clone, Deserialize)]
@@ -47,10 +61,16 @@ impl Manifest {
         if !(0.0..=1.0).contains(&m.threshold) {
             return Err(EmotionError::Bundle("threshold must be in [0, 1]".into()));
         }
-        if m.embedding_dim == 0 {
-            return Err(EmotionError::Bundle(
-                "embedding_dim must be positive".into(),
-            ));
+        if m.schema != SUPPORTED_SCHEMA {
+            return Err(EmotionError::Bundle(format!(
+                "unsupported manifest schema {} (expected {SUPPORTED_SCHEMA})",
+                m.schema
+            )));
+        }
+        if m.embedding_dim == 0 || m.embedding_dim > MAX_EMBEDDING_DIM {
+            return Err(EmotionError::Bundle(format!(
+                "embedding_dim must be in 1..={MAX_EMBEDDING_DIM}"
+            )));
         }
         for required in [HEAD_FILE, TOKENIZER_FILE, MODEL_FILE] {
             if !m.files.contains_key(required) {
@@ -60,11 +80,7 @@ impl Manifest {
             }
         }
         // File names are plain names: nothing may point outside the bundle directory.
-        if let Some(bad) = m
-            .files
-            .keys()
-            .find(|n| n.is_empty() || n.contains(['/', '\\']) || n.starts_with('.'))
-        {
+        if let Some(bad) = m.files.keys().find(|n| !is_plain_file_name(n)) {
             return Err(EmotionError::Bundle(format!("illegal file name `{bad}`")));
         }
         Ok(m)
@@ -216,6 +232,19 @@ mod tests {
         assert!(Manifest::from_json(&missing).is_err());
         let traversal = manifest_json("abc", "").replace("tokenizer.json", "../tokenizer.json");
         assert!(Manifest::from_json(&traversal).is_err());
+        for bad in [".hidden", "a b", "a:b", "é.json", "a\\u0000b", "a/b"] {
+            let json = manifest_json("abc", "").replace("tokenizer.json", bad);
+            assert!(Manifest::from_json(&json).is_err(), "{bad:?} accepted");
+        }
+        let empty = manifest_json("abc", "").replace("\"tokenizer.json\"", "\"\"");
+        assert!(Manifest::from_json(&empty).is_err());
+        let schema2 = manifest_json("abc", "").replace("\"schema\":1", "\"schema\":2");
+        assert!(Manifest::from_json(&schema2).is_err());
+        for dim in ["0", "8193"] {
+            let json = manifest_json("abc", "")
+                .replace("\"embedding_dim\":2", &format!("\"embedding_dim\":{dim}"));
+            assert!(Manifest::from_json(&json).is_err(), "dim {dim} accepted");
+        }
     }
 
     #[test]

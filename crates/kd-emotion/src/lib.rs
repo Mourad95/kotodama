@@ -84,6 +84,14 @@ impl EmotionHead {
                     .ok_or_else(|| EmotionError::InvalidHead(format!("unknown label `{l}`")))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        for (i, label) in labels.iter().enumerate() {
+            if labels[..i].contains(label) {
+                return Err(EmotionError::InvalidHead(format!(
+                    "duplicate label `{}`",
+                    label.id()
+                )));
+            }
+        }
         if labels.is_empty()
             || file.weights.len() != labels.len()
             || file.bias.len() != labels.len()
@@ -233,6 +241,10 @@ mod tests {
         );
         assert!(EmotionHead::from_json(
             r#"{"labels":["joie","calme"],"weights":[[1,2],[1]],"bias":[0,0]}"#
+        )
+        .is_err());
+        assert!(EmotionHead::from_json(
+            r#"{"labels":["joie","joie"],"weights":[[1],[1]],"bias":[0,0]}"#
         )
         .is_err());
     }

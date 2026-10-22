@@ -8,7 +8,8 @@
 //! ONNX Runtime is loaded at run time: set `ORT_DYLIB_PATH` to `libonnxruntime.so`/`.dylib`.
 
 use std::collections::BTreeMap;
-use std::path::PathBuf;
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 use kd_core::Emotion;
@@ -19,7 +20,7 @@ const USAGE: &str = "usage:\n  kd analyze <message> --bundle <dir>\n  kd eval <c
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 fn main() -> ExitCode {
-    match run(std::env::args().skip(1).collect()) {
+    match run(std::env::args_os().skip(1).collect()) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("error: {e}");
@@ -29,7 +30,7 @@ fn main() -> ExitCode {
 }
 
 /// Splits arguments into the positional one and the `--bundle` value.
-fn parse_args(args: &[String]) -> Result<(String, PathBuf)> {
+fn parse_args(args: &[OsString]) -> Result<(OsString, PathBuf)> {
     let mut positional = None;
     let mut bundle = None;
     let mut it = args.iter();
@@ -41,7 +42,7 @@ fn parse_args(args: &[String]) -> Result<(String, PathBuf)> {
         } else if positional.is_none() {
             positional = Some(arg.clone());
         } else {
-            return Err(format!("unexpected argument `{arg}`\n{USAGE}").into());
+            return Err(format!("unexpected argument `{}`\n{USAGE}", arg.to_string_lossy()).into());
         }
     }
     match (positional, bundle) {
@@ -50,21 +51,24 @@ fn parse_args(args: &[String]) -> Result<(String, PathBuf)> {
     }
 }
 
-fn run(args: Vec<String>) -> Result<()> {
+fn run(args: Vec<OsString>) -> Result<()> {
     let (command, rest) = args.split_first().ok_or(USAGE)?;
     let (input, bundle) = parse_args(rest)?;
-    match command.as_str() {
-        "analyze" => analyze(&input, &bundle),
-        "eval" => eval(&input, &bundle),
+    match command.to_str() {
+        Some("analyze") => {
+            let text = input.to_str().ok_or("the message is not valid UTF-8")?;
+            analyze(text, &bundle)
+        }
+        Some("eval") => eval(Path::new(&input), &bundle),
         _ => Err(USAGE.into()),
     }
 }
 
-fn engine(bundle: &PathBuf) -> Result<EmotionEngine<impl Embedder>> {
+fn engine(bundle: &Path) -> Result<EmotionEngine<impl Embedder>> {
     Ok(Bundle::open(bundle)?.into_engine()?)
 }
 
-fn analyze(text: &str, bundle: &PathBuf) -> Result<()> {
+fn analyze(text: &str, bundle: &Path) -> Result<()> {
     let analysis = engine(bundle)?.analyze(text)?;
     for (emotion, p) in &analysis.scores.probabilities {
         println!("{:<10} {:.4}", emotion.id(), p);
@@ -76,14 +80,14 @@ fn analyze(text: &str, bundle: &PathBuf) -> Result<()> {
 }
 
 /// Reads `(text, label)` rows from a CSV with `text` and `label` columns.
-fn read_rows(path: &str) -> Result<Vec<(String, Emotion)>> {
+fn read_rows(path: &Path) -> Result<Vec<(String, Emotion)>> {
     let mut reader = csv::Reader::from_path(path)?;
     let headers = reader.headers()?.clone();
     let column = |name: &str| {
         headers
             .iter()
             .position(|h| h == name)
-            .ok_or_else(|| format!("{path}: missing `{name}` column"))
+            .ok_or_else(|| format!("{}: missing `{name}` column", path.display()))
     };
     let (text_col, label_col) = (column("text")?, column("label")?);
     let mut rows = Vec::new();
@@ -91,13 +95,13 @@ fn read_rows(path: &str) -> Result<Vec<(String, Emotion)>> {
         let record = record?;
         let label = record.get(label_col).unwrap_or_default();
         let emotion = Emotion::from_id(label)
-            .ok_or_else(|| format!("{path}: row {}: unknown label `{label}`", i + 2))?;
+            .ok_or_else(|| format!("{}: row {}: unknown label `{label}`", path.display(), i + 2))?;
         rows.push((record.get(text_col).unwrap_or_default().to_owned(), emotion));
     }
     Ok(rows)
 }
 
-fn eval(csv_path: &str, bundle: &PathBuf) -> Result<()> {
+fn eval(csv_path: &Path, bundle: &Path) -> Result<()> {
     let rows = read_rows(csv_path)?;
     let engine = engine(bundle)?;
     // Per label: (correct, total). Accuracy is measured on the engine's raw choice.
@@ -135,16 +139,25 @@ fn eval(csv_path: &str, bundle: &PathBuf) -> Result<()> {
 mod tests {
     use super::*;
 
-    fn args(v: &[&str]) -> Vec<String> {
-        v.iter().map(|s| s.to_string()).collect()
+    fn args(v: &[&str]) -> Vec<OsString> {
+        v.iter().map(OsString::from).collect()
     }
 
     #[test]
     fn arguments_parse_in_any_order() {
         let (p, b) = parse_args(&args(&["--bundle", "dir", "salut"])).unwrap();
-        assert_eq!((p.as_str(), b), ("salut", PathBuf::from("dir")));
+        assert_eq!((p, b), (OsString::from("salut"), PathBuf::from("dir")));
         assert!(parse_args(&args(&["salut"])).is_err());
         assert!(parse_args(&args(&["a", "b", "--bundle", "d"])).is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn non_utf8_message_is_a_normal_error() {
+        use std::os::unix::ffi::OsStringExt;
+        let bad = OsString::from_vec(vec![0x66, 0xff, 0x6f]);
+        let result = run(vec!["analyze".into(), bad, "--bundle".into(), "dir".into()]);
+        assert!(result.unwrap_err().to_string().contains("UTF-8"));
     }
 
     #[test]
@@ -155,7 +168,7 @@ mod tests {
             "lang,label,text\nfr,joie,\"oui, super !\"\nfr,calme,ok\n",
         )
         .unwrap();
-        let rows = read_rows(path.to_str().unwrap()).unwrap();
+        let rows = read_rows(&path).unwrap();
         assert_eq!(rows[0], ("oui, super !".to_owned(), Emotion::Joy));
         assert_eq!(rows.len(), 2);
         std::fs::remove_file(path).unwrap();

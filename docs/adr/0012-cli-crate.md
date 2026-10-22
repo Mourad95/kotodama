@@ -17,3 +17,5 @@ command-line and CSV dependencies, and `kd-ffi` stays tiny (CLAUDE.md rule 1).
 ## Consequences
 - The parity test (`kd-emotion/tests/parity.rs`) and `kd eval` are the Rust side of the M1 exit criteria.
 - The parity test skips when the bundle or the runtime library is absent, so CI stays green without weights.
+- Bundle files are hashed by path and then reopened by the loader (local trust model: the bundle directory is trusted, symlinks are followed).
+- Parity is not enforced in CI because weights are not in git; a CI job fetching a release-asset bundle comes with the release pipeline.
