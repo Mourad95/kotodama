@@ -109,7 +109,7 @@ Depends on research track R2 (distilled small model). The iMessage extension can
 |---|---|---|
 | R1 — Data | Better prototypes and an honest test set | `prototypes` v2 written without looking at `test_v2` errors; `test_v3` from real teen messages (with consent) |
 | R2 — Distillation | A ≤ 40 MB model for the iOS keyboard | Small model fine-tuned on messages labeled by the big model; must reach the quality bar |
-| R3 — Legal | Can we ship? | Gemma Terms of Use review, GDPR for minors (parental consent under 15 in France), store policies, third-party licences (Grammalecte GPL question, Japanese fonts must allow embedding, e.g. Noto/OFL), trademark search for "Kotodama" (INPI/EUIPO, classes 9 and 42) |
+| R3 — Legal (see `docs/legal.md`) | Can we ship? | Gemma Terms of Use review, GDPR for minors (parental consent under 15 in France), store policies, third-party licences (Grammalecte GPL question, Japanese fonts must allow embedding, e.g. Noto/OFL), trademark search for "Kotodama" (INPI/EUIPO, classes 9 and 42) |
 | R4 — Product | First platform, pricing, school/parent offers | Data on target devices, interviews |
 
 ## Quality bar (emotion engine)
