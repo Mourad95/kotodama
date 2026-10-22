@@ -15,3 +15,5 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | accepted |
 | [0009](0009-own-french-checker.md) | French checker built in-house (Grammalecte is GPL-3) | accepted |
 | [0010](0010-open-licence-models-only.md) | Shipped models must carry an OSI-approved licence | accepted |
+| [0011](0011-embeddinggemma-2-pruned-q4.md) | Ship EmbeddingGemma 2, pruned and Q4 | accepted |
+| [0012](0012-cli-crate.md) | A small `kd-cli` crate for manual analysis and evaluation | accepted |

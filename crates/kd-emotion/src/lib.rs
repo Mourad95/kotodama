@@ -2,8 +2,16 @@
 //!
 //! An [`Embedder`] turns a message into a sentence embedding; an [`EmotionHead`] (a linear layer
 //! trained on `prototypes.json` by `tools/model-export`) turns the embedding into a probability
-//! per emotion. The ONNX Runtime embedder arrives in milestone M1; until then the engine is fully
-//! testable with any [`Embedder`].
+//! per emotion. The ONNX Runtime embedder ([`OrtEmbedder`], feature `ort`) is loaded from a verified
+//! [`Bundle`]; the engine is fully testable with any [`Embedder`].
+
+pub mod bundle;
+#[cfg(feature = "ort")]
+pub mod ort_embedder;
+
+pub use bundle::{Bundle, Manifest};
+#[cfg(feature = "ort")]
+pub use ort_embedder::OrtEmbedder;
 
 use kd_core::{softmax, Emotion, EmotionScores};
 use serde::Deserialize;
@@ -22,6 +30,19 @@ pub enum EmotionError {
         expected: usize,
         /// Dimensions produced by the embedder.
         got: usize,
+    },
+    /// The model bundle is missing, malformed or inconsistent.
+    #[error("invalid bundle: {0}")]
+    Bundle(String),
+    /// A bundle file does not match the SHA-256 recorded in the manifest.
+    #[error("checksum mismatch for `{file}`: expected {expected}, got {got}")]
+    ChecksumMismatch {
+        /// File name inside the bundle.
+        file: String,
+        /// Checksum recorded in the manifest.
+        expected: String,
+        /// Checksum of the file on disk.
+        got: String,
     },
     /// The embedder failed.
     #[error("embedder failed: {0}")]
@@ -63,6 +84,14 @@ impl EmotionHead {
                     .ok_or_else(|| EmotionError::InvalidHead(format!("unknown label `{l}`")))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        for (i, label) in labels.iter().enumerate() {
+            if labels[..i].contains(label) {
+                return Err(EmotionError::InvalidHead(format!(
+                    "duplicate label `{}`",
+                    label.id()
+                )));
+            }
+        }
         if labels.is_empty()
             || file.weights.len() != labels.len()
             || file.bias.len() != labels.len()
@@ -87,6 +116,11 @@ impl EmotionHead {
     /// Embedding size expected by the head.
     pub fn dimensions(&self) -> usize {
         self.weights[0].len()
+    }
+
+    /// Emotion ids in head order.
+    pub fn label_ids(&self) -> Vec<String> {
+        self.labels.iter().map(|l| l.id().to_owned()).collect()
     }
 
     /// Scores one embedding.
@@ -207,6 +241,10 @@ mod tests {
         );
         assert!(EmotionHead::from_json(
             r#"{"labels":["joie","calme"],"weights":[[1,2],[1]],"bias":[0,0]}"#
+        )
+        .is_err());
+        assert!(EmotionHead::from_json(
+            r#"{"labels":["joie","joie"],"weights":[[1],[1]],"bias":[0,0]}"#
         )
         .is_err());
     }

@@ -1,6 +1,6 @@
 [package]
 name = "kd-core"
-description = "Shared types and pure logic for Kotodama"
+description = "Shared types and pure logic for KotoMotion"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

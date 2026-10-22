@@ -1,0 +1,19 @@
+[package]
+name = "kd-cli"
+description = "Command line tool to analyze messages and evaluate the emotion engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "kd"
+path = "src/main.rs"
+
+[dependencies]
+kd-core.workspace = true
+kd-emotion.workspace = true
+csv = "1"
+
+[lints]
+workspace = true

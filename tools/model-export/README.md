@@ -16,14 +16,25 @@ Builds the **model bundle** loaded by `kd-emotion` (see `docs/architecture.md`).
 6. **Write `manifest.json`**: source model and revision, pruning settings, confidence threshold,
    checksums, benchmark metrics.
 
-`export_mobile.py` (to be written in M1) chains these steps; steps 1 and 3 reuse the benchmark
-scripts, which become importable modules here.
+`export_mobile.py` chains steps 2-6; it reuses `research/emotion-benchmark/ort_embedder.py` and
+`export_onnx.py`. By default it reuses the existing Q4 graph of the pruned model:
+
+```bash
+python tools/model-export/export_mobile.py                  # pruned/gemma2-m3 -> bundle/
+python tools/model-export/export_mobile.py --export         # re-run export_onnx.py first
+python tools/model-export/export_mobile.py --prototypes research/emotion-benchmark/prototypes_v2.json
+python -m pytest tools/model-export                         # pure-logic tests, no model needed
+```
+
+The head is trained exactly like `bench.py` "fewshot" (LogisticRegression, C=10) with the
+`task: classification | query: ` prompt. `parity.json` and the manifest metrics use `dev_v1.csv`
+only, never `test_v2.csv`.
 
 ## Output
 
 ```
 bundle/
-  model_q4.onnx
+  model_q4.onnx        (+ model_q4.onnx_data if the graph uses external data)
   tokenizer.json
   emotion_head.json
   parity.json

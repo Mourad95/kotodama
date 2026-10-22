@@ -39,7 +39,7 @@ per emotion and a confidence (1 − normalized entropy).
 | `quantize_onnx.py` | ONNX export, INT8 and Q4 quantization, size and latency |
 | `protocols/` | annotation guide and protocols as given to the benchmark agent (French originals) |
 | `results/round1/` | round 1 report (70 messages; superseded, kept for history) |
-| `results/round3/` | round 3 (Apache-2.0 EmbeddingGemma 2) — to be run, see `protocols/round3-protocol.md` |
+| `results/round3/` | round 3 (open-licence candidates, pruned Q4; summary in ADR-0011) — protocol in `protocols/round3-protocol.md` |
 | `results/round2/` | round 2 synthesis, raw reports, pruning and quantization reports |
 
 Annotation guide: [`ANNOTATION.md`](ANNOTATION.md). Protocols and reports were written in French

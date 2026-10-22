@@ -1,6 +1,6 @@
 ---
 name: rust-core
-description: Load when writing or reviewing Rust in the Kotodama workspace (crates kd-core, kd-emotion, kd-grammar, kd-fx, kd-ffi), adding a crate or dependency, designing a trait, handling errors, or exposing something to Swift/Kotlin through UniFFI. Covers layering, error handling, determinism, data-file parsing, the tiny-FFI rule and the verification commands.
+description: Load when writing or reviewing Rust in the KotoMotion workspace (crates kd-core, kd-emotion, kd-grammar, kd-fx, kd-ffi), adding a crate or dependency, designing a trait, handling errors, or exposing something to Swift/Kotlin through UniFFI. Covers layering, error handling, determinism, data-file parsing, the tiny-FFI rule and the verification commands.
 ---
 
 # Rust core

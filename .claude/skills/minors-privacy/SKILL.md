@@ -1,11 +1,11 @@
 ---
 name: minors-privacy
-description: Load when a Kotodama change touches user data, logging, analytics, crash reports, accounts, permissions, consent, onboarding, store listings or privacy labels, sharing/export, or anything that could affect teenagers' privacy. The app targets minors, so privacy is a design constraint, not a feature. Complements docs/legal.md, which is binding.
+description: Load when a KotoMotion change touches user data, logging, analytics, crash reports, accounts, permissions, consent, onboarding, store listings or privacy labels, sharing/export, or anything that could affect teenagers' privacy. The app targets minors, so privacy is a design constraint, not a feature. Complements docs/legal.md, which is binding.
 ---
 
 # Minors and privacy
 
-Kotodama is aimed at teenagers and reads what they type. Privacy is a design constraint.
+KotoMotion is aimed at teenagers and reads what they type. Privacy is a design constraint.
 `docs/legal.md` is the binding register; this skill is the engineering checklist that serves it.
 This is not legal advice: open gates (L3 consent, L4 labels, L5 Full Access, L6 store rules) are
 closed with a qualified lawyer before public launch.

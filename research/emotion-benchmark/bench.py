@@ -108,28 +108,47 @@ def zeroshot():
 
 
 # ---------------------------------------------------------------- choix typé
-def embeddings(source: str, mode: str, onnx_file: str | None = None):
+def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_dim: int | None = None,
+               prefix: str | None = None):
     """Choix typé local : modèle d'embeddings + prototypes.json.
 
-    source    : id Hugging Face ou dossier local (ex. modèle élagué).
-    mode      : "proto" (émotion la plus proche, aucun entraînement)
-                ou "fewshot" (régression logistique apprise sur les exemples).
-    onnx_file : chemin relatif d'un fichier ONNX dans le dossier (ex. INT8) → backend ONNX Runtime.
+    source       : id Hugging Face ou dossier local (ex. modèle élagué).
+    mode         : "proto" (émotion la plus proche, aucun entraînement)
+                   ou "fewshot" (régression logistique apprise sur les exemples).
+    onnx_file    : chemin relatif d'un fichier ONNX dans le dossier (ex. INT8) → backend ONNX Runtime.
+    truncate_dim : troncature Matryoshka (ex. 512, 256), renormalisée ensuite.
+    prefix       : fixed text prepended to every input (model's documented instruction format).
     """
     import numpy as np
     from sentence_transformers import SentenceTransformer
 
+    from ort_embedder import OrtEmbedder, is_self_contained
+
     local = Path(source) if Path(source).exists() else hub_dir(
         source, ignore=["onnx/*", "openvino/*", "*.onnx", "*.h5", "*.msgpack", "*.ot"])
-    if onnx_file:
-        model = SentenceTransformer(str(local), backend="onnx", device="cpu",
+    if onnx_file and is_self_contained(local, onnx_file):
+        # export_onnx.py graph (pooling + normalize inside): tokenizer + ONNX Runtime only.
+        model = OrtEmbedder(local, onnx_file)
+        taille = size_mb(local / onnx_file)
+    elif onnx_file:
+        model = SentenceTransformer(str(local), backend="onnx", device="cpu", truncate_dim=truncate_dim,
                                     model_kwargs={"file_name": onnx_file, "provider": "CPUExecutionProvider"})
         taille = size_mb(local / onnx_file)
+    elif is_gemma2(local):
+        # Round 3: text tower only (vision/audio encoders not loaded), float32 on CPU (model card:
+        # bfloat16 is slow on CPU, float16 is unsafe).
+        import torch
+
+        model = SentenceTransformer(str(local), device="cpu", truncate_dim=truncate_dim,
+                                    config_kwargs={"vision_config": None, "audio_config": None},
+                                    model_kwargs={"dtype": torch.float32})
+        taille = round(sum(p.numel() for p in model.parameters()) * 4 / 1e6, 1)  # text tower, FP32
     else:
-        model = SentenceTransformer(str(local))
+        model = SentenceTransformer(str(local), truncate_dim=truncate_dim)
         taille = size_mb(local)
 
-    prefix = "query: " if "e5" in source.lower() else ""
+    if prefix is None:
+        prefix = "query: " if "e5" in source.lower() else ""
     prompt_name = "Classification" if "Classification" in (getattr(model, "prompts", None) or {}) else None
     protos = json.loads(PROTOTYPES_PATH.read_text(encoding="utf-8"))
 
@@ -169,19 +188,43 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None):
             return max(d, key=d.get), d
 
     backend = f"ONNX {Path(onnx_file).name}" if onnx_file else "PyTorch"
-    return run, {"taille_mo": round(taille, 1), "remarque": f"choix typé ({mode}), {backend}"}
+    dims = f", {truncate_dim} dims" if truncate_dim else ""
+    return run, {"taille_mo": round(taille, 1), "remarque": f"choix typé ({mode}), {backend}{dims}"}
+
+
+def is_gemma2(local: Path) -> bool:
+    """True for an EmbeddingGemma 2 checkpoint (multimodal config: load the text tower only)."""
+    cfg = local / "config.json"
+    return cfg.exists() and json.loads(cfg.read_text(encoding="utf-8")).get("model_type") == "embedding_gemma2"
 
 
 GEMMA = "google/embeddinggemma-300m"
 MINILM = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 E5 = "intfloat/multilingual-e5-small"
 GEMMA2 = "google/embeddinggemma-2"  # Apache-2.0 (ADR-0010); text-only use, round 3
+# Round 3b: fully open alternatives (OSI licence, no extra use policy).
+E5_BASE = "intfloat/multilingual-e5-base"  # MIT
+GRANITE = "ibm-granite/granite-embedding-278m-multilingual"  # Apache-2.0
+GRANITE_S = "ibm-granite/granite-embedding-107m-multilingual"  # Apache-2.0
+BGE_M3 = "BAAI/bge-m3"  # MIT
+QWEN3 = "Qwen/Qwen3-Embedding-0.6B"  # Apache-2.0
+# Qwen3-Embedding expects a one-line task instruction (model card format); fixed, not tuned.
+GOEMO = "AnasAlokla/multilingual_go_emotions"  # MIT, mBERT fine-tuned on GoEmotions (28 labels)
+QWEN3_PREFIX = "Instruct: Classify the emotion expressed in the message\nQuery: "
 
 CANDIDATES = {
     "gemma-proto": lambda: embeddings(GEMMA, "proto"),
     "gemma-fewshot": lambda: embeddings(GEMMA, "fewshot"),
     "gemma2-proto": lambda: embeddings(GEMMA2, "proto"),
     "gemma2-fewshot": lambda: embeddings(GEMMA2, "fewshot"),
+    "gemma2-fewshot-512": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=512),
+    "gemma2-fewshot-256": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=256),
+    "e5base-fewshot": lambda: embeddings(E5_BASE, "fewshot"),
+    "granite-fewshot": lambda: embeddings(GRANITE, "fewshot"),
+    "granite-small-fewshot": lambda: embeddings(GRANITE_S, "fewshot"),
+    "bgem3-fewshot": lambda: embeddings(BGE_M3, "fewshot"),
+    "goemo-fewshot": lambda: embeddings(GOEMO, "fewshot"),
+    "qwen3-fewshot": lambda: embeddings(QWEN3, "fewshot", prefix=QWEN3_PREFIX),
     "minilm-proto": lambda: embeddings(MINILM, "proto"),
     "minilm-fewshot": lambda: embeddings(MINILM, "fewshot"),
     "e5small-proto": lambda: embeddings(E5, "proto"),
