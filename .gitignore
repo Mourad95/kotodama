@@ -29,3 +29,4 @@ apps/android/app/src/main/generated/
 apps/android/app/build/
 apps/android/local.properties
 *.so
+apps/android/.kotlin/
