@@ -20,8 +20,17 @@ allow = [
     "MPL-2.0",
 ]
 
+# Our own crates are proprietary and never published (publish = false).
+[licenses.private]
+ignore = true
+
 [advisories]
 yanked = "deny"
+ignore = [
+    # `paste` is unmaintained but is a compile-time macro crate pulled in by `tokenizers`:
+    # no runtime code, no safe upgrade. Revisit when `tokenizers` drops it.
+    "RUSTSEC-2024-0436",
+]
 
 [sources]
 unknown-registry = "deny"
