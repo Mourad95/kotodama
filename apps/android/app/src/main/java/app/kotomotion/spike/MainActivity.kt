@@ -87,7 +87,9 @@ private fun SpikeScreen(vm: SpikeViewModel) {
 
         vm.analysis?.let { a ->
             val r = a.result
-            if (r == null) {
+            if (a.errorClass != null) {
+                Text(stringResource(R.string.analysis_error, a.errorClass))
+            } else if (r == null) {
                 Text(stringResource(R.string.result_fallback))
             } else {
                 Text(stringResource(R.string.result_effective, r.effective, r.choice, r.confidence))
@@ -98,6 +100,7 @@ private fun SpikeScreen(vm: SpikeViewModel) {
 
         if (vm.benchmarkRunning) Text(stringResource(R.string.benchmark_running))
         if (vm.benchmarkMissing) Text(stringResource(R.string.no_bench_messages))
+        vm.benchmarkError?.let { Text(stringResource(R.string.analysis_error, it)) }
         vm.benchmark?.let { b ->
             Text(stringResource(R.string.benchmark_result, b.stats.n, b.warmUp, b.stats.p50, b.stats.p95, b.stats.max))
             val m = b.memory

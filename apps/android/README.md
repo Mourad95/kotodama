@@ -14,11 +14,13 @@ A measurement tool, not product UI. One screen: device model + Android version +
 the model directory, the cold-start time of `EmotionEngine.open`, a text field with an **Analyse**
 button (7 probabilities, effective emotion, latency of that call) and a **Benchmark** button.
 
-Privacy by construction (`docs/legal.md` L1, L2, L18-L20): no `INTERNET` permission (no
-`uses-permission` at all), `allowBackup="false"` with `dataExtractionRules` / `fullBackupContent`
+Privacy by construction (`docs/legal.md` L1, L2, L18-L20): no `INTERNET` or other network
+permission (the only `uses-permission` in the merged debug and release manifests is androidx's
+non-exported-receiver signature permission `app.kotomotion.spike.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`), `allowBackup="false"` with `dataExtractionRules` / `fullBackupContent`
 excluding everything, no analytics or crash SDK, message text is never logged or persisted.
-`gradle verifyPrivacy` (run by `check` and after every `assemble*`) fails if `INTERNET` is declared
-in the source or merged manifest, or if backup is not disabled.
+`gradle verifyPrivacy` (run by `check` and after every `assemble*`) uses an allowlist: it fails on
+any `uses-permission` other than that signature permission, or if `allowBackup="false"`,
+`dataExtractionRules` or `fullBackupContent` is missing, in the source, debug and release merged manifests.
 
 ## Prerequisites
 
@@ -49,7 +51,19 @@ export GRADLE_USER_HOME=/dev/shm/gradle-home GRADLE_OPTS=-Dorg.gradle.daemon=fal
 export CARGO_TARGET_DIR=/dev/shm/target KD_ANDROID_BUILD_DIR=/dev/shm/kd-android-build
 ```
 
-The Gradle wrapper is committed (Gradle 8.14.3); system `gradle` 8.14.x works too.
+The Gradle wrapper is committed (Gradle 8.14.3, distribution SHA-256 pinned); system `gradle` 8.14.x works too.
+
+### 16 KB page-size check (manual, not a CI dependency)
+
+```bash
+$ANDROID_HOME/build-tools/36.0.0/zipalign -P 16 -c -v 4 app/build/outputs/apk/release/app-release-unsigned.apk | grep '\.so'
+```
+
+`libkd_ffi.so` is linked with 16 KB LOAD alignment (checked by `build-core.sh`). With
+`useLegacyPackaging` the libraries are stored compressed and extracted at install, so zipalign
+reports them `OK - compressed` (its 16 KB check applies to uncompressed storage only).
+`libonnxruntime.so` and `libjnidispatch.so` come from third-party AARs: their ELF alignment is not
+re-checked here.
 
 ## Pushing the model bundle
 
@@ -91,4 +105,5 @@ A number or behaviour is *verified on device* only when it was produced by this 
 physical phone (not an emulator, not the desktop engine), with the device model, Android version
 and build type visible on the screenshot, on at least one recent and one mid-range phone. The
 M2 build here was produced in a container with no device or emulator: it compiles, packages and
-passes the privacy gate and lint, but is **not verified on device**.
+passes the privacy gate and lint, but is **not verified on device**. Last successful run
+(2026-10-22): `./gradlew assembleDebug assembleRelease lint check`.

@@ -133,28 +133,39 @@ fun parseCsv(s: String): List<List<String>> {
 }
 
 // --- Privacy gate (docs/legal.md L1, L2, L20) ---------------------------------------------------
+// Allowlist: the only <uses-permission> a manifest may declare is the signature permission androidx
+// adds for non-exported dynamic receivers. Checked on the source manifest and on BOTH merged
+// manifests (debug and release), because libraries can add permissions during the merge.
 val verifyPrivacy = tasks.register("verifyPrivacy") {
     group = "verification"
-    description = "Fails if the app (source or merged manifest) declares INTERNET or leaves backup on."
+    description = "Fails on any unlisted uses-permission or if backup is not fully disabled (source, debug and release)."
     val sourceManifest = mainSrc.resolve("AndroidManifest.xml")
-    val merged = layout.buildDirectory.file("intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml")
-    dependsOn("processDebugMainManifest")
+    val mergedDebug = layout.buildDirectory.file("intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml")
+    val mergedRelease = layout.buildDirectory.file("intermediates/merged_manifest/release/processReleaseMainManifest/AndroidManifest.xml")
+    val appId = android.defaultConfig.applicationId!!
+    dependsOn("processDebugMainManifest", "processReleaseMainManifest")
     inputs.file(sourceManifest)
-    inputs.files(merged)
+    inputs.files(mergedDebug, mergedRelease)
     doLast {
-        val forbidden = listOf("android.permission.INTERNET", "android.permission.ACCESS_NETWORK_STATE")
+        val allowed = setOf("$appId.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION")
         val problems = mutableListOf<String>()
-        listOf(sourceManifest, merged.get().asFile).forEach { f ->
+        listOf(sourceManifest, mergedDebug.get().asFile, mergedRelease.get().asFile).forEach { f ->
             check(f.exists()) { "manifest not found: $f" }
             val xml = f.readText()
+            val label = "${f.parentFile.name}/${f.name}"
             // Active <uses-permission> elements only (those marked tools:node="remove" are fine).
-            val declared = Regex("""<uses-permission[^>]*>""").findAll(xml).map { it.value }
-                .filter { !it.contains("tools:node=\"remove\"") }.toList()
-            forbidden.filter { p -> declared.any { it.contains(p) } }.forEach { problems += "${f.parentFile.name}/${f.name}: declares $it" }
-            if (!Regex("""android:allowBackup\s*=\s*"false"""").containsMatchIn(xml)) problems += "${f.name}: allowBackup is not false"
+            Regex("""<uses-permission(?:-sdk-\d+)?\b[^>]*>""").findAll(xml).map { it.value }
+                .filter { !it.contains("tools:node=\"remove\"") }
+                .forEach { tag ->
+                    val name = Regex("""android:name\s*=\s*"([^"]*)"""").find(tag)?.groupValues?.get(1)
+                    if (name == null || name !in allowed) problems += "$label: unlisted permission ${name ?: tag}"
+                }
+            if (!Regex("""android:allowBackup\s*=\s*"false"""").containsMatchIn(xml)) problems += "$label: allowBackup is not false"
+            if (!Regex("""android:dataExtractionRules\s*=""").containsMatchIn(xml)) problems += "$label: dataExtractionRules not set"
+            if (!Regex("""android:fullBackupContent\s*=""").containsMatchIn(xml)) problems += "$label: fullBackupContent not set"
         }
         if (problems.isNotEmpty()) throw GradleException("Privacy check failed:\n" + problems.joinToString("\n"))
-        logger.lifecycle("verifyPrivacy: no INTERNET permission, allowBackup=false")
+        logger.lifecycle("verifyPrivacy: permissions within the allowlist, backup and data extraction disabled (source, debug, release)")
     }
 }
 

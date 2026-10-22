@@ -17,5 +17,6 @@
     <string name="benchmark_running">Benchmark en cours…</string>
     <string name="benchmark_result">n = %1$d (échauffement %2$d)\np50 = %3$.1f ms\np95 = %4$.1f ms\nmax = %5$.1f ms</string>
     <string name="memory_line">Mémoire : tas natif %1$d Mo, tas Java %2$d Mo, pic VmHWM %3$d Mo (VmRSS %4$d Mo)</string>
+    <string name="analysis_error">Échec de l\'analyse : %1$s</string>
     <string name="no_bench_messages">bench_messages.txt introuvable ou vide.</string>
 </resources>

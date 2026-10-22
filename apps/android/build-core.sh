@@ -31,8 +31,10 @@ export ANDROID_NDK_HOME
 command -v cargo-ndk >/dev/null || { echo "cargo-ndk missing: cargo install cargo-ndk --locked" >&2; exit 1; }
 
 target_dir="${CARGO_TARGET_DIR:-$root/target}"
-strip_tool="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-strip)"
-readelf_tool="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-readelf)"
+strip_tool="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-strip 2>/dev/null | head -1 || true)"
+readelf_tool="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-readelf 2>/dev/null | head -1 || true)"
+[[ -x "$strip_tool" ]] || { echo "llvm-strip not found under $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/bin (incomplete NDK install?)" >&2; exit 1; }
+[[ -x "$readelf_tool" ]] || { echo "llvm-readelf not found under $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/bin (incomplete NDK install?)" >&2; exit 1; }
 
 # Google Play requires 16 KB page size support for apps targeting Android 15+.
 export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384"

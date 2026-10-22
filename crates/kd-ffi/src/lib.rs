@@ -11,7 +11,7 @@
 
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, Once};
 
 use kd_emotion::{Bundle, Embedder, EmotionAnalysis, EmotionError, OrtEmbedder};
 
@@ -106,6 +106,20 @@ fn open_error(e: EmotionError) -> EngineError {
     }
 }
 
+static PANIC_HOOK: Once = Once::new();
+
+/// Replaces, once per process, the default panic hook (which prints the panic message, and that
+/// message can embed message text, to stderr) by one printing a fixed line: no payload, no
+/// location. Called by [`EmotionEngine::open`]; not part of the shell-facing API.
+#[doc(hidden)]
+pub fn install_panic_hook() {
+    PANIC_HOOK.call_once(|| {
+        std::panic::set_hook(Box::new(|_| {
+            eprintln!("kd-ffi: internal error (details withheld for privacy)");
+        }));
+    });
+}
+
 /// Runs `f`, turning a panic into [`EngineError::Internal`] (the panic payload may hold text and
 /// is dropped without being read).
 fn guarded<T>(f: impl FnOnce() -> Result<T, EngineError>) -> Result<T, EngineError> {
@@ -138,6 +152,7 @@ impl EmotionEngine {
     /// from `ort_library_path` (the `libonnxruntime.so` of the onnxruntime-android package).
     #[uniffi::constructor]
     pub fn open(bundle_dir: String, ort_library_path: String) -> Result<Arc<Self>, EngineError> {
+        install_panic_hook();
         guarded(|| {
             let bundle = Bundle::open(&bundle_dir).map_err(open_error)?;
             let inner = bundle

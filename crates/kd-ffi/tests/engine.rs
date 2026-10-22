@@ -18,8 +18,8 @@ fn ffi_result_equals_engine_result() {
     let (dir, lib) = (PathBuf::from(dir), PathBuf::from(lib));
     let text = "Je suis tellement content, merci pour tout !";
 
-    // ONNX Runtime allows one environment per process: drop the direct engine before opening
-    // the FFI one.
+    // The direct engine is dropped at the end of this block, before the FFI engine is opened
+    // (the ONNX Runtime environment is shared per process and reused).
     let direct = {
         let engine = Bundle::open(&dir)
             .unwrap()

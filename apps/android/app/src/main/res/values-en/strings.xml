@@ -16,5 +16,6 @@
     <string name="benchmark_running">Benchmark running…</string>
     <string name="benchmark_result">n = %1$d (warm-up %2$d)\np50 = %3$.1f ms\np95 = %4$.1f ms\nmax = %5$.1f ms</string>
     <string name="memory_line">Memory: native heap %1$d MB, Java heap %2$d MB, peak VmHWM %3$d MB (VmRSS %4$d MB)</string>
+    <string name="analysis_error">Analysis failed: %1$s</string>
     <string name="no_bench_messages">bench_messages.txt missing or empty.</string>
 </resources>

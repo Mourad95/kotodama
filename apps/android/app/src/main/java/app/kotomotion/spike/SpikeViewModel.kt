@@ -24,7 +24,7 @@ sealed interface EngineState {
 }
 
 /** One analysed message; [result] is null in fallback mode. Holds numbers only, never the text. */
-data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double)
+data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double, val errorClass: String? = null)
 
 /** A finished benchmark run. */
 data class BenchmarkUi(val stats: LatencyStats, val warmUp: Int, val memory: MemorySnapshot)
@@ -36,6 +36,7 @@ data class BenchmarkUi(val stats: LatencyStats, val warmUp: Int, val memory: Mem
 @OptIn(ExperimentalCoroutinesApi::class)
 class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     private val engineDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1)
+    @Volatile
     private var engine: EmotionEngine? = null
 
     val bundleDir: File = File(app.getExternalFilesDir(null) ?: app.filesDir, "bundle")
@@ -50,6 +51,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     var benchmarkRunning by mutableStateOf(false)
         private set
     var benchmarkMissing by mutableStateOf(false)
+        private set
+    var benchmarkError: String? by mutableStateOf(null)
         private set
 
     init {
@@ -83,8 +86,13 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     private fun analyseOnce(input: String): AnalysisUi {
         val e = engine ?: return AnalysisUi(null, 0.0)
         val t0 = System.nanoTime()
-        val result = e.analyze(input)
-        return AnalysisUi(result, (System.nanoTime() - t0) / 1e6)
+        return try {
+            val result = e.analyze(input)
+            AnalysisUi(result, (System.nanoTime() - t0) / 1e6)
+        } catch (ex: Exception) {
+            // Only the exception class (EngineException.*): never its text.
+            AnalysisUi(null, 0.0, ex.javaClass.simpleName)
+        }
     }
 
     fun runBenchmark() {
@@ -92,22 +100,29 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         if (benchmarkRunning) return
         benchmarkRunning = true
         benchmarkMissing = false
+        benchmarkError = null
         viewModelScope.launch {
-            val run = withContext(engineDispatcher) {
-                val messages = loadBenchMessages()
-                if (messages.isEmpty()) return@withContext null
-                val warmUp = minOf(WARM_UP, messages.size)
-                repeat(warmUp) { e.analyze(messages[it]) }
-                val latencies = messages.map { m ->
-                    val t0 = System.nanoTime()
-                    e.analyze(m)
-                    (System.nanoTime() - t0) / 1e6
+            try {
+                val run = withContext(engineDispatcher) {
+                    val messages = loadBenchMessages()
+                    if (messages.isEmpty()) return@withContext null
+                    val warmUp = minOf(WARM_UP, messages.size)
+                    repeat(warmUp) { e.analyze(messages[it]) }
+                    val latencies = messages.map { m ->
+                        val t0 = System.nanoTime()
+                        e.analyze(m)
+                        (System.nanoTime() - t0) / 1e6
+                    }
+                    BenchmarkUi(summarize(latencies), warmUp, memorySnapshot())
                 }
-                BenchmarkUi(summarize(latencies), warmUp, memorySnapshot())
+                benchmark = run
+                benchmarkMissing = run == null
+            } catch (ex: Exception) {
+                // Only the exception class: never its text.
+                benchmarkError = ex.javaClass.simpleName
+            } finally {
+                benchmarkRunning = false
             }
-            benchmark = run
-            benchmarkMissing = run == null
-            benchmarkRunning = false
         }
     }
 

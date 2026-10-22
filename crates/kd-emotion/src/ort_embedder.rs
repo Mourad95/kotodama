@@ -161,7 +161,8 @@ impl OrtEmbedder {
 
     /// Like [`OrtEmbedder::new`], but loads ONNX Runtime from `library` (for example the
     /// `libonnxruntime.so` an Android shell extracts from its package) instead of reading
-    /// `ORT_DYLIB_PATH`. The first library loaded in a process is kept for the whole process (later calls reuse it).
+    /// `ORT_DYLIB_PATH`. The first library loaded in a process is kept for the whole process
+    /// (later calls reuse it).
     pub fn with_library(
         library: &Path,
         model: &Path,
@@ -217,10 +218,10 @@ impl Embedder for OrtEmbedder {
         let attention_mask =
             Tensor::from_array((shape, mask)).map_err(|e| embedder_err("input", e))?;
 
-        let mut session = self
-            .session
-            .lock()
-            .map_err(|_| EmotionError::Embedder("session lock poisoned".into()))?;
+        // A poisoned lock means an earlier call panicked while holding the session. The session is
+        // only a handle to the loaded model and `run` keeps no state between calls, so we recover
+        // the guard instead of failing every later message with a permanent error.
+        let mut session = self.session.lock().unwrap_or_else(|e| e.into_inner());
         let outputs = session
             .run(ort::inputs![
                 "input_ids" => input_ids,
