@@ -1,9 +1,9 @@
 ---
-name: kotodama-conventions
-description: Load when naming anything in the Kotodama repository (crates, types, functions, files, branches, data keys, localisation keys, commits), when writing or reviewing code, docs or commit messages, or when unsure whether text should be English. Everything is English; one fixed vocabulary; French only in user-facing strings and in the historical emotion ids.
+name: kotomotion-conventions
+description: Load when naming anything in the KotoMotion repository (crates, types, functions, files, branches, data keys, localisation keys, commits), when writing or reviewing code, docs or commit messages, or when unsure whether text should be English. Everything is English; one fixed vocabulary; French only in user-facing strings and in the historical emotion ids.
 ---
 
-# Kotodama conventions
+# KotoMotion conventions
 
 The full rules are in `docs/conventions.md`. Read it when naming something new. The essentials:
 

@@ -1,6 +1,6 @@
 # Working in this repository
 
-Kotodama animates messages according to their emotion; the animation reaches full intensity
+KotoMotion animates messages according to their emotion; the animation reaches full intensity
 only when the message is well written. Mobile (iOS + Android), French first, then English.
 
 Read before changing anything, in this order: `docs/product.md` (what we build and what we do

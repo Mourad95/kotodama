@@ -1,4 +1,4 @@
-# Agent guide — how to work on Kotodama
+# Agent guide — how to work on KotoMotion
 
 For any AI agent (Claude Code or other) or new developer. Read in this order:
 
@@ -52,7 +52,7 @@ TypeScript/Python-oriented: use its Git and Python parts, and Rust conventions f
 ### Language conventions that stand in for the missing skills
 
 - **Naming and language:** everything is English, with a fixed vocabulary: see
-  `docs/conventions.md` and the `kotodama-conventions` skill.
+  `docs/conventions.md` and the `kotomotion-conventions` skill.
 
 ### Project skills (in this repository)
 
@@ -62,7 +62,7 @@ describe; copy them to the personal skills repository if you want them in other 
 
 | Skill | Use it for |
 |---|---|
-| `kotodama-conventions` | Naming and language rules (`docs/conventions.md`): English everywhere, fixed vocabulary. |
+| `kotomotion-conventions` | Naming and language rules (`docs/conventions.md`): English everywhere, fixed vocabulary. |
 | `rust-core` | Crate layering, traits at boundaries, errors, data-file parsing, tiny FFI, verification. |
 | `on-device-ml` | Embedding model, pruning, Q4, ONNX Runtime on mobile, parity, budgets, benchmark hygiene. |
 | `ios-swift-shell` | SwiftUI app, keyboard and iMessage extensions, XCFramework, memory limits, App Store. |

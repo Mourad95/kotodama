@@ -1,6 +1,6 @@
 ---
 name: gpu-effects
-description: Load when working on the Kotodama effects engine (kd-fx) — the wgpu renderer, themes and their JSON schema, particles, screen effects, text rendering and CJK fonts, golden-frame tests, export to GIF/WebP/MP4, frame-rate budgets, or accessibility of motion (reduced motion, photosensitivity). Covers how to keep themes as data and animations legible and safe.
+description: Load when working on the KotoMotion effects engine (kd-fx) — the wgpu renderer, themes and their JSON schema, particles, screen effects, text rendering and CJK fonts, golden-frame tests, export to GIF/WebP/MP4, frame-rate budgets, or accessibility of motion (reduced motion, photosensitivity). Covers how to keep themes as data and animations legible and safe.
 ---
 
 # Effects engine
@@ -54,5 +54,5 @@ renderer (ADR-0005); the renderer never contains theme-specific code.
 
 ## Legal
 Themes are original (rule L14): inspired by the genre's visual language only; never a character,
-design, logo, scene, text or name from an existing work. Exported assets contain only Kotodama-made
+design, logo, scene, text or name from an existing work. Exported assets contain only KotoMotion-made
 elements (L15).

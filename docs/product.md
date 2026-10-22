@@ -1,15 +1,15 @@
-# Product — what Kotodama is
+# Product — what KotoMotion is
 
 Read this first. It defines the product so that any agent or developer builds the right thing.
 
 ## One sentence
 
-Kotodama is a messaging companion that **animates each message according to its emotion** — in a
+KotoMotion is a messaging companion that **animates each message according to its emotion** — in a
 theme chosen by the user (anime-style first) — and **unlocks the full animation only when the
 message is correctly written**, so that teenagers want to spell and write well.
 
-The name comes from *kotodama* (言霊), the Japanese idea that words carry spirit and power: the
-better the words, the more power the message has.
+The name joins *koto* (言, "word", from *kotodama* 言霊, the Japanese idea that words carry spirit and
+power) and *motion*: the better the words, the more power the message has.
 
 ## The core loop
 

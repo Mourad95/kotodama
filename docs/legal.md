@@ -1,6 +1,6 @@
 # Legal register (track R3)
 
-This file freezes the legal constraints of Kotodama. A **rule** is binding for the code and the
+This file freezes the legal constraints of KotoMotion. A **rule** is binding for the code and the
 content from now on; a **gate** must be closed (with evidence) before the milestone it blocks.
 None of this is legal advice: every gate ends with a review by a qualified lawyer before public launch.
 
@@ -29,7 +29,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 
 | # | Rule / gate | Type | Blocks |
 |---|---|---|---|
-| L12 | The product name is **Kotodama** (decided). Search INPI and EUIPO (classes 9 and 42) and the App Store / Google Play before the first public release; same-name apps already exist (diary, voice changer), so the store title is "Kotodama – <descriptor>". | Gate | Public launch |
+| L12 | The product name is **KotoMotion** (decided 2026-10-22, replacing "Kotodama", which same-name apps already use). The owner reports the name as free; record the INPI and EUIPO searches (classes 9 and 42) and the App Store / Google Play check here, with their date, before the first public release. | Gate | Public launch |
 | L13 | Reserve the domain and the store/developer handles once the search is clean. | Gate | Public launch |
 
 ## 4. Copyright of content
@@ -37,7 +37,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 | # | Rule / gate | Type | Blocks |
 |---|---|---|---|
 | L14 | Themes are original. They may reuse the genre's visual language (speed lines, impact frames, auras, onomatopoeia) but never a character, design, logo, scene or text of an existing work, and never name one. | Rule | — |
-| L15 | Exported GIFs and stickers contain only Kotodama-made assets. | Rule | M5 |
+| L15 | Exported GIFs and stickers contain only KotoMotion-made assets. | Rule | M5 |
 | L16 | Emotion examples (`prototypes.json`) are written by us; no copied lyrics, quotes or third-party datasets without a recorded licence (ADR-0003, research track R1). | Rule | — |
 | L17 | Apache-2.0 weights remove licence obligations but the training data of the model is not public: ask the lawyer whether this residual provenance question matters for the product. | Gate | Public launch |
 

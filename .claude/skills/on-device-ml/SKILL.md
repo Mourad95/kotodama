@@ -1,6 +1,6 @@
 ---
 name: on-device-ml
-description: Load when working on the Kotodama emotion model — exporting or pruning the embedding model, quantization, ONNX Runtime on mobile, the few-shot head, the model bundle and manifest, parity tests, latency or memory budgets, or any benchmark. Covers the budgets, the licence rule, benchmark hygiene and what must be measured on a real phone.
+description: Load when working on the KotoMotion emotion model — exporting or pruning the embedding model, quantization, ONNX Runtime on mobile, the few-shot head, the model bundle and manifest, parity tests, latency or memory budgets, or any benchmark. Covers the budgets, the licence rule, benchmark hygiene and what must be measured on a real phone.
 ---
 
 # On-device ML
