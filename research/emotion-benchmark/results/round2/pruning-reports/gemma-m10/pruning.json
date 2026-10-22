@@ -1,0 +1,34 @@
+{
+  "source": "unsloth/embeddinggemma-300m",
+  "vocab_avant": 262145,
+  "vocab_apres": 82047,
+  "params_avant": 307581696,
+  "params_apres": 169267200,
+  "corpus_lignes": 207,
+  "wiki_lignes": 854355,
+  "min_count": 1,
+  "wiki_min_count": 10,
+  "validation": {
+    "messages_courts": {
+      "textes": 207,
+      "tokens_identiques_pct": 98.55,
+      "cosinus_moyen": 0.999438,
+      "cosinus_min": 0.917281,
+      "texte_le_plus_eloigne": "lmao that's hilarious"
+    },
+    "wikipedia_inedit_fr_en": {
+      "textes": 1920,
+      "tokens_identiques_pct": 86.3,
+      "cosinus_moyen": 0.995644,
+      "cosinus_min": 0.754565,
+      "texte_le_plus_eloigne": "Soybeans: 1,000"
+    },
+    "wikipedia_inedit_tout": {
+      "textes": 2000,
+      "tokens_identiques_pct": 85.65,
+      "cosinus_moyen": 0.995498,
+      "cosinus_min": 0.754565,
+      "texte_le_plus_eloigne": "Soybeans: 1,000"
+    }
+  }
+}

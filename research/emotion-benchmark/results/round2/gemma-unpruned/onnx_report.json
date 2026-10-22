@@ -1,0 +1,17 @@
+{
+  "modele": "models/unsloth__embeddinggemma-300m",
+  "config": "arm64",
+  "taille_fp32_mo": 1212.5,
+  "taille_int8_mo": 305.6,
+  "latence_fp32_ms": 18.28,
+  "latence_int8_ms": 11.42,
+  "cosinus_fp32_int8_moyen": 0.9639,
+  "cosinus_fp32_int8_min": 0.8538,
+  "fichier_int8": "onnx/model_qint8_arm64.onnx",
+  "taille_q4_mo": 190.7,
+  "latence_q4_ms": 10.28,
+  "cosinus_fp32_q4_moyen": 0.9682,
+  "cosinus_fp32_q4_min": 0.9321,
+  "fichier_q4": "onnx/model_q4.onnx",
+  "q4_portee": "MatMul + Gather (embeddings)"
+}

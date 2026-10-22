@@ -1,0 +1,149 @@
+{
+  "joie": {
+    "description": "joie, bonne nouvelle, rire, fierté d'une réussite, plaisir / happiness, good news, laughing, pride",
+    "examples": [
+      "trop heureuse j'ai été prise au lycée que je voulais",
+      "ptdr la vidéo de ton chien",
+      "jpp t'es trop con mdrrr",
+      "on part en vacances demain trop bien",
+      "j'ai eu 17 au contrôle d'histoire, je suis trop fier",
+      "c'est le meilleur cadeau de ma vie",
+      "OUIII ON A GAGNÉ",
+      "jsuis trop contant de ma note",
+      "trop cool la sortie au parc d'attraction",
+      "so happy right now",
+      "haha you're killing me",
+      "we won the cup!!",
+      "I passed!!! so proud of myself",
+      "lmaooo this is gold",
+      "yesss we're going on vacation",
+      "im so hapy rn"
+    ]
+  },
+  "colere": {
+    "description": "colère, agacement, frustration, injustice, reproche, ordre sec / anger, annoyance, unfair, blame",
+    "examples": [
+      "il me saoule à toujours copier sur moi",
+      "c'est n'importe quoi cette punition",
+      "FICHE-MOI LA PAIX",
+      "jsuis vénère, on m'a volé mon vélo",
+      "il me gonfle à force",
+      "t'es grave chiant franchement",
+      "tu m'as encore menti",
+      "j'en peux plus de ses remarques",
+      "c abusé ce qu'il a fait",
+      "I'm so mad at her right now",
+      "why do you always do this",
+      "this teacher is the worst",
+      "STOP TEXTING ME",
+      "don't ever talk to me like that again",
+      "you ruined everything",
+      "ur so anoying"
+    ]
+  },
+  "energie": {
+    "description": "motivation, hype, détermination, défi, prêt à se battre ou gagner / motivation, hype, determination, challenge",
+    "examples": [
+      "demain c'est le match on va les éclater",
+      "objectif 20 au bac, je lâche rien",
+      "on s'entraîne tous les jours cette semaine",
+      "je suis surmotivé pour la compèt",
+      "on y va à fond ce week-end",
+      "je suis chaud de ouf pour samedi",
+      "à bloc pour les révisions",
+      "ON VA LES DÉFONCER",
+      "je vais m'entrainé dur pour etre pris",
+      "let's goooo",
+      "we're gonna win this",
+      "time to grind, no excuses",
+      "I'm ready, bring it on",
+      "gym every morning starting tomorrow",
+      "LET'S GET IT",
+      "were gonna crush it"
+    ]
+  },
+  "suspense": {
+    "description": "curiosité, secret, rumeur, surprise, mystère, question qui intrigue / curiosity, secret, rumor, mystery",
+    "examples": [
+      "j'ai un secret de ouf à te raconter",
+      "tu devineras jamais qui sort avec qui",
+      "attends quoi ?? c'est vrai ??",
+      "y a un truc chelou qui se passe chez moi",
+      "appelle moi faut que je te raconte",
+      "t'as capté pourquoi elle est partie ?",
+      "j'ai entendu des trucs sur toi...",
+      "regarde ce que je viens de recevoir 👀",
+      "tu sais pas se qui c'est passé",
+      "you'll never guess what she said",
+      "omg wait for it...",
+      "something weird just happened",
+      "did you hear the rumor about Jake?",
+      "I have news. big news.",
+      "don't freak out but...",
+      "u wont beleive this"
+    ]
+  },
+  "tristesse": {
+    "description": "tristesse, deuil, perte, échec, rejet, solitude, peine / sadness, grief, loss, failure, loneliness",
+    "examples": [
+      "mes parents divorcent",
+      "j'ai pas été pris dans l'équipe",
+      "je me sens seul ces temps-ci",
+      "mon grand-père est à l'hôpital",
+      "mon hamster est mort hier",
+      "j'ai raté mon permis 😢",
+      "on m'a volé mon téléphone, toutes mes photos sont perdues",
+      "personne ne m'a invité à la soirée",
+      "jsuis trop bad depuis ce matin",
+      "ça me fait trop de peine",
+      "I feel so alone",
+      "she doesn't talk to me anymore",
+      "my uncle died last week",
+      "I got rejected again",
+      "everyone forgot about me",
+      "im so sad rn"
+    ]
+  },
+  "amour": {
+    "description": "amour, affection, tendresse, remerciement chaleureux, compliment à un proche / love, affection, warm thanks",
+    "examples": [
+      "ma meilleure amie pour la vie 💕",
+      "j'ai le plus beau des petits frères",
+      "t'es incroyable de m'avoir aidé",
+      "gros câlin, je suis là pour toi",
+      "t'es un ange",
+      "je t'aime plus que tout ❤️",
+      "t'es ma moitié",
+      "merci d'être venu, ça me touche",
+      "jtm fort ma cherie",
+      "love you to bits",
+      "you mean the world to me",
+      "thank you for everything",
+      "you're my favorite human",
+      "miss your face, love you",
+      "proud of you, always ❤️",
+      "luv u bestie"
+    ]
+  },
+  "calme": {
+    "description": "message neutre, pratique ou logistique, sans émotion forte / neutral, practical, logistics",
+    "examples": [
+      "on mange à quelle heure ?",
+      "je suis au bus",
+      "n'oublie pas ton maillot pour la piscine",
+      "d'accord je te dis",
+      "je prends le train de 17h",
+      "c'est quoi les devoirs en anglais ?",
+      "je t'envoie le pdf",
+      "rdv devant la boulangerie",
+      "tu peu me rappeler ce soir",
+      "ok np",
+      "meet at the library at 4",
+      "did you finish the essay",
+      "what's the wifi password",
+      "I'll call you after dinner",
+      "sure, sounds good",
+      "k see u there"
+    ]
+  }
+}

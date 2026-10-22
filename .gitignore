@@ -1,0 +1,24 @@
+/target
+**/*.rs.bk
+.DS_Store
+
+# Model artifacts are never committed: they are built by tools/model-export
+# and distributed as release assets.
+*.onnx
+*.onnx_data
+*.safetensors
+/bundle/
+/models/
+/pruned/
+research/**/models/
+research/**/pruned/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Native shells (build outputs)
+apps/ios/build/
+apps/android/build/
+apps/android/.gradle/

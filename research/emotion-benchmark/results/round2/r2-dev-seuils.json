@@ -1,0 +1,313 @@
+{
+  "env": {
+    "python": "3.11.15",
+    "machine": "arm64",
+    "system": "macOS-26.6.2-arm64-arm-64bit",
+    "processor": "arm",
+    "dataset": "dev_v1.csv",
+    "prototypes": "prototypes.json"
+  },
+  "results": [
+    {
+      "nom": "gemma-m3-q4-proto",
+      "n": 70,
+      "global": 90.0,
+      "global_tolerant": 91.4,
+      "fr": 87.8,
+      "en": 95.2,
+      "fautes": 83.3,
+      "sans_fautes": 90.6,
+      "n_fautes": 6,
+      "latence_ms": 22.8,
+      "rappel": {
+        "joie": 90.9,
+        "colere": 70.0,
+        "energie": 90.0,
+        "suspense": 90.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 100.0
+      },
+      "confiance_moy": 0.55,
+      "seuils": {
+        "0.2": {
+          "couverture": 93,
+          "precision": 93.8
+        },
+        "0.3": {
+          "couverture": 84,
+          "precision": 93.2
+        },
+        "0.4": {
+          "couverture": 73,
+          "precision": 94.1
+        },
+        "0.5": {
+          "couverture": 56,
+          "precision": 97.4
+        }
+      },
+      "erreurs": [
+        [
+          "J'EN AI MARRE DE CE PROF",
+          "colere",
+          "calme"
+        ],
+        [
+          "jsuis trop vénère là",
+          "colere",
+          "amour"
+        ],
+        [
+          "tu vas jamais croire ce qu'elle a fait",
+          "suspense",
+          "colere"
+        ],
+        [
+          "personne m'a invitée à son anniv",
+          "tristesse",
+          "calme"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ],
+        [
+          "I'm so hyped for the game",
+          "energie",
+          "joie"
+        ]
+      ],
+      "taille_mo": 115.9,
+      "remarque": "choix typé (proto), ONNX model_q4.onnx"
+    },
+    {
+      "nom": "gemma-m3-q4-fewshot",
+      "n": 70,
+      "global": 90.0,
+      "global_tolerant": 91.4,
+      "fr": 85.7,
+      "en": 100.0,
+      "fautes": 66.7,
+      "sans_fautes": 92.2,
+      "n_fautes": 6,
+      "latence_ms": 24.6,
+      "rappel": {
+        "joie": 81.8,
+        "colere": 70.0,
+        "energie": 100.0,
+        "suspense": 90.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 100.0
+      },
+      "confiance_moy": 0.54,
+      "seuils": {
+        "0.2": {
+          "couverture": 91,
+          "precision": 95.3
+        },
+        "0.3": {
+          "couverture": 87,
+          "precision": 95.1
+        },
+        "0.4": {
+          "couverture": 74,
+          "precision": 98.1
+        },
+        "0.5": {
+          "couverture": 53,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "jsuis grave content pour toi",
+          "joie",
+          "amour"
+        ],
+        [
+          "J'EN AI MARRE DE CE PROF",
+          "colere",
+          "calme"
+        ],
+        [
+          "jsuis trop vénère là",
+          "colere",
+          "amour"
+        ],
+        [
+          "personne m'a invitée à son anniv",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ],
+        [
+          "tu sais pas ce qui c'est passer a la récré",
+          "suspense",
+          "calme"
+        ]
+      ],
+      "taille_mo": 115.9,
+      "remarque": "choix typé (fewshot), ONNX model_q4.onnx"
+    },
+    {
+      "nom": "gemma-m10-q4-proto",
+      "n": 70,
+      "global": 88.6,
+      "global_tolerant": 90.0,
+      "fr": 87.8,
+      "en": 90.5,
+      "fautes": 83.3,
+      "sans_fautes": 89.1,
+      "n_fautes": 6,
+      "latence_ms": 24.7,
+      "rappel": {
+        "joie": 81.8,
+        "colere": 70.0,
+        "energie": 90.0,
+        "suspense": 90.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 100.0
+      },
+      "confiance_moy": 0.51,
+      "seuils": {
+        "0.2": {
+          "couverture": 89,
+          "precision": 93.5
+        },
+        "0.3": {
+          "couverture": 80,
+          "precision": 94.6
+        },
+        "0.4": {
+          "couverture": 66,
+          "precision": 95.7
+        },
+        "0.5": {
+          "couverture": 49,
+          "precision": 97.1
+        }
+      },
+      "erreurs": [
+        [
+          "J'EN AI MARRE DE CE PROF",
+          "colere",
+          "calme"
+        ],
+        [
+          "jsuis trop vénère là",
+          "colere",
+          "amour"
+        ],
+        [
+          "tu vas jamais croire ce qu'elle a fait",
+          "suspense",
+          "colere"
+        ],
+        [
+          "personne m'a invitée à son anniv",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ],
+        [
+          "lmao that's hilarious",
+          "joie",
+          "colere"
+        ],
+        [
+          "I'm so hyped for the game",
+          "energie",
+          "joie"
+        ]
+      ],
+      "taille_mo": 104.3,
+      "remarque": "choix typé (proto), ONNX model_q4.onnx"
+    },
+    {
+      "nom": "gemma-m10-q4-fewshot",
+      "n": 70,
+      "global": 90.0,
+      "global_tolerant": 91.4,
+      "fr": 87.8,
+      "en": 95.2,
+      "fautes": 83.3,
+      "sans_fautes": 90.6,
+      "n_fautes": 6,
+      "latence_ms": 24.1,
+      "rappel": {
+        "joie": 81.8,
+        "colere": 70.0,
+        "energie": 90.0,
+        "suspense": 100.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 100.0
+      },
+      "confiance_moy": 0.52,
+      "seuils": {
+        "0.2": {
+          "couverture": 91,
+          "precision": 93.8
+        },
+        "0.3": {
+          "couverture": 84,
+          "precision": 93.2
+        },
+        "0.4": {
+          "couverture": 67,
+          "precision": 95.7
+        },
+        "0.5": {
+          "couverture": 50,
+          "precision": 97.1
+        }
+      },
+      "erreurs": [
+        [
+          "jsuis grave content pour toi",
+          "joie",
+          "amour"
+        ],
+        [
+          "J'EN AI MARRE DE CE PROF",
+          "colere",
+          "calme"
+        ],
+        [
+          "jsuis trop vénère là",
+          "colere",
+          "amour"
+        ],
+        [
+          "personne m'a invitée à son anniv",
+          "tristesse",
+          "suspense"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ],
+        [
+          "I'm so hyped for the game",
+          "energie",
+          "joie"
+        ]
+      ],
+      "taille_mo": 104.3,
+      "remarque": "choix typé (fewshot), ONNX model_q4.onnx"
+    }
+  ]
+}

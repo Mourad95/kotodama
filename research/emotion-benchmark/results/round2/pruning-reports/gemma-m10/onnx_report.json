@@ -1,0 +1,17 @@
+{
+  "modele": "pruned/gemma-m10",
+  "config": "arm64",
+  "taille_fp32_mo": 659.3,
+  "taille_int8_mo": 167.2,
+  "latence_fp32_ms": 22.41,
+  "latence_int8_ms": 16.09,
+  "cosinus_fp32_int8_moyen": 0.9664,
+  "cosinus_fp32_int8_min": 0.9275,
+  "fichier_int8": "onnx/model_qint8_arm64.onnx",
+  "taille_q4_mo": 104.3,
+  "latence_q4_ms": 10.42,
+  "cosinus_fp32_q4_moyen": 0.9682,
+  "cosinus_fp32_q4_min": 0.9321,
+  "fichier_q4": "onnx/model_q4.onnx",
+  "q4_portee": "MatMul + Gather (embeddings)"
+}

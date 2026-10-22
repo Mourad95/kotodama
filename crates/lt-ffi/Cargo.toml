@@ -1,0 +1,19 @@
+[package]
+name = "lt-ffi"
+description = "Public facade of the Rust core, exposed to Swift and Kotlin via UniFFI"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lib]
+crate-type = ["lib", "staticlib", "cdylib"]
+
+[dependencies]
+lt-core.workspace = true
+lt-fx.workspace = true
+lt-grammar.workspace = true
+uniffi.workspace = true
+
+[lints]
+workspace = true

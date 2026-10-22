@@ -1,0 +1,11 @@
+{
+  "modele": "pruned/minilm-m3",
+  "config": "arm64",
+  "taille_fp32_mo": 152.7,
+  "taille_int8_mo": 38.9,
+  "latence_fp32_ms": 4.93,
+  "latence_int8_ms": 2.41,
+  "cosinus_fp32_int8_moyen": 0.9956,
+  "cosinus_fp32_int8_min": 0.9892,
+  "fichier_int8": "onnx/model_qint8_arm64.onnx"
+}

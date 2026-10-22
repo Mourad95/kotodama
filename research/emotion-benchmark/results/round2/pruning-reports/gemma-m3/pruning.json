@@ -1,0 +1,34 @@
+{
+  "source": "unsloth/embeddinggemma-300m",
+  "vocab_avant": 262145,
+  "vocab_apres": 106233,
+  "params_avant": 307581696,
+  "params_apres": 187842048,
+  "corpus_lignes": 207,
+  "wiki_lignes": 854355,
+  "min_count": 1,
+  "wiki_min_count": 3,
+  "validation": {
+    "messages_courts": {
+      "textes": 207,
+      "tokens_identiques_pct": 99.52,
+      "cosinus_moyen": 0.999916,
+      "cosinus_min": 0.982582,
+      "texte_le_plus_eloigne": "kiffer kiffe kiffé j'kiffe crush date ghosté ghoster vu laissé en vu bloqué story snap insta tiktok discord dm mp"
+    },
+    "wikipedia_inedit_fr_en": {
+      "textes": 1920,
+      "tokens_identiques_pct": 95.21,
+      "cosinus_moyen": 0.998943,
+      "cosinus_min": 0.781444,
+      "texte_le_plus_eloigne": " Archer-Daniels-Midland"
+    },
+    "wikipedia_inedit_tout": {
+      "textes": 2000,
+      "tokens_identiques_pct": 94.85,
+      "cosinus_moyen": 0.998885,
+      "cosinus_min": 0.781444,
+      "texte_le_plus_eloigne": " Archer-Daniels-Midland"
+    }
+  }
+}

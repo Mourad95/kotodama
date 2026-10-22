@@ -1,0 +1,106 @@
+# format : label|alt|typo|text
+joie||0|I got into the art program!!
+joie||0|lol that meme killed me
+joie||0|we're going to the beach this weekend 🌊
+joie||0|got an A on my history test, can't believe it
+joie||0|omg the concert was amazing
+joie||0|school's cancelled tomorrow because of the snow
+joie||0|haha you're the funniest person I know
+joie||0|my mom said I can get a puppy!!!
+joie||0|finally beat that boss level
+joie||0|best birthday ever, thank you guys 🎉
+joie|amour|0|had so much fun with you today
+joie||0|we came first in the science fair
+colere||0|WHY DOES NOBODY EVER LISTEN TO ME
+colere||0|he read my messages without asking
+colere||0|this is literally so unfair
+colere||0|stop talking behind my back
+colere||0|I'm so annoyed, the bus left without me again
+colere||0|you said you'd come and you didn't
+colere||0|she posted that pic of me on purpose
+colere||0|leave me alone
+colere||0|ugh my brother broke my headphones
+colere||0|the ref was a joke, we got robbed
+colere||0|I can't stand how he talks to me
+colere|tristesse|0|I can't believe you lied to me
+energie||0|tomorrow we're winning, no doubt
+energie||0|studying all night, nothing can stop me
+energie||0|let's gooo, game day 🔥
+energie||0|I'm signing up for the half marathon
+energie||0|we've got this team, all in
+energie||0|morning run at 6, who's in?
+energie||0|this year I'm going for straight A's
+energie|joie|0|can't wait to get on stage tonight!!
+energie||0|time to lock in for finals 💯
+energie||0|we're gonna destroy them on Saturday
+energie||0|training every day until tryouts
+energie||0|full send on the project tonight
+suspense||0|you'll never guess who was at the party
+suspense||0|I have something big to tell you...
+suspense||0|who posted that in the group chat??
+suspense||0|there's a weird car parked outside my house
+suspense||0|don't tell anyone but...
+suspense||0|why did the principal call my parents?
+suspense||0|did you see that story? what is going on
+suspense||0|someone left a note in my locker
+suspense||0|call me, I can't say it over text
+suspense||0|surprise tomorrow, not telling you anything 🤫
+suspense||0|wait did you hear that??
+suspense||0|the teacher said she has a big announcement
+tristesse||0|my grandma passed away last night
+tristesse||0|I didn't make the team
+tristesse||0|everyone was invited except me
+tristesse||0|my best friend is moving to another state
+tristesse||0|I feel like nobody gets me
+tristesse||0|we lost the final, so close
+tristesse||0|I've been crying all day
+tristesse|amour|0|I miss you since you moved away
+tristesse||0|my parents keep fighting
+tristesse||0|nobody wished me happy birthday
+tristesse||0|we broke up 💔
+tristesse||0|I failed the test again, I'm so dumb
+amour||0|you're my person, always
+amour||0|thank you for being there yesterday, it meant a lot
+amour||0|love you mom ❤️
+amour||0|goodnight sweetheart
+amour||0|you're so cute when you do that
+amour||0|I'll always have your back, promise
+amour||0|happy birthday to the best sister ever 🎂
+amour||0|sending you a big hug 🤗
+amour||0|I'm so lucky to have you
+amour||0|you're the best, thanks for everything
+amour||0|can't stop thinking about you
+amour||0|take care, love you
+calme||0|what time do you finish tomorrow?
+calme||0|I'm at my grandma's this weekend
+calme||0|don't forget the permission slip
+calme||0|do you have Tom's number?
+calme||0|which page is the homework on?
+calme||0|on the bus, be there in 10
+calme||0|my mom picks me up at 5:30
+calme||0|going to bed, see you tomorrow
+calme||0|ok I'll check and let you know
+calme||0|is it 8 or 9 tomorrow?
+calme||0|I uploaded the pics to the drive
+calme||0|we have gym first period
+joie||1|i got a A on my test im so happy
+joie||1|that was so funy lmaoo
+joie||1|were going to disneyland next weak!!
+colere||1|your so annoying stop it
+colere||1|he took my charger AGAIN im so mad
+colere||1|thats so unfare
+energie||1|were gonna win tommorow lets go
+energie||1|im so pumped for the game tonite
+energie||1|no excuses, practise every day
+suspense||1|you wont beleive what happend
+suspense||1|guess who texted me lol
+suspense||1|theres something wierd going on at school
+tristesse||1|my cat dyed this morning
+tristesse||1|i didnt make the team im so sad
+tristesse||1|i miss you alot
+amour||1|i love you soo much
+amour||1|your the best freind ever
+amour||1|thank you for alway being there
+calme||1|wat time is practise
+calme||1|im omw be there in 5
+calme||1|did u finish the homework

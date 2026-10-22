@@ -1,0 +1,34 @@
+{
+  "source": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "vocab_avant": 250002,
+  "vocab_apres": 43323,
+  "params_avant": 117653760,
+  "params_apres": 38275584,
+  "corpus_lignes": 207,
+  "wiki_lignes": 854355,
+  "min_count": 1,
+  "wiki_min_count": 3,
+  "validation": {
+    "messages_courts": {
+      "textes": 207,
+      "tokens_identiques_pct": 100.0,
+      "cosinus_moyen": 1.0,
+      "cosinus_min": 1.0,
+      "texte_le_plus_eloigne": "ok see you later"
+    },
+    "wikipedia_inedit_fr_en": {
+      "textes": 1920,
+      "tokens_identiques_pct": 98.54,
+      "cosinus_moyen": 0.99953,
+      "cosinus_min": 0.848329,
+      "texte_le_plus_eloigne": " Trafikverket official website"
+    },
+    "wikipedia_inedit_tout": {
+      "textes": 2000,
+      "tokens_identiques_pct": 98.0,
+      "cosinus_moyen": 0.99944,
+      "cosinus_min": 0.848329,
+      "texte_le_plus_eloigne": " Trafikverket official website"
+    }
+  }
+}

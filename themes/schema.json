@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://living-text.app/schemas/theme-v1.json",
+  "title": "Living Text theme (schema_version 1)",
+  "description": "Mirror of crates/lt-fx/src/lib.rs. The Rust types are authoritative; keep both in sync.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "name", "version", "emotions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "emotions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["calme"],
+      "properties": {
+        "joie": { "$ref": "#/$defs/motion" },
+        "colere": { "$ref": "#/$defs/motion" },
+        "energie": { "$ref": "#/$defs/motion" },
+        "suspense": { "$ref": "#/$defs/motion" },
+        "tristesse": { "$ref": "#/$defs/motion" },
+        "amour": { "$ref": "#/$defs/motion" },
+        "calme": { "$ref": "#/$defs/motion" }
+      }
+    }
+  },
+  "$defs": {
+    "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["levels"],
+      "properties": {
+        "levels": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            { "$ref": "#/$defs/level", "properties": { "level": { "const": 1 } } },
+            { "$ref": "#/$defs/level", "properties": { "level": { "const": 2 } } },
+            { "$ref": "#/$defs/level", "properties": { "level": { "const": 3 } } }
+          ]
+        }
+      }
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["level", "text_color", "letters"],
+      "properties": {
+        "level": { "enum": [1, 2, 3] },
+        "text_color": { "$ref": "#/$defs/color" },
+        "letters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "duration_ms", "stagger_ms"],
+          "properties": {
+            "kind": { "enum": ["rise", "pop", "impact", "charge", "type", "drip", "bloom", "glitch"] },
+            "duration_ms": { "type": "integer", "minimum": 1 },
+            "stagger_ms": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "particles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "count", "colors", "lifetime_ms"],
+            "properties": {
+              "kind": { "enum": ["confetti", "stars", "aura", "hearts", "petals", "rain", "embers"] },
+              "count": { "type": "integer", "minimum": 0 },
+              "colors": { "type": "array", "items": { "$ref": "#/$defs/color" }, "minItems": 1 },
+              "lifetime_ms": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "screen": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "duration_ms", "strength"],
+            "properties": {
+              "kind": { "enum": ["speed_lines", "impact_flash", "shockwave", "spotlight", "tint", "shake"] },
+              "at_ms": { "type": "integer", "minimum": 0 },
+              "duration_ms": { "type": "integer", "minimum": 1 },
+              "strength": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "onomatopoeias": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["text", "color", "scale"],
+            "properties": {
+              "text": { "type": "string", "minLength": 1 },
+              "at_ms": { "type": "integer", "minimum": 0 },
+              "color": { "$ref": "#/$defs/color" },
+              "scale": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}
