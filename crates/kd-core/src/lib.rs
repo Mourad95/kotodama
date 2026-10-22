@@ -139,7 +139,7 @@ pub fn softmax(logits: &[f32]) -> Vec<f32> {
 /// the "crazier" the animation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum Intensity {
-    /// Several errors: calm animation, faulty words glitch.
+    /// Several issues: calm animation, faulty words glitch.
     Low = 1,
     /// One error left.
     Medium = 2,
@@ -148,12 +148,12 @@ pub enum Intensity {
 }
 
 impl Intensity {
-    /// Intensity from the number of errors in a message.
+    /// Intensity from the number of issues in a message.
     ///
     /// Initial rule from the prototypes: 0 error → full, 1 → medium, 2+ → low.
     /// Kept deliberately simple; it will be tuned with beta data (roadmap M5).
-    pub fn from_error_count(errors: usize) -> Intensity {
-        match errors {
+    pub fn from_issue_count(issues: usize) -> Intensity {
+        match issues {
             0 => Intensity::Full,
             1 => Intensity::Medium,
             _ => Intensity::Low,
@@ -232,10 +232,10 @@ mod tests {
     }
 
     #[test]
-    fn intensity_from_errors() {
-        assert_eq!(Intensity::from_error_count(0), Intensity::Full);
-        assert_eq!(Intensity::from_error_count(1), Intensity::Medium);
-        assert_eq!(Intensity::from_error_count(5), Intensity::Low);
+    fn intensity_from_issues() {
+        assert_eq!(Intensity::from_issue_count(0), Intensity::Full);
+        assert_eq!(Intensity::from_issue_count(1), Intensity::Medium);
+        assert_eq!(Intensity::from_issue_count(5), Intensity::Low);
         assert_eq!(Intensity::Full.level(), 3);
     }
 }

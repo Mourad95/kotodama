@@ -49,7 +49,7 @@ impl GrammarChecker for NoopChecker {
 
 /// Animation intensity for a message, from its issues.
 pub fn intensity(issues: &[Issue]) -> Intensity {
-    Intensity::from_error_count(issues.len())
+    Intensity::from_issue_count(issues.len())
 }
 
 /// Applies one suggestion of one issue to `text`.
@@ -95,7 +95,7 @@ mod tests {
     }
 
     #[test]
-    fn fixing_errors_raises_intensity() {
+    fn fixing_issues_raises_intensity() {
         let text = "sa va a 18h";
         let issues = vec![issue(0, 2, "ça"), issue(6, 7, "à")];
         assert_eq!(intensity(&issues), Intensity::Low);

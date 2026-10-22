@@ -51,21 +51,28 @@ TypeScript/Python-oriented: use its Git and Python parts, and Rust conventions f
 
 ### Language conventions that stand in for the missing skills
 
-- **Rust:** `snake_case` functions/modules, `PascalCase` types, `SCREAMING_SNAKE_CASE` constants,
-  crates `kd-*`, `thiserror` for errors, `unsafe` forbidden, public items documented.
-- **Swift / Kotlin:** platform standard style, no business logic in shells.
-- **Data files:** emotion ids stay French (`joie`, `colere`, …); everything else English.
+- **Naming and language:** everything is English, with a fixed vocabulary: see
+  `docs/conventions.md` and the `kotodama-conventions` skill.
 
-### Skills worth writing next
+### Project skills (in this repository)
 
-The skills repository has no skill for this stack yet. Proposed, in order of value:
+The stack-specific skills missing from the personal repository live in `.claude/skills/` and are
+loaded automatically by Claude Code when working here. They are versioned with the code they
+describe; copy them to the personal skills repository if you want them in other projects.
 
-1. `rust-core` — workspace layout, error handling, UniFFI patterns, no-`unsafe` policy.
-2. `on-device-ml` — ONNX Runtime mobile, quantization, vocabulary pruning, parity testing, memory budgets.
-3. `ios-swift-shell` — keyboard and iMessage extension limits, memory, App Store review traps.
-4. `android-kotlin-shell` — IME service, commit-content API, background limits.
-5. `gpu-effects` — wgpu renderer, golden-frame tests, performance budgets.
-6. `minors-privacy` — GDPR for minors, store policies for kids and keyboards.
+| Skill | Use it for |
+|---|---|
+| `kotodama-conventions` | Naming and language rules (`docs/conventions.md`): English everywhere, fixed vocabulary. |
+| `rust-core` | Crate layering, traits at boundaries, errors, data-file parsing, tiny FFI, verification. |
+| `on-device-ml` | Embedding model, pruning, Q4, ONNX Runtime on mobile, parity, budgets, benchmark hygiene. |
+| `ios-swift-shell` | SwiftUI app, keyboard and iMessage extensions, XCFramework, memory limits, App Store. |
+| `android-kotlin-shell` | Compose app, IME service, commit-content API, cargo-ndk, Play requirements. |
+| `gpu-effects` | wgpu renderer, themes, golden frames, export, reduced motion and photosensitivity. |
+| `minors-privacy` | Privacy engineering checklist for a product used by teenagers. |
+
+Skills in this folder describe constraints that were researched but not yet proven on devices.
+Statements about platform limits are marked "verify": check current documentation and measure on a
+real phone before relying on them, then update the skill with what you learned.
 
 ## Working loop for any task
 

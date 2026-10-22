@@ -14,10 +14,10 @@ pub fn core_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
 }
 
-/// Animation intensity level (1 to 3) for a number of writing errors.
+/// Animation intensity level (1 to 3) for a number of writing issues.
 #[uniffi::export]
-pub fn intensity_level(errors: u32) -> u8 {
-    kd_core::Intensity::from_error_count(errors as usize).level()
+pub fn intensity_level(issue_count: u32) -> u8 {
+    kd_core::Intensity::from_issue_count(issue_count as usize).level()
 }
 
 /// Validates a theme file. Returns `None` if valid, or the error message.

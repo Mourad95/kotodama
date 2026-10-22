@@ -4,8 +4,8 @@ Kotodama animates messages according to their emotion; the animation reaches ful
 only when the message is well written. Mobile (iOS + Android), French first, then English.
 
 Read before changing anything, in this order: `docs/product.md` (what we build and what we do
-not), this file, `docs/agent-guide.md` (workflow, definition of done, and which of the owner's
-personal skills to apply), `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/`, `docs/legal.md`.
+not), this file, `docs/agent-guide.md` (workflow, definition of done, and which skills to apply),
+`docs/conventions.md` (naming, all in English), `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/`, `docs/legal.md`.
 
 ## Language
 
@@ -23,6 +23,7 @@ Everything in the repository is in **English**: code, comments, docs, ADRs, comm
 | `crates/kd-ffi` | the only crate the native shells link against (UniFFI) |
 | `apps/ios`, `apps/android` | thin native shells |
 | `themes/` | theme JSON files + `schema.json` |
+| `.claude/skills/` | project skills for agents (conventions, Rust core, on-device ML, shells, effects, privacy) |
 | `tools/model-export/` | Python pipeline producing the model bundle |
 | `research/` | benchmarks, protocols and results — reproducible, never edited after the fact |
 

@@ -103,7 +103,7 @@ pub enum LetterKind {
     Drip,
     /// Bloom from a rotated small scale.
     Bloom,
-    /// Faulty word glitch (used for words with errors).
+    /// Faulty word glitch (used for words with issues).
     Glitch,
 }
 
