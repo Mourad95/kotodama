@@ -74,6 +74,10 @@ a new level can be added by editing JSON only.
   JavaScript engine (QuickJS); English provider = Harper (native Rust) later.
 - Intensity scoring: errors per word → intensity level → effects.
 - Correction UX data: error spans, suggestion, one-line explanation.
+- **Licence gate (before any integration):** Grammalecte's engine is believed to be GPL-3.0, which
+  may be incompatible with store distribution of a closed app. Confirm the licence of the engine
+  and of the dictionaries; if incompatible, pick an alternative French provider (or a clean-room
+  rule set) and record it in ADR-0006.
 
 **Exit criteria:** French checks in ≤ 50 ms per message on device; intensity changes live in the M3 prototype.
 
@@ -105,7 +109,7 @@ Depends on research track R2 (distilled small model). The iMessage extension can
 |---|---|---|
 | R1 — Data | Better prototypes and an honest test set | `prototypes` v2 written without looking at `test_v2` errors; `test_v3` from real teen messages (with consent) |
 | R2 — Distillation | A ≤ 40 MB model for the iOS keyboard | Small model fine-tuned on messages labeled by the big model; must reach the quality bar |
-| R3 — Legal | Can we ship? | Gemma Terms of Use review, GDPR for minors (parental consent under 15 in France), store policies |
+| R3 — Legal | Can we ship? | Gemma Terms of Use review, GDPR for minors (parental consent under 15 in France), store policies, third-party licences (Grammalecte GPL question, Japanese fonts must allow embedding, e.g. Noto/OFL), trademark search for "Kotodama" (INPI/EUIPO, classes 9 and 42) |
 | R4 — Product | First platform, pricing, school/parent offers | Data on target devices, interviews |
 
 ## Quality bar (emotion engine)
