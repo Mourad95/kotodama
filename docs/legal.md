@@ -10,7 +10,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 |---|---|---|---|
 | L1 | Message text is analysed on device only; it is never sent, logged or stored off device (ADR-0007). No analytics or crash SDK may receive message content. | Rule | — |
 | L2 | No advertising SDK and no third-party tracker in any shell. | Rule | — |
-| L3 | Age gate and parental consent under 15 (France, GDPR art. 8) designed with the lawyer before the first external beta. | Gate | M5 beta |
+| L3 | Age gate and parental consent under 15 (France, GDPR art. 8): **to be confirmed with the lawyer** whether they are needed at all, since the app processes no personal data (L18, L24: nothing leaves the phone, nothing is kept, no account). Until confirmed, design for the stricter case; the store rules for apps aimed at children (L6) may require something regardless of the GDPR. | Gate | M5 beta |
 | L4 | Privacy policy and store privacy labels written from what the code really does, and kept in sync by review at each release. | Gate | M5 beta |
 | L5 | iOS keyboard "Allow Full Access" is requested only if a feature truly needs it; the justification is written before M7. | Gate | M7 |
 | L6 | Apple and Google rules for apps aimed at children and for third-party keyboards checked against the final design. | Gate | M5, M6, M7 |
