@@ -14,6 +14,14 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 | L4 | Privacy policy and store privacy labels written from what the code really does, and kept in sync by review at each release. | Gate | M5 beta |
 | L5 | iOS keyboard "Allow Full Access" is requested only if a feature truly needs it; the justification is written before M7. | Gate | M7 |
 | L6 | Apple and Google rules for apps aimed at children and for third-party keyboards checked against the final design. | Gate | M5, M6, M7 |
+| L18 | **No message content is kept.** No text, word, fragment, correction, emotion result or keystroke history is stored beyond the screen session, logged, or sent anywhere. Nothing derived from a message (embedding, score, error list) is persisted either. | Rule | — |
+| L19 | **Monitoring is technical and anonymous only:** crash type and stack, app version, OS version, device class, model load and inference latency, memory. No message content, no account, no advertising or device identifier. Use the store's built-in reporting (Play Console vitals, App Store crash reports) first; any monitoring SDK needs an ADR and must be configured to collect nothing else. | Rule | — |
+| L20 | Android: auto-backup is disabled, so nothing app-side is copied to the cloud. | Rule | — |
+| L21 | The model is shipped with the app through the store (APK or Play Asset Delivery; App Store equivalent), not downloaded from our own server. | Rule | — |
+| L22 | Beta feedback and support data are kept apart from the app, collected only when the user chooses to send it, and never include message content unless the user pastes it. | Rule | M5 beta |
+| L23 | No new test set (test_v3) is collected from real teenagers without parental consent. Until then test data is written by us. | Gate | test_v3 |
+| L24 | No magic-link or email sign-in in v1: the app works without any account. | Rule | — |
+| L25 | Export of an animation goes through the system share sheet, which the user controls; the app has no upload feature of its own. | Rule | — |
 
 ## 2. Third-party licences
 
@@ -50,3 +58,4 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 ## Evidence log
 
 - **L7 closed, 2026-10-22.** Debian copyright file for Grammalecte lists GPL-3 as the default licence (MPL-2.0 only for a few files); grammalecte.net states GPL 3. The Hunspell French "revised" package lists MPL-2.0 (Arch Linux package metadata). Decision: ADR-0009.
+- **L18-L25 recorded, 2026-10-22.** Decided by the owner: nothing about a message is kept; only anonymous technical monitoring; MPL-2.0 for the spelling dictionary accepted (ADR-0009). The owner does not want to pursue the EmbeddingGemma 2 model-card question (Prohibited Use Policy) with a lawyer for now; the weights are Apache-2.0 (ADR-0010, ADR-0011).
