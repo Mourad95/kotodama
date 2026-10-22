@@ -7,7 +7,7 @@ Animation intensity depends on spelling and grammar. French first, English next,
 Teenagers often mix languages within a conversation.
 
 ## Decision
-`lt-grammar` exposes a `GrammarChecker` trait; providers are selected per message by a language
+`kd-grammar` exposes a `GrammarChecker` trait; providers are selected per message by a language
 detector:
 - French: **Grammalecte** (open source, JavaScript) run inside an embedded QuickJS engine.
 - English: **Harper** (open source, Rust, offline).

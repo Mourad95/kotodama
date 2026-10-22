@@ -10,7 +10,7 @@ on both platforms, and shippable without an app update.
 ## Decision
 A theme is a versioned JSON document validated by `themes/schema.json`. For each emotion and each
 intensity level (1–3) it declares letter entrances, particles, screen effects, onomatopoeias,
-palette and optional named WGSL shaders. `lt-fx` interprets themes; no theme-specific logic in code.
+palette and optional named WGSL shaders. `kd-fx` interprets themes; no theme-specific logic in code.
 Themes may evoke a genre (e.g. Japanese animation codes: speed lines, impact frames,
 onomatopoeias) but never reproduce characters, logos or recognizable assets of existing works.
 

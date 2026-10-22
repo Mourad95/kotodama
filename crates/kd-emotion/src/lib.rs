@@ -5,7 +5,7 @@
 //! per emotion. The ONNX Runtime embedder arrives in milestone M1; until then the engine is fully
 //! testable with any [`Embedder`].
 
-use lt_core::{softmax, Emotion, EmotionScores};
+use kd_core::{softmax, Emotion, EmotionScores};
 use serde::Deserialize;
 use thiserror::Error;
 

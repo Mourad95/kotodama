@@ -1,16 +1,14 @@
 [package]
-name = "lt-emotion"
-description = "Typed-choice emotion engine"
+name = "kd-grammar"
+description = "Grammar and spelling providers"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish.workspace = true
 
 [dependencies]
-lt-core.workspace = true
+kd-core.workspace = true
 serde.workspace = true
-serde_json.workspace = true
-thiserror.workspace = true
 
 [lints]
 workspace = true

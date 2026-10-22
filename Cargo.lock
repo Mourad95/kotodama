@@ -217,6 +217,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
+name = "kd-core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "kd-emotion"
+version = "0.1.0"
+dependencies = [
+ "kd-core",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "kd-ffi"
+version = "0.1.0"
+dependencies = [
+ "kd-core",
+ "kd-fx",
+ "kd-grammar",
+ "uniffi",
+]
+
+[[package]]
+name = "kd-fx"
+version = "0.1.0"
+dependencies = [
+ "kd-core",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "kd-grammar"
+version = "0.1.0"
+dependencies = [
+ "kd-core",
+ "serde",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.191"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -233,52 +279,6 @@ name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
-
-[[package]]
-name = "lt-core"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "lt-emotion"
-version = "0.1.0"
-dependencies = [
- "lt-core",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "lt-ffi"
-version = "0.1.0"
-dependencies = [
- "lt-core",
- "lt-fx",
- "lt-grammar",
- "uniffi",
-]
-
-[[package]]
-name = "lt-fx"
-version = "0.1.0"
-dependencies = [
- "lt-core",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "lt-grammar"
-version = "0.1.0"
-dependencies = [
- "lt-core",
- "serde",
-]
 
 [[package]]
 name = "memchr"

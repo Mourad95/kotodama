@@ -17,13 +17,13 @@ pub fn core_version() -> String {
 /// Animation intensity level (1 to 3) for a number of writing errors.
 #[uniffi::export]
 pub fn intensity_level(errors: u32) -> u8 {
-    lt_core::Intensity::from_error_count(errors as usize).level()
+    kd_core::Intensity::from_error_count(errors as usize).level()
 }
 
 /// Validates a theme file. Returns `None` if valid, or the error message.
 #[uniffi::export]
 pub fn validate_theme(json: String) -> Option<String> {
-    lt_fx::Theme::from_json(&json).err().map(|e| e.to_string())
+    kd_fx::Theme::from_json(&json).err().map(|e| e.to_string())
 }
 
 #[cfg(test)]

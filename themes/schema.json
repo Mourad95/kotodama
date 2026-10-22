@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://living-text.app/schemas/theme-v1.json",
-  "title": "Living Text theme (schema_version 1)",
-  "description": "Mirror of crates/lt-fx/src/lib.rs. The Rust types are authoritative; keep both in sync.",
+  "$id": "https://kotodama.app/schemas/theme-v1.json",
+  "title": "Kotodama theme (schema_version 1)",
+  "description": "Mirror of crates/kd-fx/src/lib.rs. The Rust types are authoritative; keep both in sync.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "id", "name", "version", "emotions"],

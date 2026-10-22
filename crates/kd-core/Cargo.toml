@@ -1,6 +1,6 @@
 [package]
-name = "lt-core"
-description = "Shared types and pure logic for Living Text"
+name = "kd-core"
+description = "Shared types and pure logic for Kotodama"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,4 +1,4 @@
-//! Shared types and pure logic for Living Text.
+//! Shared types and pure logic for Kotodama.
 //!
 //! This crate has no internal dependency and no I/O: it defines the vocabulary every other crate
 //! speaks (emotions, scores, intensity, languages) and the small pure functions around it.

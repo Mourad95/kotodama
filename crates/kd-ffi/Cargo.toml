@@ -1,5 +1,5 @@
 [package]
-name = "lt-ffi"
+name = "kd-ffi"
 description = "Public facade of the Rust core, exposed to Swift and Kotlin via UniFFI"
 version.workspace = true
 edition.workspace = true
@@ -10,9 +10,9 @@ publish.workspace = true
 crate-type = ["lib", "staticlib", "cdylib"]
 
 [dependencies]
-lt-core.workspace = true
-lt-fx.workspace = true
-lt-grammar.workspace = true
+kd-core.workspace = true
+kd-fx.workspace = true
+kd-grammar.workspace = true
 uniffi.workspace = true
 
 [lints]

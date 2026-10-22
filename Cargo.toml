@@ -9,10 +9,10 @@ license = "LicenseRef-Proprietary"
 publish = false
 
 [workspace.dependencies]
-lt-core = { path = "crates/lt-core" }
-lt-emotion = { path = "crates/lt-emotion" }
-lt-grammar = { path = "crates/lt-grammar" }
-lt-fx = { path = "crates/lt-fx" }
+kd-core = { path = "crates/kd-core" }
+kd-emotion = { path = "crates/kd-emotion" }
+kd-grammar = { path = "crates/kd-grammar" }
+kd-fx = { path = "crates/kd-fx" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"

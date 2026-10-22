@@ -1,6 +1,6 @@
 # Model export
 
-Builds the **model bundle** loaded by `lt-emotion` (see `docs/architecture.md`). Milestone M1.
+Builds the **model bundle** loaded by `kd-emotion` (see `docs/architecture.md`). Milestone M1.
 
 ## Pipeline
 

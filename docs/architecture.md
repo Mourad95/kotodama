@@ -22,30 +22,30 @@
 └──────────────────────────────┬──────────────────────────────────────────┘
                                │ UniFFI (generated bindings)
 ┌──────────────────────────────▼──────────────────────────────────────────┐
-│ lt-ffi        public facade: Engine::analyze, render, export            │
+│ kd-ffi        public facade: Engine::analyze, render, export            │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ lt-emotion    tokenizer + ONNX model + few-shot head → EmotionScores     │
-│ lt-grammar    GrammarChecker providers (FR: Grammalecte, EN: Harper)     │
-│ lt-fx         theme data + wgpu renderer + exporters (WebP/MP4/GIF)      │
-│ lt-core       shared types and pure logic (emotions, intensity, scoring) │
+│ kd-emotion    tokenizer + ONNX model + few-shot head → EmotionScores     │
+│ kd-grammar    GrammarChecker providers (FR: Grammalecte, EN: Harper)     │
+│ kd-fx         theme data + wgpu renderer + exporters (WebP/MP4/GIF)      │
+│ kd-core       shared types and pure logic (emotions, intensity, scoring) │
 └─────────────────────────────────────────────────────────────────────────┘
         ▲ data files: model bundle · themes/*.json · tips/<lang>.json
 ```
 
-Dependency rule: `lt-core` depends on nothing internal. `lt-emotion`, `lt-grammar` and `lt-fx`
-depend only on `lt-core`. `lt-ffi` is the only crate that depends on all of them and the only one
+Dependency rule: `kd-core` depends on nothing internal. `kd-emotion`, `kd-grammar` and `kd-fx`
+depend only on `kd-core`. `kd-ffi` is the only crate that depends on all of them and the only one
 the shells link against.
 
 ## Data flow for one message
 
 ```
-text ──► lt-grammar.check(text, lang) ──► issues (spans, suggestions)
+text ──► kd-grammar.check(text, lang) ──► issues (spans, suggestions)
   │                                            │
-  └──► lt-emotion.analyze(text) ──► scores ────┤
+  └──► kd-emotion.analyze(text) ──► scores ────┤
                                                ▼
-                           lt-core.intensity(word_count, issues)
+                           kd-core.intensity(word_count, issues)
                                                ▼
-               lt-fx.play(theme, scores.choice, intensity) ──► frames / export
+               kd-fx.play(theme, scores.choice, intensity) ──► frames / export
 ```
 
 - Analysis runs on a **typing pause** (debounce ~300 ms), not on each keystroke.
@@ -83,7 +83,7 @@ message (teenagers mix French and English). Pedagogical one-line tips live in `t
 ## Repository layout
 
 ```
-crates/            Rust workspace (lt-core, lt-emotion, lt-grammar, lt-fx, lt-ffi)
+crates/            Rust workspace (kd-core, kd-emotion, kd-grammar, kd-fx, kd-ffi)
 apps/ios/          Swift shell (Xcode project added in M2)
 apps/android/      Kotlin shell (Gradle project added in M2)
 themes/            theme data + JSON Schema

@@ -1,6 +1,6 @@
 # Working in this repository
 
-Living Text animates messages according to their emotion; the animation reaches full intensity
+Kotodama animates messages according to their emotion; the animation reaches full intensity
 only when the message is well written. Mobile (iOS + Android), French first, then English.
 
 Read before changing anything: `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/`.
@@ -14,11 +14,11 @@ Everything in the repository is in **English**: code, comments, docs, ADRs, comm
 
 | Path | What |
 |---|---|
-| `crates/lt-core` | shared types and pure logic; depends on nothing internal |
-| `crates/lt-emotion` | typed-choice emotion engine (embedder + few-shot head) |
-| `crates/lt-grammar` | grammar providers behind `GrammarChecker` |
-| `crates/lt-fx` | theme data (+ wgpu renderer from M3) |
-| `crates/lt-ffi` | the only crate the native shells link against (UniFFI) |
+| `crates/kd-core` | shared types and pure logic; depends on nothing internal |
+| `crates/kd-emotion` | typed-choice emotion engine (embedder + few-shot head) |
+| `crates/kd-grammar` | grammar providers behind `GrammarChecker` |
+| `crates/kd-fx` | theme data (+ wgpu renderer from M3) |
+| `crates/kd-ffi` | the only crate the native shells link against (UniFFI) |
 | `apps/ios`, `apps/android` | thin native shells |
 | `themes/` | theme JSON files + `schema.json` |
 | `tools/model-export/` | Python pipeline producing the model bundle |
@@ -34,10 +34,10 @@ cargo test --all
 
 ## Rules
 
-1. **Tiny FFI.** Add to `lt-ffi` only what a shell truly needs; plain data types only.
+1. **Tiny FFI.** Add to `kd-ffi` only what a shell truly needs; plain data types only.
 2. **Behaviour is data.** A new theme, emotion example or tip is a data change, never theme- or
    emotion-specific code. If the schema cannot express it, change the schema deliberately
-   (Rust types in `lt-fx` are authoritative; mirror them in `themes/schema.json`).
+   (Rust types in `kd-fx` are authoritative; mirror them in `themes/schema.json`).
 3. **On device only.** No network call in the analysis path; message text never leaves the phone (ADR-0007).
 4. **Benchmark hygiene.** `research/emotion-benchmark/test_v2.csv` is for measurement only: never
    tune prototypes, thresholds or pruning on it. Its checksums are verified in CI.

@@ -4,7 +4,7 @@
 //! which particles and screen effects play, which onomatopoeias appear. This crate parses and
 //! validates themes; the `wgpu` renderer that interprets them arrives in milestone M3.
 
-use lt_core::{Emotion, Intensity};
+use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use thiserror::Error;

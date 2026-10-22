@@ -1,6 +1,6 @@
-# Living Text
+# Kotodama
 
-Messages that come alive. Living Text detects the emotion of a message — joy, anger, energy,
+Messages that come alive. Kotodama detects the emotion of a message — joy, anger, energy,
 suspense, sadness, love, calm — and animates it with the user's chosen theme. The better the
 message is written, the wilder the animation: spelling and grammar become a superpower for
 teenagers instead of a chore.

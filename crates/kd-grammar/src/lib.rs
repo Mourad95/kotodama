@@ -2,9 +2,9 @@
 //!
 //! One provider per language behind the [`GrammarChecker`] trait: Grammalecte for French
 //! (embedded JavaScript engine) and Harper for English arrive in milestone M4. The scoring that
-//! turns issues into animation intensity lives in `lt-core`.
+//! turns issues into animation intensity lives in `kd-core`.
 
-use lt_core::{Intensity, Language};
+use kd_core::{Intensity, Language};
 use serde::{Deserialize, Serialize};
 
 /// One spelling or grammar issue in a message.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Living Text is a mobile app that animates messages according to the emotion they carry.
+Kotodama is a mobile app that animates messages according to the emotion they carry.
 The animation only reaches full intensity when the message is well written, which turns
 spelling and grammar into a game for teenagers. French first, then English.
 
@@ -39,8 +39,8 @@ Research tracks run in parallel (see below).
   (transformer + mean pooling + dense layers + normalization), quantize it to Q4, train the
   few-shot head on `prototypes.json`, and write a **model bundle**:
   `model_q4.onnx`, `tokenizer.json`, `emotion_head.json`, `parity.json`.
-- `lt-emotion` crate: tokenizer (`tokenizers`) + ONNX Runtime (`ort`) + head + confidence + threshold.
-- CLI `lt analyze "message"` for manual testing.
+- `kd-emotion` crate: tokenizer (`tokenizers`) + ONNX Runtime (`ort`) + head + confidence + threshold.
+- CLI `kd analyze "message"` for manual testing.
 
 **Exit criteria:**
 - Parity with Python: probabilities match `parity.json` within 1e-3 on all reference messages.
@@ -61,7 +61,7 @@ not per keystroke), peak memory ≤ 300 MB, operators supported.
 
 ## M3 — Effects engine prototype
 
-- `lt-fx` with `wgpu` (Metal / Vulkan) and `cosmic-text` for glyph layout.
+- `kd-fx` with `wgpu` (Metal / Vulkan) and `cosmic-text` for glyph layout.
 - Theme format v1 (`themes/*/theme.json`, JSON Schema validated).
 - One theme (anime), one emotion (energy), three intensity levels, running in both shells.
 
@@ -70,7 +70,7 @@ a new level can be added by editing JSON only.
 
 ## M4 — Grammar loop
 
-- `lt-grammar`: provider interface; French provider = Grammalecte running in an embedded
+- `kd-grammar`: provider interface; French provider = Grammalecte running in an embedded
   JavaScript engine (QuickJS); English provider = Harper (native Rust) later.
 - Intensity scoring: errors per word → intensity level → effects.
 - Correction UX data: error spans, suggestion, one-line explanation.
