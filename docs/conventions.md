@@ -32,7 +32,7 @@ is always an `issue`.
 | Item | Style | Example |
 |---|---|---|
 | crates | `kd-<name>`, lib name `kd_<name>` | `kd-emotion` |
-| modules, files, functions, variables | `snake_case` | `from_error_count` |
+| modules, files, functions, variables | `snake_case` | `from_issue_count` |
 | types, traits, enum variants | `PascalCase` | `EmotionScores`, `Embedder` |
 | constants, statics | `SCREAMING_SNAKE_CASE` | `DEFAULT_THRESHOLD` |
 | traits | no `I` prefix; name the capability | `GrammarChecker`, not `IChecker` |
