@@ -108,7 +108,8 @@ def zeroshot():
 
 
 # ---------------------------------------------------------------- choix typé
-def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_dim: int | None = None):
+def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_dim: int | None = None,
+               prefix: str | None = None):
     """Choix typé local : modèle d'embeddings + prototypes.json.
 
     source       : id Hugging Face ou dossier local (ex. modèle élagué).
@@ -116,6 +117,7 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_di
                    ou "fewshot" (régression logistique apprise sur les exemples).
     onnx_file    : chemin relatif d'un fichier ONNX dans le dossier (ex. INT8) → backend ONNX Runtime.
     truncate_dim : troncature Matryoshka (ex. 512, 256), renormalisée ensuite.
+    prefix       : fixed text prepended to every input (model's documented instruction format).
     """
     import numpy as np
     from sentence_transformers import SentenceTransformer
@@ -139,7 +141,8 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_di
         model = SentenceTransformer(str(local), truncate_dim=truncate_dim)
         taille = size_mb(local)
 
-    prefix = "query: " if "e5" in source.lower() else ""
+    if prefix is None:
+        prefix = "query: " if "e5" in source.lower() else ""
     prompt_name = "Classification" if "Classification" in (getattr(model, "prompts", None) or {}) else None
     protos = json.loads(PROTOTYPES_PATH.read_text(encoding="utf-8"))
 
@@ -193,6 +196,14 @@ GEMMA = "google/embeddinggemma-300m"
 MINILM = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 E5 = "intfloat/multilingual-e5-small"
 GEMMA2 = "google/embeddinggemma-2"  # Apache-2.0 (ADR-0010); text-only use, round 3
+# Round 3b: fully open alternatives (OSI licence, no extra use policy).
+E5_BASE = "intfloat/multilingual-e5-base"  # MIT
+GRANITE = "ibm-granite/granite-embedding-278m-multilingual"  # Apache-2.0
+GRANITE_S = "ibm-granite/granite-embedding-107m-multilingual"  # Apache-2.0
+BGE_M3 = "BAAI/bge-m3"  # MIT
+QWEN3 = "Qwen/Qwen3-Embedding-0.6B"  # Apache-2.0
+# Qwen3-Embedding expects a one-line task instruction (model card format); fixed, not tuned.
+QWEN3_PREFIX = "Instruct: Classify the emotion expressed in the message\nQuery: "
 
 CANDIDATES = {
     "gemma-proto": lambda: embeddings(GEMMA, "proto"),
@@ -201,6 +212,11 @@ CANDIDATES = {
     "gemma2-fewshot": lambda: embeddings(GEMMA2, "fewshot"),
     "gemma2-fewshot-512": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=512),
     "gemma2-fewshot-256": lambda: embeddings(GEMMA2, "fewshot", truncate_dim=256),
+    "e5base-fewshot": lambda: embeddings(E5_BASE, "fewshot"),
+    "granite-fewshot": lambda: embeddings(GRANITE, "fewshot"),
+    "granite-small-fewshot": lambda: embeddings(GRANITE_S, "fewshot"),
+    "bgem3-fewshot": lambda: embeddings(BGE_M3, "fewshot"),
+    "qwen3-fewshot": lambda: embeddings(QWEN3, "fewshot", prefix=QWEN3_PREFIX),
     "minilm-proto": lambda: embeddings(MINILM, "proto"),
     "minilm-fewshot": lambda: embeddings(MINILM, "fewshot"),
     "e5small-proto": lambda: embeddings(E5, "proto"),
