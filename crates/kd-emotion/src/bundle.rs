@@ -163,16 +163,36 @@ impl Bundle {
     }
 
     /// Builds the engine: loads the model and tokenizer and applies the manifest threshold.
+    /// ONNX Runtime is loaded from `ORT_DYLIB_PATH`.
     #[cfg(feature = "ort")]
     pub fn into_engine(
         self,
     ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
-        let embedder = crate::ort_embedder::OrtEmbedder::new(
-            &self.path(MODEL_FILE),
-            &self.path(TOKENIZER_FILE),
-            &self.manifest.prompt,
-            self.manifest.embedding_dim,
-        )?;
+        self.build_engine(None)
+    }
+
+    /// Like [`Bundle::into_engine`], but loads ONNX Runtime from the given library path.
+    #[cfg(feature = "ort")]
+    pub fn into_engine_with_library(
+        self,
+        library: &Path,
+    ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
+        self.build_engine(Some(library))
+    }
+
+    #[cfg(feature = "ort")]
+    fn build_engine(
+        self,
+        library: Option<&Path>,
+    ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
+        let (model, tokenizer) = (self.path(MODEL_FILE), self.path(TOKENIZER_FILE));
+        let (prompt, dim) = (&self.manifest.prompt, self.manifest.embedding_dim);
+        let embedder = match library {
+            Some(lib) => {
+                crate::ort_embedder::OrtEmbedder::with_library(lib, &model, &tokenizer, prompt, dim)
+            }
+            None => crate::ort_embedder::OrtEmbedder::new(&model, &tokenizer, prompt, dim),
+        }?;
         Ok(crate::EmotionEngine::new(embedder, self.head).with_threshold(self.manifest.threshold))
     }
 }

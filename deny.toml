@@ -30,6 +30,9 @@ ignore = [
     # `paste` is unmaintained but is a compile-time macro crate pulled in by `tokenizers`:
     # no runtime code, no safe upgrade. Revisit when `tokenizers` drops it.
     "RUSTSEC-2024-0436",
+    # `basic-toml` is unmaintained and is pulled in only by the `uniffi-bindgen` generator
+    # (kd-ffi feature `bindgen`, a build tool never shipped in the app). Revisit on a uniffi upgrade.
+    "RUSTSEC-2026-0374",
 ]
 
 [sources]

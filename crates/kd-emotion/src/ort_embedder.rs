@@ -43,13 +43,63 @@ pub(crate) fn check_library_path(value: Option<&std::ffi::OsStr>) -> Result<(), 
     }
 }
 
+/// Fails with a precise error when an explicitly given ONNX Runtime library does not exist.
+pub(crate) fn check_explicit_library(path: &Path) -> Result<(), EmotionError> {
+    if path.is_file() {
+        Ok(())
+    } else {
+        Err(EmotionError::Embedder(format!(
+            "ONNX Runtime library not found at {}",
+            path.display()
+        )))
+    }
+}
+
+/// ONNX Runtime allows one environment per process, ever: it is created on first use and then
+/// shared by every embedder (also after one is dropped and a new one opened).
+static ENVIRONMENT: Mutex<Option<Environment>> = Mutex::new(None);
+
+fn shared_environment(library: Option<&Path>) -> Result<Environment, EmotionError> {
+    let mut slot = ENVIRONMENT
+        .lock()
+        .map_err(|_| EmotionError::Embedder("environment lock poisoned".into()))?;
+    if let Some(env) = slot.as_ref() {
+        return Ok(env.clone());
+    }
+    let env = match library {
+        Some(path) => {
+            check_explicit_library(path)?;
+            guard_init(|| {
+                ort::init_from(path)
+                    .map_err(|e| embedder_err("cannot load ONNX Runtime", e))?
+                    .with_name("kotomotion")
+                    .with_telemetry(false)
+                    .build()
+                    .map_err(|e| embedder_err("cannot initialise ONNX Runtime", e))
+            })?
+        }
+        None => {
+            check_library_path(std::env::var_os("ORT_DYLIB_PATH").as_deref())?;
+            guard_init(|| {
+                ort::init()
+                    .with_name("kotomotion")
+                    .with_telemetry(false)
+                    .build()
+                    .map_err(|e| embedder_err("cannot initialise ONNX Runtime", e))
+            })?
+        }
+    };
+    *slot = Some(env.clone());
+    Ok(env)
+}
+
 /// Runs `init`, turning a panic (ort panics when it cannot load its library) into an error.
 pub(crate) fn guard_init<T>(
     init: impl FnOnce() -> Result<T, EmotionError>,
 ) -> Result<T, EmotionError> {
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(init)).unwrap_or_else(|_| {
         Err(EmotionError::Embedder(
-            "cannot initialise ONNX Runtime: the library could not be loaded (check ORT_DYLIB_PATH)"
+            "cannot initialise ONNX Runtime: the library could not be loaded (check the library path)"
                 .into(),
         ))
     })
@@ -98,21 +148,38 @@ impl OrtEmbedder {
     /// Loads the model and the tokenizer. `prompt` is prepended to every message;
     /// `dimensions` is the expected embedding size.
     ///
-    /// ONNX Runtime itself is loaded dynamically from `ORT_DYLIB_PATH`.
+    /// ONNX Runtime itself is loaded dynamically from `ORT_DYLIB_PATH` (or the loader's default
+    /// search path when unset). Use [`OrtEmbedder::with_library`] to give the path explicitly.
     pub fn new(
         model: &Path,
         tokenizer: &Path,
         prompt: &str,
         dimensions: usize,
     ) -> Result<Self, EmotionError> {
-        check_library_path(std::env::var_os("ORT_DYLIB_PATH").as_deref())?;
-        let environment = guard_init(|| {
-            ort::init()
-                .with_name("kotomotion")
-                .with_telemetry(false)
-                .build()
-                .map_err(|e| embedder_err("cannot initialise ONNX Runtime", e))
-        })?;
+        Self::build(None, model, tokenizer, prompt, dimensions)
+    }
+
+    /// Like [`OrtEmbedder::new`], but loads ONNX Runtime from `library` (for example the
+    /// `libonnxruntime.so` an Android shell extracts from its package) instead of reading
+    /// `ORT_DYLIB_PATH`. The first library loaded in a process is kept for the whole process (later calls reuse it).
+    pub fn with_library(
+        library: &Path,
+        model: &Path,
+        tokenizer: &Path,
+        prompt: &str,
+        dimensions: usize,
+    ) -> Result<Self, EmotionError> {
+        Self::build(Some(library), model, tokenizer, prompt, dimensions)
+    }
+
+    fn build(
+        library: Option<&Path>,
+        model: &Path,
+        tokenizer: &Path,
+        prompt: &str,
+        dimensions: usize,
+    ) -> Result<Self, EmotionError> {
+        let environment = shared_environment(library)?;
         let session = Session::builder(&environment)
             .and_then(|mut b| b.commit_from_file(model))
             .map_err(|e| embedder_err("cannot load model", e))?;
@@ -212,6 +279,7 @@ mod tests {
             Err(EmotionError::Embedder(_))
         ));
         assert!(check_library_path(None).is_ok());
+        assert!(check_explicit_library(Path::new("/nonexistent/libonnxruntime.so")).is_err());
         let panicked: Result<(), _> = guard_init(|| panic!("simulated ort panic"));
         assert!(matches!(panicked, Err(EmotionError::Embedder(_))));
         assert_eq!(guard_init(|| Ok(7)).unwrap(), 7);
