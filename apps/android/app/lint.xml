@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <!-- UniFFI-generated code picks java.lang.ref.Cleaner only after Class.forName succeeds
+         (API 33+), and falls back to the JNA cleaner otherwise: false positive on minSdk 26. -->
+    <issue id="NewApi">
+        <ignore path="**/src/main/generated/**" />
+    </issue>
+</lint>
