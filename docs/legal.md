@@ -21,7 +21,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 |---|---|---|---|
 | L7 | Grammalecte is GPL-3.0 (confirmed): never embed, link or ship it or its files. The French checker is built in-house (ADR-0009) on the MPL-2.0 Hunspell dictionary; Grammalecte may be used on a developer machine only as a measurement reference. | Rule (gate closed 2026-10-22) | — |
 | L8 | Harper (English) is Apache-2.0: allowed. | Rule | — |
-| L9 | Gemma: ship the required notice and pass on the prohibited-use policy; fetch the weights only from Google's official repository and record the checksum in the bundle manifest. The Unsloth mirror was used for benchmarking only. | Gate | M2 release bundle |
+| L9 | Every model shipped in the app is under an OSI-approved permissive licence (Apache-2.0, MIT, BSD) — ADR-0010. Gemma Terms of Use, CC-BY-NC and custom licences are baselines only, never shipped. Weights come only from the publisher's official repository, with SHA-256 in the manifest; licence text ships in the app. | Rule | — |
 | L10 | Every dependency is checked by `cargo deny` (licence allow-list) in CI; adding a copyleft licence needs an ADR. | Rule | — |
 | L11 | Fonts embedded in the app (including Japanese kana/kanji) must allow embedding and redistribution; default choice is the Noto family (OFL). Licence texts ship in the app. | Rule | — |
 
@@ -39,6 +39,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 | L14 | Themes are original. They may reuse the genre's visual language (speed lines, impact frames, auras, onomatopoeia) but never a character, design, logo, scene or text of an existing work, and never name one. | Rule | — |
 | L15 | Exported GIFs and stickers contain only Kotodama-made assets. | Rule | M5 |
 | L16 | Emotion examples (`prototypes.json`) are written by us; no copied lyrics, quotes or third-party datasets without a recorded licence (ADR-0003, research track R1). | Rule | — |
+| L17 | Apache-2.0 weights remove licence obligations but the training data of the model is not public: ask the lawyer whether this residual provenance question matters for the product. | Gate | Public launch |
 
 ## Review process
 

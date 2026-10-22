@@ -1,6 +1,6 @@
 # ADR-0003 — "Typed choice" emotion engine on EmbeddingGemma
 
-**Status:** accepted · 2026-10-22
+**Status:** accepted · 2026-10-22 · model choice amended by [ADR-0010](0010-open-licence-models-only.md)
 
 ## Context
 The app needs 7 emotions (`joie`, `colere`, `energie`, `suspense`, `tristesse`, `amour`, `calme`),

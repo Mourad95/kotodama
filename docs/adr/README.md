@@ -14,3 +14,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0007](0007-on-device-only.md) | All analysis on device, no message leaves the phone | accepted |
 | [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | accepted |
 | [0009](0009-own-french-checker.md) | French checker built in-house (Grammalecte is GPL-3) | accepted |
+| [0010](0010-open-licence-models-only.md) | Shipped models must carry an OSI-approved licence | accepted |

@@ -175,10 +175,13 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None):
 GEMMA = "google/embeddinggemma-300m"
 MINILM = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 E5 = "intfloat/multilingual-e5-small"
+GEMMA2 = "google/embeddinggemma-2"  # Apache-2.0 (ADR-0010); text-only use, round 3
 
 CANDIDATES = {
     "gemma-proto": lambda: embeddings(GEMMA, "proto"),
     "gemma-fewshot": lambda: embeddings(GEMMA, "fewshot"),
+    "gemma2-proto": lambda: embeddings(GEMMA2, "proto"),
+    "gemma2-fewshot": lambda: embeddings(GEMMA2, "fewshot"),
     "minilm-proto": lambda: embeddings(MINILM, "proto"),
     "minilm-fewshot": lambda: embeddings(MINILM, "fewshot"),
     "e5small-proto": lambda: embeddings(E5, "proto"),

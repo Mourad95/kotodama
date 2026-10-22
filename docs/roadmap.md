@@ -13,7 +13,8 @@ on until they are met or the decision to deviate is recorded in an ADR.
 | Milestone | Goal | Status |
 |---|---|---|
 | M0 | Foundations: repo, plan, decisions, CI | in progress |
-| M1 | Emotion engine running in Rust on desktop | next |
+| M0.5 | Model decision: benchmark round 3 on Apache-2.0 EmbeddingGemma 2 (ADR-0010) | next |
+| M1 | Emotion engine running in Rust on desktop | after M0.5 |
 | M2 | Device spike: engine on a real iPhone and Android phone | — |
 | M3 | Effects engine prototype (wgpu) | — |
 | M4 | Grammar loop: errors → animation intensity | — |
