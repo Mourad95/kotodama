@@ -1,6 +1,6 @@
 # ADR-0006 — One grammar provider per language
 
-**Status:** accepted · 2026-10-22
+**Status:** accepted · 2026-10-22 · French provider superseded by [ADR-0009](0009-own-french-checker.md)
 
 ## Context
 Animation intensity depends on spelling and grammar. French first, English next, more later.

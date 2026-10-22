@@ -13,3 +13,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0006](0006-grammar-providers.md) | One grammar provider per language | accepted |
 | [0007](0007-on-device-only.md) | All analysis on device, no message leaves the phone | accepted |
 | [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | accepted |
+| [0009](0009-own-french-checker.md) | French checker built in-house (Grammalecte is GPL-3) | accepted |

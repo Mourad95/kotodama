@@ -47,7 +47,7 @@ cargo test --all
 7. **Tests with every change.** Pure logic gets unit tests; the engine gets parity tests against
    the Python reference; effects get golden-frame tests (from M3).
 8. `missing_docs` is on: document public items.
-9. **Legal register.** `docs/legal.md` is binding: respect its rules, and do not start work blocked by an open gate (for example integrating Grammalecte) before the gate is closed there.
+9. **Legal register.** `docs/legal.md` is binding: respect its rules, and do not start work blocked by an open gate (for example publishing without the age-gate design) before the gate is closed there.
 
 ## Commits
 

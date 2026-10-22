@@ -25,7 +25,7 @@
 │ kd-ffi        public facade: Engine::analyze, render, export            │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ kd-emotion    tokenizer + ONNX model + few-shot head → EmotionScores     │
-│ kd-grammar    GrammarChecker providers (FR: Grammalecte, EN: Harper)     │
+│ kd-grammar    GrammarChecker providers (FR: in-house, EN: Harper)     │
 │ kd-fx         theme data + wgpu renderer + exporters (WebP/MP4/GIF)      │
 │ kd-core       shared types and pure logic (emotions, intensity, scoring) │
 └─────────────────────────────────────────────────────────────────────────┘

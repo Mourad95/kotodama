@@ -1,7 +1,7 @@
 //! Grammar and spelling checks (ADR-0006).
 //!
-//! One provider per language behind the [`GrammarChecker`] trait: Grammalecte for French
-//! (embedded JavaScript engine) and Harper for English arrive in milestone M4. The scoring that
+//! One provider per language behind the [`GrammarChecker`] trait: an in-house checker for French
+//! (ADR-0009) and Harper for English arrive in milestone M4. The scoring that
 //! turns issues into animation intensity lives in `kd-core`.
 
 use kd_core::{Intensity, Language};

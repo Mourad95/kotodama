@@ -19,7 +19,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 
 | # | Rule / gate | Type | Blocks |
 |---|---|---|---|
-| L7 | Grammalecte is believed to be GPL-3.0: do not embed it until the licence of the engine and of the dictionaries is confirmed compatible with store distribution. Otherwise choose another French provider (ADR-0006). | Gate | M4 |
+| L7 | Grammalecte is GPL-3.0 (confirmed): never embed, link or ship it or its files. The French checker is built in-house (ADR-0009) on the MPL-2.0 Hunspell dictionary; Grammalecte may be used on a developer machine only as a measurement reference. | Rule (gate closed 2026-10-22) | — |
 | L8 | Harper (English) is Apache-2.0: allowed. | Rule | — |
 | L9 | Gemma: ship the required notice and pass on the prohibited-use policy; fetch the weights only from Google's official repository and record the checksum in the bundle manifest. The Unsloth mirror was used for benchmarking only. | Gate | M2 release bundle |
 | L10 | Every dependency is checked by `cargo deny` (licence allow-list) in CI; adding a copyleft licence needs an ADR. | Rule | — |
@@ -48,4 +48,4 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 
 ## Evidence log
 
-_No gate closed yet._
+- **L7 closed, 2026-10-22.** Debian copyright file for Grammalecte lists GPL-3 as the default licence (MPL-2.0 only for a few files); grammalecte.net states GPL 3. The Hunspell French "revised" package lists MPL-2.0 (Arch Linux package metadata). Decision: ADR-0009.
