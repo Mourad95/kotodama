@@ -3,7 +3,9 @@
 Kotodama animates messages according to their emotion; the animation reaches full intensity
 only when the message is well written. Mobile (iOS + Android), French first, then English.
 
-Read before changing anything: `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/`.
+Read before changing anything, in this order: `docs/product.md` (what we build and what we do
+not), this file, `docs/agent-guide.md` (workflow, definition of done, and which of the owner's
+personal skills to apply), `docs/architecture.md`, `docs/roadmap.md`, `docs/adr/`, `docs/legal.md`.
 
 ## Language
 
