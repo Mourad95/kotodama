@@ -208,13 +208,32 @@ def select_keep(tj: dict, tokenizer, corpus: list[str], min_count: int,
 
 
 # ------------------------------------------------------------------ model surgery
+def load_st(model_id: str):
+    """Load a sentence-transformers model on CPU. EmbeddingGemma 2 (multimodal config): text tower
+    only, float32 (round 3)."""
+    from sentence_transformers import SentenceTransformer
+
+    try:
+        from transformers import AutoConfig
+
+        gemma2 = AutoConfig.from_pretrained(model_id).model_type == "embedding_gemma2"
+    except (ValueError, KeyError, OSError):
+        gemma2 = False
+    if gemma2:
+        import torch
+
+        return SentenceTransformer(model_id, device="cpu",
+                                   config_kwargs={"vision_config": None, "audio_config": None},
+                                   model_kwargs={"dtype": torch.float32})
+    return SentenceTransformer(model_id, device="cpu")  # CPU : évite l'échec MPS + safetensors sur Mac
+
+
 def prune_model(model_id: str, out: Path, corpus: list[str], min_count: int,
                 wiki: list[str] | None = None, wiki_min_count: int = 3):
     import torch
-    from sentence_transformers import SentenceTransformer
     from tokenizers import Tokenizer
 
-    st = SentenceTransformer(model_id, device="cpu")  # CPU : évite l'échec MPS + safetensors sur Mac
+    st = load_st(model_id)
     tmp = out.with_name(out.name + "_orig")
     if tmp.exists():
         shutil.rmtree(tmp)
@@ -279,15 +298,14 @@ def prune_model(model_id: str, out: Path, corpus: list[str], min_count: int,
 def validate(orig_dir: Path, pruned_dir: Path, texts: list[str]) -> dict:
     """Compare tokens et embeddings du modèle d'origine et du modèle élagué."""
     import numpy as np
-    from sentence_transformers import SentenceTransformer
     from tokenizers import Tokenizer
 
     t_old = Tokenizer.from_file(str(orig_dir / "tokenizer.json"))
     t_new = Tokenizer.from_file(str(pruned_dir / "tokenizer.json"))
     same_tokens = sum(a.tokens == b.tokens for a, b in zip(t_old.encode_batch(texts), t_new.encode_batch(texts)))
 
-    m_old = SentenceTransformer(str(orig_dir), device="cpu")
-    m_new = SentenceTransformer(str(pruned_dir), device="cpu")
+    m_old = load_st(str(orig_dir))
+    m_new = load_st(str(pruned_dir))
     e_old = m_old.encode(texts, normalize_embeddings=True, batch_size=64)
     e_new = m_new.encode(texts, normalize_embeddings=True, batch_size=64)
     cos = (e_old * e_new).sum(axis=1)

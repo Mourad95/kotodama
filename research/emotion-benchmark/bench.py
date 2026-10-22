@@ -122,9 +122,15 @@ def embeddings(source: str, mode: str, onnx_file: str | None = None, truncate_di
     import numpy as np
     from sentence_transformers import SentenceTransformer
 
+    from ort_embedder import OrtEmbedder, is_self_contained
+
     local = Path(source) if Path(source).exists() else hub_dir(
         source, ignore=["onnx/*", "openvino/*", "*.onnx", "*.h5", "*.msgpack", "*.ot"])
-    if onnx_file:
+    if onnx_file and is_self_contained(local, onnx_file):
+        # export_onnx.py graph (pooling + normalize inside): tokenizer + ONNX Runtime only.
+        model = OrtEmbedder(local, onnx_file)
+        taille = size_mb(local / onnx_file)
+    elif onnx_file:
         model = SentenceTransformer(str(local), backend="onnx", device="cpu", truncate_dim=truncate_dim,
                                     model_kwargs={"file_name": onnx_file, "provider": "CPUExecutionProvider"})
         taille = size_mb(local / onnx_file)
