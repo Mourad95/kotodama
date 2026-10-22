@@ -209,6 +209,7 @@ GRANITE_S = "ibm-granite/granite-embedding-107m-multilingual"  # Apache-2.0
 BGE_M3 = "BAAI/bge-m3"  # MIT
 QWEN3 = "Qwen/Qwen3-Embedding-0.6B"  # Apache-2.0
 # Qwen3-Embedding expects a one-line task instruction (model card format); fixed, not tuned.
+GOEMO = "AnasAlokla/multilingual_go_emotions"  # MIT, mBERT fine-tuned on GoEmotions (28 labels)
 QWEN3_PREFIX = "Instruct: Classify the emotion expressed in the message\nQuery: "
 
 CANDIDATES = {
@@ -222,6 +223,7 @@ CANDIDATES = {
     "granite-fewshot": lambda: embeddings(GRANITE, "fewshot"),
     "granite-small-fewshot": lambda: embeddings(GRANITE_S, "fewshot"),
     "bgem3-fewshot": lambda: embeddings(BGE_M3, "fewshot"),
+    "goemo-fewshot": lambda: embeddings(GOEMO, "fewshot"),
     "qwen3-fewshot": lambda: embeddings(QWEN3, "fewshot", prefix=QWEN3_PREFIX),
     "minilm-proto": lambda: embeddings(MINILM, "proto"),
     "minilm-fewshot": lambda: embeddings(MINILM, "fewshot"),
