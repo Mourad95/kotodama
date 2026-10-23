@@ -173,14 +173,12 @@ private fun Bubble(vm: SpikeViewModel, message: ChatMessage) {
         horizontalArrangement = if (message.mine) Arrangement.End else Arrangement.Start,
     ) {
         Column(horizontalAlignment = if (message.mine) Alignment.End else Alignment.Start) {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = container,
-                modifier = Modifier.widthIn(max = 300.dp).then(
-                    if (message.mine) Modifier.clickable(enabled = message.settled) { vm.replay(message) } else Modifier,
-                ),
-            ) {
-                Text(message.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = content)
+            if (message.mine) {
+                MangaBubble(vm, message)
+            } else {
+                Surface(shape = RoundedCornerShape(18.dp), color = container, modifier = Modifier.widthIn(max = 300.dp)) {
+                    Text(message.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = content)
+                }
             }
             if (message.mine) {
                 Text(
@@ -265,7 +263,7 @@ private fun SettingsPanel(vm: SpikeViewModel, modifier: Modifier) {
 @Composable
 private fun EmotionChooser(vm: SpikeViewModel) {
     Text(stringResource(R.string.emotion_label), style = MaterialTheme.typography.titleSmall)
-    val emotions = listOf("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme")
+    val emotions = listOf("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = vm.forcedEmotion == null,
@@ -273,7 +271,16 @@ private fun EmotionChooser(vm: SpikeViewModel) {
             label = { Text(stringResource(R.string.emotion_auto)) },
         )
         emotions.forEach { id ->
-            FilterChip(selected = vm.forcedEmotion == id, onClick = { vm.chooseEmotion(id) }, label = { Text(id) })
+            FilterChip(selected = vm.forcedEmotion == id, onClick = { vm.chooseEmotion(id) }, label = { Text(stringResource(when (id) {
+                "joie" -> R.string.emotion_joy
+                "colere" -> R.string.emotion_anger
+                "energie" -> R.string.emotion_energy
+                "suspense" -> R.string.emotion_suspense
+                "tristesse" -> R.string.emotion_sadness
+                "amour" -> R.string.emotion_love
+                "genance" -> R.string.emotion_embarrassment
+                else -> R.string.emotion_calm
+            })) })
         }
     }
 }

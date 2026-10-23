@@ -11,7 +11,7 @@ Builds the **model bundle** loaded by `kd-emotion` (see `docs/architecture.md`).
 3. **Quantize** to 4 bits (`MatMulNBits` + `GatherBlockQuantized`).
 3b. **Slim the graph** with `slim_graph.py` (fused norms and GELUs, external weights): the session
    opens in under 2 s instead of 7 s (ADR-0013).
-4. **Train the few-shot head** on `prototypes.json` with embeddings from the quantized graph, and
+4. **Train the emotion head** on the editable `data/emotions/dataset_emotions.xlsx` with embeddings from the quantized graph, and
    write `emotion_head.json` (labels, weights, bias).
 5. **Write `parity.json`**: reference messages with their expected probabilities, used by the Rust
    parity test (tolerance 1e-3).
@@ -30,7 +30,13 @@ python tools/model-export/export_mobile.py --prototypes research/emotion-benchma
 python -m pytest tools/model-export                         # pure-logic tests, no model needed
 ```
 
-The head is trained exactly like `bench.py` "fewshot" (LogisticRegression, C=10) with the
+The default dataset has eight labels, including `genance`. Append examples to its category
+sheets, then rerun the exporter: no prototype regeneration is needed. Import instructions:
+[`Dataset emotions`](../../data/emotions/README.md). The source filename, SHA-256 and training
+count are stored in the manifest. The existing ONNX graph and tokenizer are reused; they must
+be present locally to train the head. Explicit `--prototypes` keeps legacy seven-label training.
+
+The head is trained like `bench.py` "fewshot" (LogisticRegression, C=10) with the
 `task: classification | query: ` prompt. `parity.json` and the manifest metrics use `dev_v1.csv`
 only, never `test_v2.csv`.
 

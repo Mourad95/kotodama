@@ -25,13 +25,13 @@ use tiny_skia::{
 };
 
 use crate::scene::{Frame, GlyphState, OnomatopoeiaState, ParticleState, Rgb, ScreenState};
-use crate::{ParticleKind, ScreenKind};
+use crate::{Level, ParticleKind, ScreenKind};
 
 const FONT: &[u8] = include_bytes!("../assets/fonts/NotoSansJP-Bold-subset.ttf");
 /// Message font size as a fraction of the size unit.
 const TEXT_SIZE: f32 = 0.058;
 /// Widest a line of the message may be, as a fraction of the frame width.
-const TEXT_WIDTH: f32 = 0.84;
+const TEXT_WIDTH: f32 = 0.80;
 /// Characters that never start a line: they stay with the word they follow.
 const STICKS_TO_PREVIOUS: &str = ",.;:!?…)»”’";
 /// Flash opacity from which the message is drawn in white instead of its ink colour.
@@ -46,6 +46,8 @@ struct TextStyle {
     font_px: f32,
     shake: Transform,
     overlay: bool,
+    depth: f32,
+    accent: Rgb,
 }
 
 /// One of the two passes letters are drawn in over a conversation: every halo first, then every letter,
@@ -162,6 +164,31 @@ impl Renderer {
         self.render_layer(frame, message, width, height, Layer::Over)
     }
 
+    /// Renders a static manga bubble decoration. The shell draws accessible native text above it.
+    /// No message text is accepted or rasterised here. `dark` selects a dark, opaque reading area.
+    pub fn render_bubble(
+        &self,
+        level: &Level,
+        width: u32,
+        height: u32,
+        dark: bool,
+    ) -> Option<Pixmap> {
+        if width == 0 || height == 0 || width > 2048 || height > 2048 {
+            return None;
+        }
+        let mut image = Pixmap::new(width, height)?;
+        if let Some(style) = &level.manga {
+            crate::manga::draw_bubble(
+                &mut image,
+                style,
+                Rgb::from_hex(&level.text_color),
+                dark,
+                level.level,
+            );
+        }
+        Some(image)
+    }
+
     /// Draws one [`Layer`] of `frame` at `width` x `height`. Two layers of the same frame line up when
     /// stretched to the same screen area, whatever their pixel sizes.
     pub fn render_layer(
@@ -190,7 +217,7 @@ impl Renderer {
             .filter(|s| s.kind == ScreenKind::ImpactFlash)
             .map(|s| s.alpha)
             .fold(0.0_f32, f32::max);
-        let text_ink = if flash >= FLASH_TEXT_SWITCH {
+        let text_ink = if flash >= FLASH_TEXT_SWITCH && frame.manga.is_none() {
             Rgb(255, 255, 255)
         } else {
             ink
@@ -205,16 +232,58 @@ impl Renderer {
         if !front {
             return Some(pixmap);
         }
-        for p in &frame.particles {
-            draw_particle(&mut pixmap, p, w, h, u, shake);
+        // Fit long messages into the central stage before measuring the illustration around them.
+        let mut font_px = TEXT_SIZE * u;
+        let mut placed = self.layout(message, font_px, w, h);
+        while placed
+            .last()
+            .zip(placed.first())
+            .is_some_and(|(last, first)| last.baseline - first.baseline + font_px > h * 0.52)
+            && font_px > 3.0
+        {
+            font_px *= 0.88;
+            placed = self.layout(message, font_px, w, h);
         }
-        let font_px = TEXT_SIZE * u;
         let style = TextStyle {
             font_px,
             shake,
             overlay,
+            depth: frame
+                .manga
+                .as_ref()
+                .map_or(0.0, |m| m.style.depth * m.alpha),
+            accent: frame
+                .manga
+                .as_ref()
+                .map_or(ink, |m| Rgb::from_hex(&m.style.accent_color)),
         };
-        let placed = self.layout(message, font_px, w, h);
+        let (mut left, mut right, mut top, mut bottom) = (w * 0.25, w * 0.75, h * 0.46, h * 0.54);
+        if !placed.is_empty() {
+            left = placed
+                .iter()
+                .map(|p| p.cx - p.advance / 2.0)
+                .fold(w, f32::min);
+            right = placed
+                .iter()
+                .map(|p| p.cx + p.advance / 2.0)
+                .fold(0.0, f32::max);
+            top = placed.first().expect("nonempty layout").baseline - font_px;
+            bottom = placed.last().expect("nonempty layout").baseline + font_px * 0.25;
+        }
+        let panel_width = (right - left + font_px * 1.1).min(w * 0.94);
+        let panel_height = (bottom - top + font_px * 1.1).max(h * 0.19);
+        let bounds = (
+            (w - panel_width) / 2.0,
+            h * 0.5 - panel_height / 2.0,
+            panel_width,
+            panel_height,
+        );
+        for p in frame.particles.iter().filter(|p| p.depth <= 0.68) {
+            draw_particle(&mut pixmap, p, w, h, u, shake);
+        }
+        if let Some(m) = &frame.manga {
+            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, false);
+        }
         let passes: &[TextPass] = if overlay {
             &[TextPass::Halo, TextPass::Ink]
         } else {
@@ -222,10 +291,20 @@ impl Renderer {
         };
         for &pass in passes {
             for g in &frame.glyphs {
-                if let Some(p) = placed.iter().find(|p| p.index == g.index) {
+                if let Some(p) = placed
+                    .get(g.index)
+                    .filter(|p| p.index == g.index)
+                    .or_else(|| placed.iter().find(|p| p.index == g.index))
+                {
                     self.draw_glyph(&mut pixmap, p, g, text_ink, &style, pass);
                 }
             }
+        }
+        if let Some(m) = &frame.manga {
+            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, true);
+        }
+        for p in frame.particles.iter().filter(|p| p.depth > 0.68) {
+            draw_particle(&mut pixmap, p, w, h, u, shake);
         }
         for o in &frame.onomatopoeias {
             self.draw_onomatopoeia(&mut pixmap, o, font_px, w, h, shake);
@@ -338,6 +417,8 @@ impl Renderer {
             font_px,
             shake,
             overlay,
+            depth,
+            accent,
         } = *style;
         if g.alpha <= 0.0 {
             return;
@@ -358,6 +439,7 @@ impl Renderer {
             .pre_rotate(g.rotation.to_degrees())
             .pre_scale(g.scale, g.scale)
             .pre_translate(-pivot.0, -pivot.1)
+            .pre_concat(Transform::from_row(1.0, 0.0, -0.16 * depth, 1.0, 0.0, 0.0))
             .pre_scale(s, s)
             .post_concat(shake);
         if pass == TextPass::Halo {
@@ -382,6 +464,39 @@ impl Renderer {
                 );
             }
             return;
+        }
+        if depth > 0.0 {
+            // Layered outline offsets imitate an inked side face without a 3D mesh.
+            let steps = (depth * 5.0).ceil() as u32;
+            for i in (1..=steps).rev() {
+                let offset = i as f32 * font_px * 0.014;
+                let side = t.post_translate(offset * 0.65, offset);
+                let stroke = Stroke {
+                    width: font_px * 0.035 / s,
+                    line_join: tiny_skia::LineJoin::Round,
+                    ..Stroke::default()
+                };
+                pixmap.stroke_path(
+                    &path,
+                    &paint(Rgb(24, 31, 48), g.alpha * 0.8),
+                    &stroke,
+                    side,
+                    None,
+                );
+                pixmap.fill_path(
+                    &path,
+                    &paint(accent, g.alpha * 0.9),
+                    FillRule::Winding,
+                    side,
+                    None,
+                );
+            }
+            let stroke = Stroke {
+                width: font_px * 0.045 / s,
+                line_join: tiny_skia::LineJoin::Round,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&path, &paint(Rgb(255, 255, 255), g.alpha), &stroke, t, None);
         }
         if g.glow > 0.0 {
             let mut glow = Paint::default();
@@ -540,22 +655,27 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
             }
         }
         ScreenKind::Shockwave => {
-            // A soft ring: transparent on both sides of its crest.
             let radius = s.progress.powf(0.6) * u * 0.7;
-            let thick = 0.05 * u * (1.0 - 0.5 * s.progress);
-            let outer = radius + thick;
             if radius > 1.0 {
-                let inner = ((radius - thick) / outer).max(0.0);
-                let stops = vec![
-                    GradientStop::new(inner, color(ink, 0.0)),
-                    GradientStop::new(radius / outer, color(ink, 0.5 * s.alpha)),
-                    GradientStop::new(1.0, color(ink, 0.0)),
-                ];
-                if let (Some(ring), Some(p)) = (
-                    PathBuilder::from_circle(centre.x, centre.y, outer),
-                    radial(centre, outer, stops),
-                ) {
-                    pixmap.fill_path(&ring, &p, FillRule::Winding, shake, None);
+                let oval = tiny_skia::Rect::from_xywh(
+                    centre.x - radius,
+                    centre.y - radius * 0.42,
+                    radius * 2.0,
+                    radius * 0.84,
+                );
+                if let Some(ring) = oval.and_then(PathBuilder::from_oval) {
+                    let stroke = Stroke {
+                        width: 0.012 * u * (1.0 - 0.5 * s.progress),
+                        ..Stroke::default()
+                    };
+                    let perspective = shake.pre_rotate_at(-10.0, centre.x, centre.y);
+                    pixmap.stroke_path(
+                        &ring,
+                        &paint(ink, 0.55 * s.alpha),
+                        &stroke,
+                        perspective,
+                        None,
+                    );
                 }
             }
         }
@@ -778,41 +898,52 @@ fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, u: f32,
             pb.close();
             pb.finish()
         }
-        ParticleKind::Rain => {
-            // A streak fading towards its tail.
-            let stops = vec![
-                GradientStop::new(0.0, color(p.color, 0.0)),
-                GradientStop::new(1.0, color(p.color, p.alpha)),
-            ];
-            let streak = tiny_skia::Rect::from_xywh(x - r * 0.05, y - r * 1.2, r * 0.1, r * 2.4)
-                .map(PathBuilder::from_rect);
-            if let (Some(path), Some(shader)) = (
-                streak,
-                tiny_skia::LinearGradient::new(
-                    Point::from_xy(x, y - r * 1.2),
-                    Point::from_xy(x, y + r * 1.2),
-                    stops,
-                    SpreadMode::Pad,
-                    Transform::identity(),
-                ),
-            ) {
-                let p = Paint {
-                    shader,
-                    anti_alias: true,
-                    ..Paint::default()
-                };
-                pixmap.fill_path(&path, &p, FillRule::Winding, spin, None::<&Mask>);
-            }
-            return;
-        }
+        ParticleKind::Rain => tiny_skia::Rect::from_xywh(x - r * 0.06, y - r, r * 0.12, r * 2.0)
+            .map(PathBuilder::from_rect),
         ParticleKind::Aura | ParticleKind::Embers => {
-            // A glowing spark: a soft halo around a small bright core.
-            glow(pixmap, x, y, r * 2.2, p.color, 0.5 * p.alpha, shake);
-            PathBuilder::from_circle(x, y, r * 0.55)
+            let mut b = PathBuilder::new();
+            b.move_to(x - r * 0.35, y + r);
+            b.line_to(x - r * 0.6, y - r * 0.15);
+            b.line_to(x + r * 0.4, y - r * 1.5);
+            b.line_to(x + r * 0.5, y + r * 0.3);
+            b.close();
+            b.finish()
         }
     };
     if let Some(path) = path {
+        if p.depth > 0.68 {
+            // Broad faint silhouette separates the nearest plane without costly full-frame blur.
+            let stroke = Stroke {
+                width: r * 0.3,
+                line_join: tiny_skia::LineJoin::Round,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&path, &paint(p.color, p.alpha * 0.12), &stroke, spin, None);
+        }
         pixmap.fill_path(&path, &fill, FillRule::Winding, spin, None::<&Mask>);
+        if !matches!(p.kind, ParticleKind::Rain) {
+            let stroke = Stroke {
+                width: (r * 0.07).max(0.5),
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(
+                &path,
+                &paint(Rgb(32, 36, 50), p.alpha * 0.35),
+                &stroke,
+                spin,
+                None,
+            );
+            pixmap.stroke_path(
+                &path,
+                &paint(Rgb(255, 255, 255), p.alpha * 0.5),
+                &Stroke {
+                    width: (r * 0.04).max(0.4),
+                    ..Stroke::default()
+                },
+                spin.post_translate(-r * 0.12, -r * 0.10),
+                None,
+            );
+        }
     }
     if p.kind == ParticleKind::Hearts {
         // A small highlight makes the heart look rounded rather than flat.

@@ -246,15 +246,7 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
     // far from the median). Checked on the settled frame and while the animation runs.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
-    let emotions = [
-        Emotion::Joy,
-        Emotion::Anger,
-        Emotion::Energy,
-        Emotion::Suspense,
-        Emotion::Sadness,
-        Emotion::Love,
-        Emotion::Calm,
-    ];
+    let emotions = Emotion::ALL;
     for emotion in emotions {
         for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
             for t in (0..=3200_u32).step_by(100) {
@@ -282,6 +274,32 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
                     "{emotion:?} {level:?} t={t}: message contrast {ratio:.2}"
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn manga_situations_and_settled_bubbles() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    for emotion in Emotion::ALL {
+        let level = theme.level(emotion, Intensity::Full);
+        let frame = sample(level, MESSAGE.chars().count(), 1600, SEED, Motion::Full);
+        check(
+            &format!("{}-manga", emotion.id()),
+            &renderer
+                .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+                .unwrap(),
+        );
+        for dark in [false, true] {
+            check(
+                &format!(
+                    "{}-bubble-{}",
+                    emotion.id(),
+                    if dark { "dark" } else { "light" }
+                ),
+                &renderer.render_bubble(level, 320, 140, dark).unwrap(),
+            );
         }
     }
 }

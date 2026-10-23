@@ -215,6 +215,25 @@ impl Animator {
         animation_level(&self.theme, &emotion_id, 3).text_color
     }
 
+    /// Draws a permanent manga bubble decoration in premultiplied RGBA.
+    /// The shell lays out native, accessible text above it; no message text crosses this call.
+    pub fn render_bubble(
+        &self,
+        emotion_id: String,
+        writing_level: u8,
+        width: u32,
+        height: u32,
+        dark: bool,
+    ) -> Result<Vec<u8>, EngineError> {
+        guarded(|| {
+            let level = animation_level(&self.theme, &emotion_id, writing_level);
+            self.renderer
+                .render_bubble(&level, width, height, dark)
+                .map(|image| image.take())
+                .ok_or_else(|| EngineError::Animation("unsupported bubble size".into()))
+        })
+    }
+
     /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
     /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
@@ -359,6 +378,26 @@ mod tests {
     }
 
     const ANIME: &str = include_str!("../../../themes/anime/theme.json");
+
+    #[test]
+    fn bubble_decoration_is_separate_from_text_and_rejects_invalid_sizes() {
+        let animator = Animator::new(ANIME.into()).unwrap();
+        let light = animator
+            .render_bubble("genance".into(), 3, 180, 80, false)
+            .unwrap();
+        let dark = animator
+            .render_bubble("genance".into(), 3, 180, 80, true)
+            .unwrap();
+        assert_eq!(light.len(), 180 * 80 * 4);
+        assert_ne!(light, dark);
+        assert_eq!(light[3], 0);
+        assert!(animator
+            .render_bubble("genance".into(), 3, 0, 80, false)
+            .is_err());
+        assert!(animator
+            .render_bubble("genance".into(), 3, 4096, 80, false)
+            .is_err());
+    }
 
     #[test]
     fn animator_draws_frames_and_reports_durations() {

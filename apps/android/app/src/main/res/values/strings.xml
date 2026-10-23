@@ -47,4 +47,12 @@
     <string name="back_to_chat">Conversation</string>
     <string name="dark_chat_label">Conversation sombre (test de lisibilité)</string>
     <string name="bundle_missing_short">Modèle absent : tout est animé en « calme ».</string>
+    <string name="emotion_joy">Joie</string>
+    <string name="emotion_anger">Colère</string>
+    <string name="emotion_energy">Énergie</string>
+    <string name="emotion_suspense">Suspense</string>
+    <string name="emotion_sadness">Tristesse</string>
+    <string name="emotion_love">Amour</string>
+    <string name="emotion_embarrassment">Gêne</string>
+    <string name="emotion_calm">Calme</string>
 </resources>
