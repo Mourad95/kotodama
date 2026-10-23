@@ -5,14 +5,14 @@
 //! (bottom), the message is centred on (0.5, 0.5). Sizes are fractions of the frame height and
 //! letter offsets are in em (the message font size), so the same frame renders at any resolution.
 
-use crate::{LetterKind, Level, ParticleKind, ScreenKind};
+use crate::{LetterKind, Level, Onomatopoeia, ParticleKind, ScreenKind};
 
 /// An 8-bit RGB colour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
 impl Rgb {
-    /// Parses `#RRGGBB` (already validated for themes; anything else gives black).
+    /// Parses `#RRGGBB` (already validated for themes). Never panics: anything else gives black.
     pub fn from_hex(s: &str) -> Rgb {
         let byte = |i: usize| s.get(i..i + 2).and_then(|h| u8::from_str_radix(h, 16).ok());
         match (byte(1), byte(3), byte(5)) {
@@ -110,10 +110,44 @@ pub struct Frame {
     pub shake: (f32, f32),
 }
 
+/// How much motion the viewer accepts (docs/legal.md L26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Motion {
+    /// The theme as designed.
+    Full,
+    /// The OS asked to reduce motion (or the user lowered effects): the message only fades in,
+    /// with no letter movement, particles, screen effects, shake or onomatopoeias.
+    Reduced,
+}
+
+/// How long the message fades in when motion is reduced, in milliseconds.
+const REDUCED_FADE_MS: f32 = 300.0;
+
 /// Samples `level` at `t_ms` after the start of the message, for a message of `glyph_count`
 /// letters. The same arguments always give the same frame.
-pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64) -> Frame {
+pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: Motion) -> Frame {
     let t = t_ms as f32;
+    if motion == Motion::Reduced {
+        let alpha = (t / REDUCED_FADE_MS).clamp(0.0, 1.0);
+        return Frame {
+            text_color: Rgb::from_hex(&level.text_color),
+            glyphs: (0..glyph_count)
+                .map(|index| GlyphState {
+                    index,
+                    dx: 0.0,
+                    dy: 0.0,
+                    scale: 1.0,
+                    rotation: 0.0,
+                    alpha,
+                    glow: 0.0,
+                })
+                .collect(),
+            particles: Vec::new(),
+            screen: Vec::new(),
+            onomatopoeias: Vec::new(),
+            shake: (0.0, 0.0),
+        };
+    }
     let glyphs = (0..glyph_count).map(|i| glyph(level, i, t, seed)).collect();
     let mut shake = (0.0, 0.0);
     let mut screen = Vec::new();
@@ -309,7 +343,7 @@ fn particle(
     }
 }
 
-fn onomatopoeia(o: &crate::Onomatopoeia, n: usize, t: f32, seed: u64) -> Option<OnomatopoeiaState> {
+fn onomatopoeia(o: &Onomatopoeia, n: usize, t: f32, seed: u64) -> Option<OnomatopoeiaState> {
     let age = t - o.at_ms as f32;
     if age < 0.0 {
         return None;
@@ -361,7 +395,7 @@ fn hash01(seed: u64, a: u64, b: u64, c: u64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Theme;
+    use crate::{LetterEntrance, ParticleEmitter, Theme};
     use kd_core::{Emotion, Intensity};
 
     fn anime(level: Intensity) -> Level {
@@ -372,21 +406,27 @@ mod tests {
     #[test]
     fn sampling_is_deterministic() {
         let level = anime(Intensity::Full);
-        assert_eq!(sample(&level, 12, 1100, 7), sample(&level, 12, 1100, 7));
-        assert_ne!(sample(&level, 12, 1100, 7), sample(&level, 12, 1100, 8));
+        assert_eq!(
+            sample(&level, 12, 1100, 7, Motion::Full),
+            sample(&level, 12, 1100, 7, Motion::Full)
+        );
+        assert_ne!(
+            sample(&level, 12, 1100, 7, Motion::Full),
+            sample(&level, 12, 1100, 8, Motion::Full)
+        );
     }
 
     #[test]
     fn letters_enter_in_order_and_settle() {
         let level = anime(Intensity::Low);
-        let start = sample(&level, 5, 0, 1);
+        let start = sample(&level, 5, 0, 1, Motion::Full);
         assert!(start.glyphs.iter().all(|g| g.alpha == 0.0));
-        let mid = sample(&level, 5, 100, 1);
+        let mid = sample(&level, 5, 100, 1, Motion::Full);
         assert!(
             mid.glyphs[0].alpha > mid.glyphs[4].alpha,
             "earlier letters appear first"
         );
-        let end = sample(&level, 5, 5000, 1);
+        let end = sample(&level, 5, 5000, 1, Motion::Full);
         for g in &end.glyphs {
             assert_eq!(
                 (g.alpha, g.scale, g.dx, g.dy, g.rotation),
@@ -399,7 +439,7 @@ mod tests {
     fn effects_follow_their_timeline() {
         let level = anime(Intensity::Full);
         let kinds = |t| {
-            sample(&level, 8, t, 3)
+            sample(&level, 8, t, 3, Motion::Full)
                 .screen
                 .iter()
                 .map(|s| s.kind)
@@ -409,17 +449,25 @@ mod tests {
         assert!(kinds(1060).contains(&ScreenKind::ImpactFlash));
         assert!(kinds(1060).contains(&ScreenKind::Shockwave));
         assert!(kinds(9000).is_empty());
-        assert_eq!(sample(&level, 8, 500, 3).shake, (0.0, 0.0));
-        assert_ne!(sample(&level, 8, 1100, 3).shake, (0.0, 0.0));
-        assert_eq!(sample(&level, 8, 9000, 3).shake, (0.0, 0.0));
+        assert_eq!(sample(&level, 8, 500, 3, Motion::Full).shake, (0.0, 0.0));
+        assert_ne!(sample(&level, 8, 1100, 3, Motion::Full).shake, (0.0, 0.0));
+        assert_eq!(sample(&level, 8, 9000, 3, Motion::Full).shake, (0.0, 0.0));
     }
 
     #[test]
     fn onomatopoeias_appear_at_their_time() {
         let level = anime(Intensity::Full);
-        assert!(sample(&level, 8, 200, 1).onomatopoeias.is_empty());
-        assert_eq!(sample(&level, 8, 400, 1).onomatopoeias.len(), 1);
-        assert_eq!(sample(&level, 8, 1500, 1).onomatopoeias.len(), 2);
+        assert!(sample(&level, 8, 200, 1, Motion::Full)
+            .onomatopoeias
+            .is_empty());
+        assert_eq!(
+            sample(&level, 8, 400, 1, Motion::Full).onomatopoeias.len(),
+            1
+        );
+        assert_eq!(
+            sample(&level, 8, 1500, 1, Motion::Full).onomatopoeias.len(),
+            2
+        );
     }
 
     #[test]
@@ -427,23 +475,25 @@ mod tests {
         let level = anime(Intensity::Full);
         let budget: u32 = level.particles.iter().map(|p| p.count).sum();
         for t in (0..4000).step_by(100) {
-            let frame = sample(&level, 8, t, 5);
+            let frame = sample(&level, 8, t, 5, Motion::Full);
             assert!(frame.particles.len() as u32 <= budget);
             assert!(frame
                 .particles
                 .iter()
                 .all(|p| (0.0..=1.0).contains(&p.alpha)));
         }
-        assert!(sample(&level, 8, 1000, 5).particles.len() > 10);
+        assert!(sample(&level, 8, 1000, 5, Motion::Full).particles.len() > 10);
         assert!(
-            sample(&level, 8, 6000, 5).particles.is_empty(),
+            sample(&level, 8, 6000, 5, Motion::Full)
+                .particles
+                .is_empty(),
             "nothing outlives its lifetime"
         );
     }
 
     #[test]
     fn higher_levels_are_busier() {
-        let count = |i| sample(&anime(i), 8, 1100, 2);
+        let count = |i| sample(&anime(i), 8, 1100, 2, Motion::Full);
         let (low, mid, full) = (
             count(Intensity::Low),
             count(Intensity::Medium),
@@ -453,6 +503,109 @@ mod tests {
             low.particles.len() < mid.particles.len() && mid.particles.len() < full.particles.len()
         );
         assert!(low.screen.len() < full.screen.len());
+    }
+
+    #[test]
+    fn reduced_motion_is_a_plain_fade() {
+        let level = anime(Intensity::Full);
+        for t in [0, 150, 300, 1100, 60_000] {
+            let f = sample(&level, 8, t, 3, Motion::Reduced);
+            assert!(f.particles.is_empty() && f.screen.is_empty() && f.onomatopoeias.is_empty());
+            assert_eq!(f.shake, (0.0, 0.0));
+            assert!(f.glyphs.iter().all(|g| (g.dx, g.dy, g.rotation, g.glow)
+                == (0.0, 0.0, 0.0, 0.0)
+                && g.scale == 1.0));
+        }
+        assert_eq!(
+            sample(&level, 3, 0, 3, Motion::Reduced).glyphs[0].alpha,
+            0.0
+        );
+        assert_eq!(
+            sample(&level, 3, 300, 3, Motion::Reduced).glyphs[0].alpha,
+            1.0
+        );
+    }
+
+    #[test]
+    fn empty_messages_and_late_instants_are_fine() {
+        let level = anime(Intensity::Full);
+        assert!(sample(&level, 0, 1100, 1, Motion::Full).glyphs.is_empty());
+        let late = sample(&level, 4, u32::MAX, 1, Motion::Full);
+        assert!(late.particles.is_empty() && late.screen.is_empty());
+    }
+
+    #[test]
+    fn every_letter_kind_and_particle_kind_stays_in_range() {
+        let letter = |kind| Level {
+            level: 3,
+            text_color: "#000000".into(),
+            letters: LetterEntrance {
+                kind,
+                duration_ms: 300,
+                stagger_ms: 40,
+            },
+            particles: Vec::new(),
+            screen: Vec::new(),
+            onomatopoeias: Vec::new(),
+        };
+        for kind in [
+            LetterKind::Rise,
+            LetterKind::Pop,
+            LetterKind::Impact,
+            LetterKind::Charge,
+            LetterKind::Type,
+            LetterKind::Drip,
+            LetterKind::Bloom,
+            LetterKind::Glitch,
+        ] {
+            let level = letter(kind);
+            for t in (0..1200).step_by(25) {
+                for g in sample(&level, 6, t, 9, Motion::Full).glyphs {
+                    assert!((0.0..=1.0).contains(&g.alpha), "{kind:?} alpha {}", g.alpha);
+                    assert!(
+                        g.scale.is_finite()
+                            && g.scale >= 0.0
+                            && g.dx.is_finite()
+                            && g.dy.is_finite(),
+                        "{kind:?} at {t}"
+                    );
+                }
+            }
+            let settled = sample(&level, 6, 5000, 9, Motion::Full);
+            assert!(
+                settled
+                    .glyphs
+                    .iter()
+                    .all(|g| g.alpha == 1.0 && g.scale == 1.0 && g.dx == 0.0 && g.dy == 0.0),
+                "{kind:?} must settle"
+            );
+        }
+        for kind in [
+            ParticleKind::Confetti,
+            ParticleKind::Stars,
+            ParticleKind::Aura,
+            ParticleKind::Hearts,
+            ParticleKind::Petals,
+            ParticleKind::Rain,
+            ParticleKind::Embers,
+        ] {
+            let mut level = letter(LetterKind::Rise);
+            level.particles = vec![ParticleEmitter {
+                kind,
+                count: 50,
+                colors: vec!["#FFFFFF".into()],
+                lifetime_ms: 1000,
+            }];
+            let mut seen = 0;
+            for t in (0..3000).step_by(50) {
+                for p in sample(&level, 3, t, 4, Motion::Full).particles {
+                    seen += 1;
+                    assert!((0.0..=1.0).contains(&p.alpha) && p.size > 0.0, "{kind:?}");
+                    assert!(p.x.is_finite() && p.y.is_finite());
+                }
+            }
+            assert!(seen > 0, "{kind:?} never shows");
+        }
     }
 
     #[test]

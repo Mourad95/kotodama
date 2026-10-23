@@ -12,11 +12,11 @@ tested without a GPU, and CI machines have none.
    no font, no GPU. It returns what to draw (letter transforms, particles, screen effects,
    onomatopoeias, shake) in resolution-independent units. Particles are computed in closed form from
    `t` and a hash of `(seed, emitter, index)`, so any instant can be sampled without stepping.
-2. A **CPU reference renderer** (`tiny-skia`, bundled subset of Noto Sans JP) draws a `Frame` to
+2. A **CPU reference renderer** (planned: `tiny-skia`, bundled subset of Noto Sans JP; licences to be recorded in `docs/legal.md` when added, L10/L11) draws a `Frame` to
    pixels. It is the golden-frame reference in CI and the future GIF/WebP exporter.
-3. The on-screen renderer is **`wgpu`** (Metal/Vulkan) drawing the same `Frame`; it is checked against
+3. The on-screen renderer is **`wgpu`** (planned) (Metal/Vulkan) drawing the same `Frame`; it is checked against
    the CPU renderer on a few frames with a tolerance.
-4. Photosensitivity limits are enforced when a theme loads (docs/legal.md L26).
+4. Photosensitivity limits are enforced when a theme loads, and the sampler has a reduced-motion mode (docs/legal.md L26, which lists what is still open).
 
 ## Consequences
 - Behaviour lives in one place (the sampler) and is unit-tested without graphics.

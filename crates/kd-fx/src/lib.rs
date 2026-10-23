@@ -251,7 +251,7 @@ impl Theme {
                         "{emotion}: screen effect strength must be in [0, 1] and duration > 0"
                     )));
                 }
-                if let Some(reason) = photosensitivity_violation(&level.screen) {
+                if let Some(reason) = photosensitivity_violation(level) {
                     return Err(fail(format!("{emotion} level {}: {reason}", level.level)));
                 }
             }
@@ -262,21 +262,29 @@ impl Theme {
 
 /// Most flashes allowed in any one second (WCAG 2.3.1: no more than three).
 pub const MAX_FLASHES_PER_SECOND: usize = 3;
+/// Strongest impact flash a theme may ask for: the flash never reaches full white, which keeps
+/// the luminance jump below the general flash threshold.
+pub const MAX_FLASH_STRENGTH: f32 = 0.8;
 /// Strongest shake a theme may ask for (the frame moves at most 3 % of its size at 1.0).
-pub const MAX_SHAKE_STRENGTH: f32 = 1.0;
+pub const MAX_SHAKE_STRENGTH: f32 = 0.7;
+/// Longest a single shake may last, in milliseconds.
+pub const MAX_SHAKE_MS: u32 = 600;
+/// Most particles one emitter may have, so a hostile or careless theme cannot stall a frame.
+pub const MAX_PARTICLES_PER_EMITTER: u32 = 200;
 
-/// Photosensitivity rules for the screen effects of one level (docs/legal.md L26, gpu-effects skill).
-/// Returns what is wrong, or `None`.
-fn photosensitivity_violation(effects: &[ScreenEffect]) -> Option<String> {
-    let flashes: Vec<u32> = effects
+/// Photosensitivity and budget rules for the effects of one level (docs/legal.md L26, gpu-effects
+/// skill). Returns what is wrong, or `None`.
+fn photosensitivity_violation(level: &Level) -> Option<String> {
+    let effects = &level.screen;
+    let flashes: Vec<u64> = effects
         .iter()
         .filter(|e| e.kind == ScreenKind::ImpactFlash)
-        .map(|e| e.at_ms)
+        .map(|e| u64::from(e.at_ms))
         .collect();
     for &start in &flashes {
         let in_window = flashes
             .iter()
-            .filter(|&&other| other >= start && other < start + 1000)
+            .filter(|&&other| other >= start && other - start < 1000)
             .count();
         if in_window > MAX_FLASHES_PER_SECOND {
             return Some(format!(
@@ -284,11 +292,28 @@ fn photosensitivity_violation(effects: &[ScreenEffect]) -> Option<String> {
             ));
         }
     }
-    if effects
+    for e in effects {
+        match e.kind {
+            ScreenKind::ImpactFlash if e.strength > MAX_FLASH_STRENGTH => {
+                return Some(format!("impact flash strength above {MAX_FLASH_STRENGTH}"));
+            }
+            ScreenKind::Shake if e.strength > MAX_SHAKE_STRENGTH => {
+                return Some(format!("shake strength above {MAX_SHAKE_STRENGTH}"));
+            }
+            ScreenKind::Shake if e.duration_ms > MAX_SHAKE_MS => {
+                return Some(format!("shake longer than {MAX_SHAKE_MS} ms"));
+            }
+            _ => {}
+        }
+    }
+    if level
+        .particles
         .iter()
-        .any(|e| e.kind == ScreenKind::Shake && e.strength > MAX_SHAKE_STRENGTH)
+        .any(|p| p.count > MAX_PARTICLES_PER_EMITTER)
     {
-        return Some("shake strength above the allowed maximum".into());
+        return Some(format!(
+            "more than {MAX_PARTICLES_PER_EMITTER} particles in one emitter"
+        ));
     }
     None
 }
@@ -330,17 +355,46 @@ mod tests {
                 r#"{{ "kind": "impact_flash", "at_ms": {at}, "duration_ms": 80, "strength": 0.8 }}"#
             )
         };
-        let with = |at: &[u32]| {
+        let with = |at: &[u64]| {
             let list: Vec<String> = at.iter().map(|&a| flash(a)).collect();
-            ANIME.replacen(
-                r#"{ "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 1.0 }"#,
+            replace_once(
+                ANIME,
+                r#"{ "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 0.8 }"#,
                 &list.join(","),
-                1,
             )
         };
         assert!(Theme::from_json(&with(&[1000, 1300, 1600])).is_ok());
         assert!(Theme::from_json(&with(&[1000, 1200, 1400, 1600])).is_err());
         assert!(Theme::from_json(&with(&[1000, 2100, 3200, 4300, 5400])).is_ok());
+        // Start times near `u32::MAX` must not overflow the window arithmetic.
+        let late = [4_294_967_000, 4_294_967_100, 4_294_967_200, 4_294_967_295];
+        assert!(Theme::from_json(&with(&late)).is_err());
+    }
+
+    /// `text.replacen(from, to, 1)` that fails loudly when `from` is not there.
+    fn replace_once(text: &str, from: &str, to: &str) -> String {
+        assert!(text.contains(from), "test fixture out of date: {from}");
+        text.replacen(from, to, 1)
+    }
+
+    #[test]
+    fn strong_flashes_long_shakes_and_huge_emitters_are_rejected() {
+        let flash =
+            r#"{ "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 0.8 }"#;
+        let shake = r#"{ "kind": "shake", "at_ms": 1050, "duration_ms": 400, "strength": 0.7 }"#;
+        let emitter = r#""count": 120"#;
+        assert!(Theme::from_json(ANIME).is_ok());
+        for (from, to) in [
+            (flash, &flash.replace("0.8", "0.9")),
+            (shake, &shake.replace("0.7", "0.8")),
+            (shake, &shake.replace("400", "700")),
+            (emitter, &emitter.replace("120", "201")),
+        ] {
+            assert!(
+                Theme::from_json(&replace_once(ANIME, from, to)).is_err(),
+                "{to}"
+            );
+        }
     }
 
     #[test]
