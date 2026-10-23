@@ -63,10 +63,10 @@ not per keystroke), anonymous memory ≤ 300 MB, operators supported.
 "peak memory ≤ 300 MB". The peak (VmHWM) counts file-backed pages of the memory-mapped model, which
 Android drops on demand; the anonymous memory is what the system weighs when it kills an app.
 
-**Measured on a Xiaomi M2101K6G (Android 12, arm64, debug build, slim bundle of ADR-0013):**
-p50 74 ms, p95 121 ms (n = 70); Q4 operators run; anonymous memory 255 MB after loading (app alone
-117 MB RSS before), files 107 MB, peak VmHWM 403 MB; cold start 5.0 s before ADR-0014 (the engine
-loads in the background when the app opens). One phone only: the mid-range iPhone and a second
+**Measured on a Xiaomi M2101K6G (Android 12, arm64, debug build, slim bundle of ADR-0013, checksums
+once per install of ADR-0014):** p50 97 ms, p95 123 ms (n = 70); Q4 operators run; anonymous memory
+224 MB after loading (app alone 108 MB RSS before), files 123 MB, peak VmHWM 388 MB; cold start 4.0 s
+(0.7-1.1 s of hashing removed; the engine loads in the background when the app opens). One phone only: the mid-range iPhone and a second
 Android model are still to measure.
 **Fallback if Q4 is unsupported:** INT8 pruned model (186 MB) and revisit the size budget.
 
