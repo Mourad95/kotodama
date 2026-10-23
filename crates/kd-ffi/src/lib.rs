@@ -157,7 +157,7 @@ fn animation_level(theme: &kd_fx::Theme, emotion_id: &str, writing_level: u8) ->
 
 #[uniffi::export]
 impl Animator {
-    /// Parses and validates a theme file (`themes/*/theme.json`).
+    /// Parses and validates a theme file (a `theme.json` file under `themes/`).
     #[uniffi::constructor]
     pub fn new(theme_json: String) -> Result<Arc<Self>, EngineError> {
         install_panic_hook();
