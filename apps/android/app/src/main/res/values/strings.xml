@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- French first; English translations in values-en. Keys are English. -->
+<resources>
+    <string name="app_name">KotoMotion Spike</string>
+    <string name="message_label">Message</string>
+    <string name="analyse_button">Analyser</string>
+    <string name="benchmark_button">Benchmark</string>
+    <string name="device_line">Appareil : %1$s — Android %2$s (API %3$d) — %4$s — %5$s</string>
+    <string name="bundle_dir_line">Dossier du modèle : %1$s</string>
+    <string name="bundle_missing">Modèle introuvable : repli sur « calme ». Copiez le bundle avec adb (voir apps/android/README.md).</string>
+    <string name="bundle_error">Le modèle n\'a pas pu être chargé (%1$s) : repli sur « calme ».</string>
+    <string name="engine_loading">Chargement du modèle…</string>
+    <string name="cold_start_line">Démarrage à froid (open) : %1$d ms</string>
+    <string name="open_phases_line">Vérification sha256 : %1$d ms — chargement modèle : %2$d ms</string>
+    <string name="open_split_line">Avant open : RSS %1$d Mo — après : anonyme %2$d Mo, fichiers %3$d Mo</string>
+    <string name="open_memory_line">Après open : tas natif %1$d Mo, pic %2$d Mo, RSS %3$d Mo</string>
+    <string name="result_effective">Émotion effective : %1$s (choix : %2$s, confiance %3$.2f)</string>
+    <string name="result_fallback">Émotion effective : calme (repli, aucun modèle)</string>
+    <string name="latency_line">Latence de cet appel : %1$.1f ms</string>
+    <string name="benchmark_running">Benchmark en cours…</string>
+    <string name="benchmark_result">n = %1$d (échauffement %2$d)\np50 = %3$.1f ms\np95 = %4$.1f ms\nmax = %5$.1f ms</string>
+    <string name="memory_line">Mémoire : tas natif %1$d Mo, tas Java %2$d Mo, pic VmHWM %3$d Mo (VmRSS %4$d Mo)</string>
+    <string name="analysis_error">Échec de l\'analyse : %1$s</string>
+    <string name="no_bench_messages">bench_messages.txt introuvable ou vide.</string>
+</resources>

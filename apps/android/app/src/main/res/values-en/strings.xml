@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">KotoMotion Spike</string>
+    <string name="message_label">Message</string>
+    <string name="analyse_button">Analyse</string>
+    <string name="benchmark_button">Benchmark</string>
+    <string name="device_line">Device: %1$s — Android %2$s (API %3$d) — %4$s — %5$s</string>
+    <string name="bundle_dir_line">Model directory: %1$s</string>
+    <string name="bundle_missing">Model bundle not found: falling back to “calme”. Copy it with adb (see apps/android/README.md).</string>
+    <string name="bundle_error">The model could not be loaded (%1$s): falling back to “calme”.</string>
+    <string name="engine_loading">Loading the model…</string>
+    <string name="cold_start_line">Cold start (open): %1$d ms</string>
+    <string name="open_phases_line">sha256 check: %1$d ms — model load: %2$d ms</string>
+    <string name="open_split_line">Before open: RSS %1$d MB — after: anonymous %2$d MB, files %3$d MB</string>
+    <string name="open_memory_line">After open: native heap %1$d MB, peak %2$d MB, RSS %3$d MB</string>
+    <string name="result_effective">Effective emotion: %1$s (choice: %2$s, confidence %3$.2f)</string>
+    <string name="result_fallback">Effective emotion: calme (fallback, no model)</string>
+    <string name="latency_line">Latency of this call: %1$.1f ms</string>
+    <string name="benchmark_running">Benchmark running…</string>
+    <string name="benchmark_result">n = %1$d (warm-up %2$d)\np50 = %3$.1f ms\np95 = %4$.1f ms\nmax = %5$.1f ms</string>
+    <string name="memory_line">Memory: native heap %1$d MB, Java heap %2$d MB, peak VmHWM %3$d MB (VmRSS %4$d MB)</string>
+    <string name="analysis_error">Analysis failed: %1$s</string>
+    <string name="no_bench_messages">bench_messages.txt missing or empty.</string>
+</resources>

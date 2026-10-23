@@ -107,6 +107,20 @@ pub fn sha256_file(path: &Path) -> Result<String, EmotionError> {
         .collect())
 }
 
+/// What a verification receipt records: the manifest digest and the size of every listed file.
+/// `None` if a listed file cannot be stat-ed.
+fn fingerprint(dir: &Path, manifest_json: &str, manifest: &Manifest) -> Option<String> {
+    let mut out = format!(
+        "kd-receipt-1\n{:x}\n",
+        Sha256::digest(manifest_json.as_bytes())
+    );
+    for name in manifest.files.keys() {
+        let len = std::fs::metadata(dir.join(name)).ok()?.len();
+        out.push_str(&format!("{name}:{len}\n"));
+    }
+    Some(out)
+}
+
 /// A bundle directory whose files all passed their checksum.
 #[derive(Debug, Clone)]
 pub struct Bundle {
@@ -120,19 +134,49 @@ pub struct Bundle {
 impl Bundle {
     /// Reads the manifest, verifies the SHA-256 of every listed file and parses the head.
     pub fn open(dir: impl AsRef<Path>) -> Result<Self, EmotionError> {
-        let dir = dir.as_ref().to_path_buf();
+        Self::open_inner(dir.as_ref(), None)
+    }
+
+    /// Like [`Bundle::open`], but hashes the files only once: after a full verification a
+    /// receipt is written to `receipt` (ADR-0014). While the manifest and the size of every file
+    /// still match the receipt, later calls skip the hashing (about a second on a phone).
+    ///
+    /// The receipt must live where only the app can write (its private storage): whoever can
+    /// write there can already replace the app itself. A missing, unreadable or stale receipt
+    /// only means a full verification; failing to write it is not an error.
+    pub fn open_with_receipt(
+        dir: impl AsRef<Path>,
+        receipt: impl AsRef<Path>,
+    ) -> Result<Self, EmotionError> {
+        Self::open_inner(dir.as_ref(), Some(receipt.as_ref()))
+    }
+
+    fn open_inner(dir: &Path, receipt: Option<&Path>) -> Result<Self, EmotionError> {
+        let dir = dir.to_path_buf();
         let manifest_path = dir.join(MANIFEST_FILE);
         let json = std::fs::read_to_string(&manifest_path)
             .map_err(|e| EmotionError::Bundle(format!("{}: {e}", manifest_path.display())))?;
         let manifest = Manifest::from_json(&json)?;
-        for (name, expected) in &manifest.files {
-            let got = sha256_file(&dir.join(name))?;
-            if !got.eq_ignore_ascii_case(expected) {
-                return Err(EmotionError::ChecksumMismatch {
-                    file: name.clone(),
-                    expected: expected.clone(),
-                    got,
-                });
+        let fingerprint = receipt.and_then(|_| fingerprint(&dir, &json, &manifest));
+        let already_verified = match (receipt, &fingerprint) {
+            (Some(path), Some(now)) => {
+                std::fs::read_to_string(path).is_ok_and(|saved| saved == *now)
+            }
+            _ => false,
+        };
+        if !already_verified {
+            for (name, expected) in &manifest.files {
+                let got = sha256_file(&dir.join(name))?;
+                if !got.eq_ignore_ascii_case(expected) {
+                    return Err(EmotionError::ChecksumMismatch {
+                        file: name.clone(),
+                        expected: expected.clone(),
+                        got,
+                    });
+                }
+            }
+            if let (Some(path), Some(now)) = (receipt, &fingerprint) {
+                let _ = std::fs::write(path, now);
             }
         }
         let head_path = dir.join(HEAD_FILE);
@@ -163,16 +207,36 @@ impl Bundle {
     }
 
     /// Builds the engine: loads the model and tokenizer and applies the manifest threshold.
+    /// ONNX Runtime is loaded from `ORT_DYLIB_PATH`.
     #[cfg(feature = "ort")]
     pub fn into_engine(
         self,
     ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
-        let embedder = crate::ort_embedder::OrtEmbedder::new(
-            &self.path(MODEL_FILE),
-            &self.path(TOKENIZER_FILE),
-            &self.manifest.prompt,
-            self.manifest.embedding_dim,
-        )?;
+        self.build_engine(None)
+    }
+
+    /// Like [`Bundle::into_engine`], but loads ONNX Runtime from the given library path.
+    #[cfg(feature = "ort")]
+    pub fn into_engine_with_library(
+        self,
+        library: &Path,
+    ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
+        self.build_engine(Some(library))
+    }
+
+    #[cfg(feature = "ort")]
+    fn build_engine(
+        self,
+        library: Option<&Path>,
+    ) -> Result<crate::EmotionEngine<crate::ort_embedder::OrtEmbedder>, EmotionError> {
+        let (model, tokenizer) = (self.path(MODEL_FILE), self.path(TOKENIZER_FILE));
+        let (prompt, dim) = (&self.manifest.prompt, self.manifest.embedding_dim);
+        let embedder = match library {
+            Some(lib) => {
+                crate::ort_embedder::OrtEmbedder::with_library(lib, &model, &tokenizer, prompt, dim)
+            }
+            None => crate::ort_embedder::OrtEmbedder::new(&model, &tokenizer, prompt, dim),
+        }?;
         Ok(crate::EmotionEngine::new(embedder, self.head).with_threshold(self.manifest.threshold))
     }
 }
@@ -263,6 +327,42 @@ mod tests {
             Err(EmotionError::ChecksumMismatch { file, .. }) => assert_eq!(file, HEAD_FILE),
             other => panic!("expected a checksum mismatch, got {other:?}"),
         }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn receipt_skips_hashing_until_something_changes() {
+        let dir = write_bundle("receipt", &sha(HEAD.as_bytes()));
+        let receipt = dir.join("receipt.txt");
+        Bundle::open_with_receipt(&dir, &receipt).unwrap();
+        assert!(receipt.is_file(), "a verified bundle leaves a receipt");
+        // Same size, different content: the receipt hides it (documented trust model)...
+        std::fs::write(dir.join(MODEL_FILE), "MODEL").unwrap();
+        Bundle::open_with_receipt(&dir, &receipt).unwrap();
+        // ...but plain `open` and any size change still catch it.
+        assert!(matches!(
+            Bundle::open(&dir),
+            Err(EmotionError::ChecksumMismatch { .. })
+        ));
+        std::fs::write(dir.join(MODEL_FILE), "model2").unwrap();
+        assert!(Bundle::open_with_receipt(&dir, &receipt).is_err());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn corrupt_receipt_means_a_full_verification() {
+        let dir = write_bundle("receipt-bad", &sha(b"something else"));
+        let receipt = dir.join("receipt.txt");
+        std::fs::write(&receipt, "kd-receipt-1\nnonsense\n").unwrap();
+        assert!(matches!(
+            Bundle::open_with_receipt(&dir, &receipt),
+            Err(EmotionError::ChecksumMismatch { .. })
+        ));
+        assert_eq!(
+            std::fs::read_to_string(&receipt).unwrap(),
+            "kd-receipt-1\nnonsense\n",
+            "a failed verification never writes a receipt"
+        );
         std::fs::remove_dir_all(dir).unwrap();
     }
 
