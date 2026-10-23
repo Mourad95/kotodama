@@ -14,7 +14,7 @@ screen. Android and iOS do not let a keyboard draw over another app.
    where the host app supports it) inserted as a message or sticker, so it plays in the host's bubble, not full
    screen.
 3. `Renderer::render_over` draws on a transparent background and gives the letters a white halo, so the message
-   stays readable over any conversation, light or dark. `Animator.render(..., overlay)` exposes it to the shells.
+   stays readable over any conversation, light or dark. `Animator.render(..., overlay)` exposes it to the shells (refined by ADR-0017: two layers, contrasting halo).
 4. The conversation shown in the app lives in memory only and is never stored (docs/legal.md L18).
 
 ## Consequences

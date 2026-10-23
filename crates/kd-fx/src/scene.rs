@@ -54,7 +54,7 @@ pub struct ParticleState {
     pub x: f32,
     /// Centre, as a fraction of the frame height.
     pub y: f32,
-    /// Size as a fraction of the frame height.
+    /// Size as a fraction of the frame's size unit (its height for a 9:16 portrait frame, see `render::size_unit`).
     pub size: f32,
     /// Rotation in radians.
     pub rotation: f32,

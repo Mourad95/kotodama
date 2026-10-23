@@ -7,6 +7,14 @@
 //! centred, effects tinted from the text colour (speed lines, shockwave, spotlight, tint), the
 //! impact flash in black, onomatopoeias in their own colour with a white outline. Background effects
 //! are drawn first and the message last, so the words stay readable.
+//!
+//! A frame can be drawn in two [`Layer`]s (ADR-0017): the screen effects are soft and large, so they
+//! can be drawn small and scaled up by the phone, while the particles and letters are drawn at screen
+//! resolution and stay sharp.
+//!
+//! Sizes are expressed in a *unit* of the frame (see [`size_unit`]): its height for a 9:16 portrait
+//! frame, less for a wide or short one, so the message and the effects keep their proportions on any
+//! screen shape.
 
 use skrifa::instance::{LocationRef, Size};
 use skrifa::outline::{DrawSettings, OutlinePen};
@@ -20,8 +28,8 @@ use crate::scene::{Frame, GlyphState, OnomatopoeiaState, ParticleState, Rgb, Scr
 use crate::{ParticleKind, ScreenKind};
 
 const FONT: &[u8] = include_bytes!("../assets/fonts/NotoSansJP-Bold-subset.ttf");
-/// Message font size as a fraction of the frame height.
-const TEXT_SIZE: f32 = 0.07;
+/// Message font size as a fraction of the size unit.
+const TEXT_SIZE: f32 = 0.058;
 /// Widest a line of the message may be, as a fraction of the frame width.
 const TEXT_WIDTH: f32 = 0.84;
 /// Characters that never start a line: they stay with the word they follow.
@@ -32,12 +40,54 @@ const FLASH_TEXT_SWITCH: f32 = 0.35;
 const LINE_HEIGHT: f32 = 1.35;
 
 /// How letters are drawn this frame: the message font size, the frame shake and whether the frame is
-/// composited over a conversation (transparent background, white halo).
+/// composited over a conversation (transparent background, halo).
 #[derive(Clone, Copy)]
 struct TextStyle {
     font_px: f32,
     shake: Transform,
     overlay: bool,
+}
+
+/// One of the two passes letters are drawn in over a conversation: every halo first, then every letter,
+/// so a halo never covers a neighbouring letter while letters overlap.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TextPass {
+    Halo,
+    Ink,
+}
+
+/// Colour of the halo around letters of `ink`: white around dark ink, near black around light ink (the
+/// letters turn white during an impact flash).
+fn halo_of(ink: Rgb) -> Rgb {
+    let Rgb(r, g, b) = ink;
+    let luma = 0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b);
+    if luma > 150.0 {
+        Rgb(24, 22, 30)
+    } else {
+        Rgb(255, 255, 255)
+    }
+}
+
+/// Which part of a frame to draw.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Layer {
+    /// Everything, on the light background (export, golden frames).
+    Opaque,
+    /// Everything, on a transparent background, to composite over a conversation.
+    Over,
+    /// Only the screen effects (flash, tint, spotlight, speed lines, screentone, burst, shockwave), on
+    /// a transparent background. They are soft: draw this layer small and scale it up.
+    Back,
+    /// Only the particles, the message and the onomatopoeias, on a transparent background, with the
+    /// letters' halo. Draw it at screen resolution, over [`Layer::Back`].
+    Front,
+}
+
+/// The length every size of a frame is expressed in: the frame height for a 9:16 portrait frame; for a
+/// wider or shorter frame, the larger side without exceeding the height a 9:16 frame of that width
+/// would have.
+pub fn size_unit(width: f32, height: f32) -> f32 {
+    (width / 0.5625).min(width.max(height))
 }
 
 /// Draws frames. Cheap to build; reuse it across frames.
@@ -96,7 +146,7 @@ impl Renderer {
     /// Renders `frame` for `message` (the text the frame was sampled for) at `width` x `height`.
     /// Returns `None` for an empty or absurd size.
     pub fn render(&self, frame: &Frame, message: &str, width: u32, height: u32) -> Option<Pixmap> {
-        self.draw(frame, message, width, height, false)
+        self.render_layer(frame, message, width, height, Layer::Opaque)
     }
 
     /// Like [`Renderer::render`] but on a transparent background, to be composited over a conversation:
@@ -109,22 +159,28 @@ impl Renderer {
         width: u32,
         height: u32,
     ) -> Option<Pixmap> {
-        self.draw(frame, message, width, height, true)
+        self.render_layer(frame, message, width, height, Layer::Over)
     }
 
-    fn draw(
+    /// Draws one [`Layer`] of `frame` at `width` x `height`. Two layers of the same frame line up when
+    /// stretched to the same screen area, whatever their pixel sizes.
+    pub fn render_layer(
         &self,
         frame: &Frame,
         message: &str,
         width: u32,
         height: u32,
-        overlay: bool,
+        layer: Layer,
     ) -> Option<Pixmap> {
         let mut pixmap = Pixmap::new(width, height)?;
-        if !overlay {
+        if layer == Layer::Opaque {
             pixmap.fill(color(self.background, 1.0));
         }
+        let back = layer != Layer::Front;
+        let front = layer != Layer::Back;
+        let overlay = layer != Layer::Opaque;
         let (w, h) = (width as f32, height as f32);
+        let u = size_unit(w, h);
         let shake = Transform::from_translate(frame.shake.0 * w, frame.shake.1 * h);
         let ink = frame.text_color;
         // During an impact flash the background goes dark: the message switches to white so it stays readable.
@@ -140,22 +196,35 @@ impl Renderer {
             ink
         };
 
-        for s in &frame.screen {
-            draw_screen(&mut pixmap, s, ink, w, h, shake);
+        if back {
+            let area = Area { w, h, u, shake };
+            for s in &frame.screen {
+                draw_screen(&mut pixmap, s, ink, &area);
+            }
+        }
+        if !front {
+            return Some(pixmap);
         }
         for p in &frame.particles {
-            draw_particle(&mut pixmap, p, w, h, shake);
+            draw_particle(&mut pixmap, p, w, h, u, shake);
         }
-        let font_px = TEXT_SIZE * h;
+        let font_px = TEXT_SIZE * u;
         let style = TextStyle {
             font_px,
             shake,
             overlay,
         };
         let placed = self.layout(message, font_px, w, h);
-        for g in &frame.glyphs {
-            if let Some(p) = placed.iter().find(|p| p.index == g.index) {
-                self.draw_glyph(&mut pixmap, p, g, text_ink, &style);
+        let passes: &[TextPass] = if overlay {
+            &[TextPass::Halo, TextPass::Ink]
+        } else {
+            &[TextPass::Ink]
+        };
+        for &pass in passes {
+            for g in &frame.glyphs {
+                if let Some(p) = placed.iter().find(|p| p.index == g.index) {
+                    self.draw_glyph(&mut pixmap, p, g, text_ink, &style, pass);
+                }
             }
         }
         for o in &frame.onomatopoeias {
@@ -263,6 +332,7 @@ impl Renderer {
         g: &GlyphState,
         ink: Rgb,
         style: &TextStyle,
+        pass: TextPass,
     ) {
         let TextStyle {
             font_px,
@@ -290,17 +360,28 @@ impl Renderer {
             .pre_translate(-pivot.0, -pivot.1)
             .pre_scale(s, s)
             .post_concat(shake);
-        if overlay {
-            // White halo: the message stays readable over a dark or busy conversation.
-            let mut halo = Paint::default();
-            halo.set_color(color(Rgb(255, 255, 255), 0.9 * g.alpha));
-            let stroke = Stroke {
-                width: 0.14 * font_px / s,
-                line_cap: LineCap::Round,
-                line_join: tiny_skia::LineJoin::Round,
-                ..Stroke::default()
-            };
-            pixmap.stroke_path(&path, &halo, &stroke, t, None);
+        if pass == TextPass::Halo {
+            if !overlay {
+                return;
+            }
+            // Halo, soft at its edge: the message stays readable over a dark or busy conversation
+            // without looking cut out.
+            for (width, alpha) in [(0.24, 0.35), (0.13, 0.95)] {
+                let stroke = Stroke {
+                    width: width * font_px / s,
+                    line_cap: LineCap::Round,
+                    line_join: tiny_skia::LineJoin::Round,
+                    ..Stroke::default()
+                };
+                pixmap.stroke_path(
+                    &path,
+                    &paint(halo_of(ink), alpha * g.alpha),
+                    &stroke,
+                    t,
+                    None,
+                );
+            }
+            return;
         }
         if g.glow > 0.0 {
             let mut glow = Paint::default();
@@ -378,16 +459,60 @@ fn paint(rgb: Rgb, alpha: f32) -> Paint<'static> {
     p
 }
 
+/// Where screen effects are drawn: the frame size in pixels, its size unit and the frame shake.
+struct Area {
+    w: f32,
+    h: f32,
+    u: f32,
+    shake: Transform,
+}
+
+impl Area {
+    fn centre(&self) -> Point {
+        Point::from_xy(self.w / 2.0, self.h / 2.0)
+    }
+
+    fn half_diagonal(&self) -> f32 {
+        (self.w * self.w + self.h * self.h).sqrt() / 2.0
+    }
+}
+
 fn full_rect(w: f32, h: f32) -> Path {
     PathBuilder::from_rect(tiny_skia::Rect::from_xywh(-w, -h, 3.0 * w, 3.0 * h).expect("non-empty"))
 }
 
-fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, shake: Transform) {
-    let centre = Point::from_xy(w / 2.0, h / 2.0);
+/// A paint filled with a radial gradient centred on `centre`, `stops` placed along `radius`.
+fn radial(centre: Point, radius: f32, stops: Vec<GradientStop>) -> Option<Paint<'static>> {
+    let shader = RadialGradient::new(
+        centre,
+        0.0,
+        centre,
+        radius,
+        stops,
+        SpreadMode::Pad,
+        Transform::identity(),
+    )?;
+    Some(Paint {
+        shader,
+        anti_alias: true,
+        ..Paint::default()
+    })
+}
+
+/// A lighter version of `ink`: `keep` of the colour mixed into white.
+fn tint_of(ink: Rgb, keep: f32) -> Rgb {
+    let mix = |c: u8| (255.0 - (255.0 - f32::from(c)) * keep).round() as u8;
+    Rgb(mix(ink.0), mix(ink.1), mix(ink.2))
+}
+
+fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
+    let (w, h, u, shake) = (area.w, area.h, area.u, area.shake);
+    let centre = area.centre();
+    let whole = full_rect(w, h);
     match s.kind {
         ScreenKind::ImpactFlash => {
             pixmap.fill_path(
-                &full_rect(w, h),
+                &whole,
                 &paint(Rgb(0, 0, 0), s.alpha),
                 FillRule::Winding,
                 Transform::identity(),
@@ -395,63 +520,55 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, s
             );
         }
         ScreenKind::Tint => {
-            pixmap.fill_path(
-                &full_rect(w, h),
-                &paint(ink, 0.18 * s.alpha),
-                FillRule::Winding,
-                Transform::identity(),
-                None,
-            );
+            // A vignette rather than a flat veil: the colour gathers at the edges, the message stays clear.
+            let stops = vec![
+                GradientStop::new(0.0, color(ink, 0.05 * s.alpha)),
+                GradientStop::new(1.0, color(ink, 0.24 * s.alpha)),
+            ];
+            if let Some(p) = radial(centre, area.half_diagonal(), stops) {
+                pixmap.fill_path(&whole, &p, FillRule::Winding, Transform::identity(), None);
+            }
         }
         ScreenKind::Spotlight => {
             let stops = vec![
                 GradientStop::new(0.0, Color::from_rgba8(0, 0, 0, 0)),
-                GradientStop::new(0.45, Color::from_rgba8(0, 0, 0, 0)),
+                GradientStop::new(0.4, Color::from_rgba8(0, 0, 0, 0)),
                 GradientStop::new(1.0, color(Rgb(0, 0, 0), 0.7 * s.alpha)),
             ];
-            if let Some(shader) = RadialGradient::new(
-                centre,
-                0.0,
-                centre,
-                h * 0.8,
-                stops,
-                SpreadMode::Pad,
-                Transform::identity(),
-            ) {
-                let p = Paint {
-                    shader,
-                    ..Paint::default()
-                };
-                pixmap.fill_path(
-                    &full_rect(w, h),
-                    &p,
-                    FillRule::Winding,
-                    Transform::identity(),
-                    None,
-                );
+            if let Some(p) = radial(centre, area.half_diagonal() * 1.1, stops) {
+                pixmap.fill_path(&whole, &p, FillRule::Winding, Transform::identity(), None);
             }
         }
         ScreenKind::Shockwave => {
-            let radius = s.progress.powf(0.6) * h * 0.7;
+            // A soft ring: transparent on both sides of its crest.
+            let radius = s.progress.powf(0.6) * u * 0.7;
+            let thick = 0.05 * u * (1.0 - 0.5 * s.progress);
+            let outer = radius + thick;
             if radius > 1.0 {
-                if let Some(ring) = PathBuilder::from_circle(centre.x, centre.y, radius) {
-                    let stroke = Stroke {
-                        width: 0.035 * h * (1.0 - 0.5 * s.progress),
-                        ..Stroke::default()
-                    };
-                    pixmap.stroke_path(&ring, &paint(ink, 0.55 * s.alpha), &stroke, shake, None);
+                let inner = ((radius - thick) / outer).max(0.0);
+                let stops = vec![
+                    GradientStop::new(inner, color(ink, 0.0)),
+                    GradientStop::new(radius / outer, color(ink, 0.5 * s.alpha)),
+                    GradientStop::new(1.0, color(ink, 0.0)),
+                ];
+                if let (Some(ring), Some(p)) = (
+                    PathBuilder::from_circle(centre.x, centre.y, outer),
+                    radial(centre, outer, stops),
+                ) {
+                    pixmap.fill_path(&ring, &p, FillRule::Winding, shake, None);
                 }
             }
         }
         ScreenKind::SpeedLines => {
-            // Thin wedges converging on the message; angles are fixed so the lines are stable.
-            let (inner, outer) = (h * 0.22, h * 0.95);
+            // Thin wedges converging on the message, fading out before they reach it; angles are fixed
+            // so the lines are stable.
+            let (inner, outer) = (u * 0.2, area.half_diagonal() * 1.1);
             let mut pb = PathBuilder::new();
-            for i in 0..56_u32 {
+            for i in 0..64_u32 {
                 let a =
-                    (i as f32 + 0.5 * ((i * 7 % 5) as f32 / 5.0)) / 56.0 * std::f32::consts::TAU;
-                let half = 0.012 + 0.012 * ((i * 13 % 7) as f32 / 7.0);
-                let r0 = inner + h * 0.12 * ((i * 11 % 6) as f32 / 6.0);
+                    (i as f32 + 0.5 * ((i * 7 % 5) as f32 / 5.0)) / 64.0 * std::f32::consts::TAU;
+                let half = 0.006 + 0.01 * ((i * 13 % 7) as f32 / 7.0);
+                let r0 = inner + u * 0.14 * ((i * 11 % 6) as f32 / 6.0);
                 for (r, da) in [(r0, 0.0), (outer, -half), (outer, half)] {
                     let (x, y) = (centre.x + r * (a + da).cos(), centre.y + r * (a + da).sin());
                     if r == r0 {
@@ -462,27 +579,30 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, s
                 }
                 pb.close();
             }
-            if let Some(path) = pb.finish() {
-                pixmap.fill_path(
-                    &path,
-                    &paint(ink, 0.55 * s.alpha),
-                    FillRule::Winding,
-                    shake,
-                    None,
-                );
+            let stops = vec![
+                GradientStop::new(inner / outer, color(ink, 0.0)),
+                GradientStop::new(
+                    ((inner + 0.25 * u) / outer).min(1.0),
+                    color(ink, 0.45 * s.alpha),
+                ),
+                GradientStop::new(1.0, color(ink, 0.6 * s.alpha)),
+            ];
+            if let (Some(path), Some(p)) = (pb.finish(), radial(centre, outer, stops)) {
+                pixmap.fill_path(&path, &p, FillRule::Winding, shake, None);
             }
         }
-        ScreenKind::Halftone => draw_halftone(pixmap, s, ink, w, h, shake),
-        ScreenKind::Burst => draw_burst(pixmap, s, ink, w, h, shake),
+        ScreenKind::Halftone => draw_halftone(pixmap, s, ink, area),
+        ScreenKind::Burst => draw_burst(pixmap, s, ink, area),
         ScreenKind::Shake => {}
     }
 }
 
 /// Screentone: staggered rows of dots whose size grows from nothing near the centre (where the message
 /// is) to a full dot at the edges, so the middle of the frame stays clean.
-fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, shake: Transform) {
-    let step = 0.03 * h;
-    let half_diagonal = (w * w + h * h).sqrt() / 2.0;
+fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
+    let (w, h) = (area.w, area.h);
+    let step = 0.026 * area.u;
+    let half_diagonal = area.half_diagonal();
     let mut dots = PathBuilder::new();
     let mut row = 0_u32;
     let mut y = step / 2.0;
@@ -497,7 +617,7 @@ fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32,
             let d = ((x - w / 2.0).powi(2) + (y - h / 2.0).powi(2)).sqrt() / half_diagonal;
             let grow = ((d - 0.35) / 0.65).clamp(0.0, 1.0);
             let r = step * 0.5 * grow * grow * s.strength.clamp(0.0, 1.0);
-            if r > 0.8 {
+            if r > 0.5 {
                 dots.push_circle(x, y, r);
             }
             x += step;
@@ -508,34 +628,27 @@ fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32,
     if let Some(path) = dots.finish() {
         pixmap.fill_path(
             &path,
-            &paint(ink, 0.4 * s.alpha / s.strength.max(0.01)),
+            &paint(ink, 0.3 * s.alpha / s.strength.max(0.01)),
             FillRule::Winding,
-            shake,
+            area.shake,
             None,
         );
     }
 }
 
-/// Manga explosion: a spiky pale shape (a tint of the ink colour) with an ink outline, popping in with
-/// a little overshoot. Drawn behind the message, so the words sit on a clean light area.
-fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, shake: Transform) {
+/// The outline of a manga burst of `base` radius centred on the frame.
+fn burst_path(area: &Area, base: f32) -> Option<Path> {
     const SPIKES: u32 = 18;
-    let entrance = (s.progress / 0.12).clamp(0.0, 1.0);
-    let grow = crate::scene::ease_out_back(entrance);
-    let base = 0.5 * w.min(h * 0.7) * 1.05 * grow;
-    if base < 2.0 {
-        return;
-    }
     let mut pb = PathBuilder::new();
     for i in 0..SPIKES * 2 {
         let spike = i % 2 == 0;
         // Deterministic irregularity so the shape looks drawn by hand, not stamped.
         let wobble = 0.88 + 0.24 * (((u64::from(i) * 2_654_435_761) >> 7) % 100) as f32 / 100.0;
-        let radius = if spike { base * wobble } else { base * 0.74 };
+        let radius = if spike { base * wobble } else { base * 0.76 };
         let angle = i as f32 / (SPIKES * 2) as f32 * std::f32::consts::TAU;
         let (x, y) = (
-            w / 2.0 + radius * 1.1 * angle.cos(),
-            h / 2.0 + radius * 1.0 * angle.sin(),
+            area.w / 2.0 + radius * 1.1 * angle.cos(),
+            area.h / 2.0 + radius * angle.sin(),
         );
         if i == 0 {
             pb.move_to(x, y);
@@ -544,25 +657,50 @@ fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, sh
         }
     }
     pb.close();
-    if let Some(path) = pb.finish() {
-        let pale = Rgb(
-            (u16::from(ink.0) / 10 + 230) as u8,
-            (u16::from(ink.1) / 10 + 230) as u8,
-            (u16::from(ink.2) / 10 + 230) as u8,
-        );
-        pixmap.fill_path(
-            &path,
-            &paint(pale, 0.92 * s.alpha),
-            FillRule::Winding,
-            shake,
+    pb.finish()
+}
+
+/// Manga explosion: a spiky shape, white at its heart and tinted towards its tips, with a fine ink
+/// outline and a fainter inner contour, popping in with a little overshoot. Drawn behind the message,
+/// so the words sit on a clean light area.
+fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
+    let entrance = (s.progress / 0.12).clamp(0.0, 1.0);
+    let grow = crate::scene::ease_out_back(entrance);
+    let base = 0.5 * area.w.min(area.h * 0.7) * 1.05 * grow;
+    if base < 2.0 {
+        return;
+    }
+    let Some(path) = burst_path(area, base) else {
+        return;
+    };
+    let stops = vec![
+        GradientStop::new(0.0, color(Rgb(255, 255, 255), 0.95 * s.alpha)),
+        GradientStop::new(0.55, color(tint_of(ink, 0.06), 0.93 * s.alpha)),
+        GradientStop::new(1.0, color(tint_of(ink, 0.22), 0.9 * s.alpha)),
+    ];
+    if let Some(fill) = radial(area.centre(), base * 1.2, stops) {
+        pixmap.fill_path(&path, &fill, FillRule::Winding, area.shake, None);
+    }
+    let stroke = |width: f32| Stroke {
+        width: width * area.u,
+        line_join: tiny_skia::LineJoin::Round,
+        ..Stroke::default()
+    };
+    pixmap.stroke_path(
+        &path,
+        &paint(ink, 0.7 * s.alpha),
+        &stroke(0.0045),
+        area.shake,
+        None,
+    );
+    if let Some(inner) = burst_path(area, base * 0.9) {
+        pixmap.stroke_path(
+            &inner,
+            &paint(ink, 0.22 * s.alpha),
+            &stroke(0.0025),
+            area.shake,
             None,
         );
-        let stroke = Stroke {
-            width: 0.007 * h,
-            line_join: tiny_skia::LineJoin::Miter,
-            ..Stroke::default()
-        };
-        pixmap.stroke_path(&path, &paint(ink, 0.85 * s.alpha), &stroke, shake, None);
     }
 }
 
@@ -570,7 +708,7 @@ fn star(cx: f32, cy: f32, r: f32) -> Option<Path> {
     let mut pb = PathBuilder::new();
     for i in 0..8 {
         let a = i as f32 * std::f32::consts::FRAC_PI_4 - std::f32::consts::FRAC_PI_2;
-        let rr = if i % 2 == 0 { r } else { r * 0.3 };
+        let rr = if i % 2 == 0 { r } else { r * 0.28 };
         let (x, y) = (cx + rr * a.cos(), cy + rr * a.sin());
         if i == 0 {
             pb.move_to(x, y)
@@ -598,18 +736,39 @@ fn heart(cx: f32, cy: f32, r: f32) -> Option<Path> {
     pb.finish()
 }
 
-fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, shake: Transform) {
+/// A soft disc of `rgb` fading from `alpha` at its centre to nothing at `radius`.
+fn glow(pixmap: &mut Pixmap, x: f32, y: f32, radius: f32, rgb: Rgb, alpha: f32, t: Transform) {
+    let stops = vec![
+        GradientStop::new(0.0, color(rgb, alpha)),
+        GradientStop::new(0.4, color(rgb, alpha * 0.45)),
+        GradientStop::new(1.0, color(rgb, 0.0)),
+    ];
+    if let (Some(disc), Some(p)) = (
+        PathBuilder::from_circle(x, y, radius),
+        radial(Point::from_xy(x, y), radius, stops),
+    ) {
+        pixmap.fill_path(&disc, &p, FillRule::Winding, t, None::<&Mask>);
+    }
+}
+
+fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, u: f32, shake: Transform) {
     if p.alpha <= 0.0 {
         return;
     }
-    let (x, y, r) = (p.x * w, p.y * h, p.size * h);
+    let (x, y, r) = (p.x * w, p.y * h, p.size * u);
     let spin = shake.pre_rotate_at(p.rotation.to_degrees(), x, y);
     let fill = paint(p.color, p.alpha);
     let path = match p.kind {
         ParticleKind::Confetti => {
-            tiny_skia::Rect::from_xywh(x - r, y - r * 0.5, r * 2.0, r).map(PathBuilder::from_rect)
+            // Paper turning in the air: its apparent height follows the spin.
+            let flip = (p.rotation * 1.7).cos().abs().max(0.15);
+            tiny_skia::Rect::from_xywh(x - r, y - r * 0.5 * flip, r * 2.0, r * flip)
+                .map(PathBuilder::from_rect)
         }
-        ParticleKind::Stars => star(x, y, r * 1.6),
+        ParticleKind::Stars => {
+            glow(pixmap, x, y, r * 2.4, p.color, 0.3 * p.alpha, shake);
+            star(x, y, r * 1.6)
+        }
         ParticleKind::Hearts => heart(x, y, r),
         ParticleKind::Petals => {
             let mut pb = PathBuilder::new();
@@ -619,11 +778,52 @@ fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, shake: 
             pb.close();
             pb.finish()
         }
-        ParticleKind::Rain => tiny_skia::Rect::from_xywh(x - r * 0.06, y - r, r * 0.12, r * 2.0)
-            .map(PathBuilder::from_rect),
-        ParticleKind::Aura | ParticleKind::Embers => PathBuilder::from_circle(x, y, r),
+        ParticleKind::Rain => {
+            // A streak fading towards its tail.
+            let stops = vec![
+                GradientStop::new(0.0, color(p.color, 0.0)),
+                GradientStop::new(1.0, color(p.color, p.alpha)),
+            ];
+            let streak = tiny_skia::Rect::from_xywh(x - r * 0.05, y - r * 1.2, r * 0.1, r * 2.4)
+                .map(PathBuilder::from_rect);
+            if let (Some(path), Some(shader)) = (
+                streak,
+                tiny_skia::LinearGradient::new(
+                    Point::from_xy(x, y - r * 1.2),
+                    Point::from_xy(x, y + r * 1.2),
+                    stops,
+                    SpreadMode::Pad,
+                    Transform::identity(),
+                ),
+            ) {
+                let p = Paint {
+                    shader,
+                    anti_alias: true,
+                    ..Paint::default()
+                };
+                pixmap.fill_path(&path, &p, FillRule::Winding, spin, None::<&Mask>);
+            }
+            return;
+        }
+        ParticleKind::Aura | ParticleKind::Embers => {
+            // A glowing spark: a soft halo around a small bright core.
+            glow(pixmap, x, y, r * 2.2, p.color, 0.5 * p.alpha, shake);
+            PathBuilder::from_circle(x, y, r * 0.55)
+        }
     };
     if let Some(path) = path {
         pixmap.fill_path(&path, &fill, FillRule::Winding, spin, None::<&Mask>);
+    }
+    if p.kind == ParticleKind::Hearts {
+        // A small highlight makes the heart look rounded rather than flat.
+        if let Some(dot) = PathBuilder::from_circle(x - 0.4 * r, y - 0.35 * r, 0.16 * r) {
+            pixmap.fill_path(
+                &dot,
+                &paint(Rgb(255, 255, 255), 0.55 * p.alpha),
+                FillRule::Winding,
+                spin,
+                None::<&Mask>,
+            );
+        }
     }
 }

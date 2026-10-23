@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use kd_core::{Emotion, Intensity};
-use kd_fx::render::Renderer;
+use kd_fx::render::{Layer, Renderer};
 use kd_fx::scene::{sample, Motion};
 use kd_fx::Theme;
 use tiny_skia::Pixmap;
@@ -171,6 +171,54 @@ fn overlay_keeps_the_conversation_visible_and_the_message_readable() {
 }
 
 #[test]
+fn back_and_front_layers_add_up_to_the_overlay() {
+    // Drawn at the same size, the front layer composited over the back layer is the overlay frame
+    // (ADR-0017), up to 8-bit rounding: the split loses nothing and draws nothing twice.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    for t in [300, 1060, 1500] {
+        let frame = sample(
+            theme.level(Emotion::Energy, Intensity::Full),
+            MESSAGE.chars().count(),
+            t,
+            SEED,
+            Motion::Full,
+        );
+        let layer = |l| {
+            renderer
+                .render_layer(&frame, MESSAGE, SIZE.0, SIZE.1, l)
+                .unwrap()
+        };
+        let (over, back, front) = (layer(Layer::Over), layer(Layer::Back), layer(Layer::Front));
+        let mut stacked = back.clone();
+        stacked.draw_pixmap(
+            0,
+            0,
+            front.as_ref(),
+            &tiny_skia::PixmapPaint::default(),
+            tiny_skia::Transform::identity(),
+            None,
+        );
+        let worst = over
+            .data()
+            .iter()
+            .zip(stacked.data())
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(
+            worst <= 4,
+            "t={t}: layers differ from the overlay by {worst}"
+        );
+        assert_ne!(
+            back.data(),
+            front.data(),
+            "t={t}: the layers split the frame"
+        );
+    }
+}
+
+#[test]
 fn rendering_is_repeatable() {
     let a = render(Intensity::Full, Motion::Full, 1060);
     let b = render(Intensity::Full, Motion::Full, 1060);
@@ -194,7 +242,7 @@ fn luminance(p: tiny_skia::PremultipliedColorU8) -> f64 {
 fn the_message_stays_readable_for_every_emotion_and_level() {
     // At many instants (flash and burst frames included) the pixels of the message must stand out from
     // the background around them: take the darkest and the lightest 5 % of the pixels of the message
-    // band; the message is readable when those two extremes contrast, and it was drawn (enough pixels
+    // band (the middle fifth of the frame, where the two lines of the message sit); the message is readable when those two extremes contrast, and it was drawn (enough pixels
     // far from the median). Checked on the settled frame and while the animation runs.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
@@ -221,7 +269,7 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
                 if t < 1500 {
                     continue; // letters are still entering: only the later instants must be fully readable
                 }
-                let mut lum: Vec<f64> = (SIZE.1 / 3..2 * SIZE.1 / 3)
+                let mut lum: Vec<f64> = (2 * SIZE.1 / 5..3 * SIZE.1 / 5)
                     .flat_map(|y| (0..SIZE.0).map(move |x| (x, y)))
                     .map(|(x, y)| luminance(img.pixel(x, y).unwrap()))
                     .collect();

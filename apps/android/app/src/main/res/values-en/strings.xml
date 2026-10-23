@@ -29,7 +29,7 @@
     <string name="reduced_motion_forced">The system asks to reduce animations: minimal mode is forced.</string>
     <string name="writing_level_label">Writing quality: level %1$d (3 = no mistake)</string>
     <string name="replay_button">Replay</string>
-    <string name="render_stats">Rendering: %1$.1f ms on average, %2$.1f ms worst (%3$d frames, width %4$d px). 60 fps budget: 16.7 ms.</string>
+    <string name="render_stats">Rendering: %1$.1f ms on average, %2$.1f ms worst (%3$d frames, layers %4$d px and %5$d px). 60 fps budget: 16.7 ms.</string>
     <string name="beta_title">KotoMotion — beta</string>
     <string name="animate_button">Animate my message</string>
     <string name="engine_ready">Model ready.</string>

@@ -132,6 +132,31 @@ impl From<MotionMode> for kd_fx::scene::Motion {
     }
 }
 
+/// Which part of a frame [`Animator::render`] draws (ADR-0017).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum FrameLayer {
+    /// Everything, on a light opaque background (export).
+    Opaque,
+    /// Everything, on a transparent background, to play over a conversation.
+    Over,
+    /// Only the soft screen effects, transparent: draw it small and scale it up.
+    Back,
+    /// Only the particles, the message and the onomatopoeias, transparent: draw it at screen
+    /// resolution, over [`FrameLayer::Back`].
+    Front,
+}
+
+impl From<FrameLayer> for kd_fx::render::Layer {
+    fn from(l: FrameLayer) -> Self {
+        match l {
+            FrameLayer::Opaque => Self::Opaque,
+            FrameLayer::Over => Self::Over,
+            FrameLayer::Back => Self::Back,
+            FrameLayer::Front => Self::Front,
+        }
+    }
+}
+
 /// Largest frame an [`Animator`] draws, per side, in pixels.
 const MAX_FRAME_SIDE: u32 = 2048;
 /// Longest message an [`Animator`] draws, in characters (same cap as the emotion engine).
@@ -192,8 +217,8 @@ impl Animator {
 
     /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
-    /// With `overlay` the background is transparent, to play over a conversation; otherwise it is
-    /// a light opaque background.
+    /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
+    /// screen area, whatever their pixel sizes.
     /// The text is only drawn: it is never logged, stored or put in an error.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
@@ -206,7 +231,7 @@ impl Animator {
         width: u32,
         height: u32,
         seed: u64,
-        overlay: bool,
+        layer: FrameLayer,
     ) -> Result<Vec<u8>, EngineError> {
         guarded(|| {
             if width == 0 || height == 0 || width > MAX_FRAME_SIDE || height > MAX_FRAME_SIDE {
@@ -216,13 +241,10 @@ impl Animator {
             let level = animation_level(&self.theme, &emotion_id, writing_level);
             let frame =
                 kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
-            let drawn = if overlay {
-                self.renderer.render_over(&frame, &message, width, height)
-            } else {
-                self.renderer.render(&frame, &message, width, height)
-            };
-            let pixmap =
-                drawn.ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
+            let pixmap = self
+                .renderer
+                .render_layer(&frame, &message, width, height, layer.into())
+                .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
             Ok(pixmap.take())
         })
     }
@@ -343,8 +365,18 @@ mod tests {
         let a = Animator::new(ANIME.into()).unwrap();
         let (w, h) = (90, 160);
         let draw = |emotion: &str, mode, t| {
-            a.render(emotion.into(), 3, mode, "Bravo !".into(), t, w, h, 1, false)
-                .unwrap()
+            a.render(
+                emotion.into(),
+                3,
+                mode,
+                "Bravo !".into(),
+                t,
+                w,
+                h,
+                1,
+                FrameLayer::Opaque,
+            )
+            .unwrap()
         };
         let frame = draw("energie", MotionMode::Full, 1100);
         assert_eq!(frame.len(), (w * h * 4) as usize);
@@ -391,7 +423,7 @@ mod tests {
                 w,
                 h,
                 1,
-                true,
+                FrameLayer::Over,
             )
             .unwrap();
         let alpha = |x: u32, y: u32| settled[((y * w + x) * 4 + 3) as usize];
@@ -426,7 +458,7 @@ mod tests {
                     w,
                     h,
                     1,
-                    false
+                    FrameLayer::Opaque
                 )
                 .is_err());
         }
@@ -441,7 +473,7 @@ mod tests {
                 90,
                 160,
                 1,
-                false
+                FrameLayer::Opaque
             )
             .is_ok());
         assert!(a
@@ -454,7 +486,7 @@ mod tests {
                 90,
                 160,
                 1,
-                false
+                FrameLayer::Opaque
             )
             .is_ok());
     }

@@ -87,7 +87,7 @@ private fun ChatScreen(vm: SpikeViewModel) {
     var settingsOpen by remember { mutableStateOf(false) }
     val background = if (vm.darkChat) Color(0xFF121212) else Color(0xFFF2F2F5)
     CompositionLocalProvider(LocalContentColor provides if (vm.darkChat) Color.White else Color(0xFF1C1B1F)) {
-    Box(Modifier.fillMaxSize().background(background).onSizeChanged { vm.setViewport(it.width, it.height) }) {
+    Box(Modifier.fillMaxSize().background(background)) {
         Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -105,7 +105,12 @@ private fun ChatScreen(vm: SpikeViewModel) {
             if (settingsOpen) {
                 SettingsPanel(vm, Modifier.weight(1f))
             } else {
-                MessageList(vm, Modifier.weight(1f))
+                // The animation plays over the messages only: the title, the input bar and the keyboard
+                // stay visible and usable, whatever the screen size and keyboard height.
+                Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { vm.setViewport(it.width, it.height) }) {
+                    MessageList(vm, Modifier.fillMaxSize())
+                    if (vm.overlayActive) AnimationOverlay(vm)
+                }
                 if (vm.caption.isNotEmpty()) {
                     Text(
                         vm.caption,
@@ -117,7 +122,6 @@ private fun ChatScreen(vm: SpikeViewModel) {
                 InputBar(vm)
             }
         }
-        if (vm.overlayActive) AnimationOverlay(vm)
     }
     }
 }
@@ -225,12 +229,11 @@ private fun AnimationOverlay(vm: SpikeViewModel) {
         // Reading frameTick in the draw scope redraws the canvas for every new frame.
         vm.frameTick
         if (vm.hasPlayed) {
-            drawImage(
-                vm.frame,
-                dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-                alpha = vm.overlayAlpha,
-                filterQuality = FilterQuality.Medium,
-            )
+            val dst = IntSize(size.width.toInt(), size.height.toInt())
+            // The soft effects are drawn small and smoothed up; the letters and particles are drawn at
+            // (nearly) screen resolution, so they stay sharp (ADR-0017).
+            drawImage(vm.backFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.High)
+            drawImage(vm.frontFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.Medium)
         }
     }
 }
@@ -354,7 +357,7 @@ private fun MeasuresPanel(vm: SpikeViewModel, debuggable: Boolean, textColor: Co
         }
         vm.renderStats?.let {
             Text(
-                stringResource(R.string.render_stats, it.avgMs, it.maxMs, it.frames, it.width),
+                stringResource(R.string.render_stats, it.avgMs, it.maxMs, it.frames, it.frontWidth, it.backWidth),
                 style = MaterialTheme.typography.bodySmall,
                 color = textColor,
             )

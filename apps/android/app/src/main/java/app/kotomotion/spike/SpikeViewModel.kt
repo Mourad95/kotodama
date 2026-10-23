@@ -14,6 +14,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uniffi.kd_ffi.Animator
+import uniffi.kd_ffi.FrameLayer
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import uniffi.kd_ffi.MotionMode
 import java.nio.ByteBuffer
 import androidx.compose.runtime.getValue
@@ -60,8 +63,11 @@ class ChatMessage(
 /** The user's intensity setting (docs/roadmap.md): how much motion the animation shows. */
 enum class Intensity(val mode: MotionMode) { FULL(MotionMode.FULL), GENTLE(MotionMode.GENTLE), MINIMAL(MotionMode.MINIMAL) }
 
-/** Drawing cost of the animation, in milliseconds per frame (the 60 fps budget is 16.7 ms). */
-data class RenderStats(val frames: Int, val avgMs: Double, val maxMs: Double, val width: Int)
+/**
+ * Drawing cost of the animation, in milliseconds per frame (the 60 fps budget is 16.7 ms), and the widths
+ * in pixels the two layers were drawn at last (ADR-0017).
+ */
+data class RenderStats(val frames: Int, val avgMs: Double, val maxMs: Double, val frontWidth: Int, val backWidth: Int)
 
 /** A finished benchmark run. */
 data class BenchmarkUi(val stats: LatencyStats, val warmUp: Int, val memory: MemorySnapshot)
@@ -93,7 +99,9 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     // --- Animation (M3) -----------------------------------------------------------------------
-    private val animDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1)
+    // One thread per layer: the two layers of a frame are drawn at the same time.
+    private val backDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1)
+    private val frontDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val prefs = app.getSharedPreferences("settings", Application.MODE_PRIVATE)
     private var animJob: Job? = null
 
@@ -119,9 +127,13 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var renderStats: RenderStats? by mutableStateOf(null)
         private set
-    private var frameBitmap: Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
-    /** The frame to show; replaced when the drawing size changes. */
-    var frame: ImageBitmap by mutableStateOf(frameBitmap.asImageBitmap())
+    private var backBitmap: Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    private var frontBitmap: Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    /** The soft screen effects of the frame, drawn small: stretch them over the animation area. */
+    var backFrame: ImageBitmap by mutableStateOf(backBitmap.asImageBitmap())
+        private set
+    /** The particles, message and onomatopoeias, drawn at (nearly) screen resolution, over [backFrame]. */
+    var frontFrame: ImageBitmap by mutableStateOf(frontBitmap.asImageBitmap())
         private set
     /** True while the animation plays over the conversation. */
     var overlayActive by mutableStateOf(false)
@@ -143,11 +155,15 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     /** Short description of the last animation ("joie, confiance 0.71"), for the testers. */
     var caption by mutableStateOf("")
         private set
-    private var screenAspect: Float = app.resources.displayMetrics.let { it.heightPixels.toFloat() / it.widthPixels }
+    private var viewportWidth: Int = app.resources.displayMetrics.widthPixels
+    private var viewportHeight: Int = app.resources.displayMetrics.heightPixels
 
-    /** Called with the real size of the screen layer, so frames have its exact shape. */
+    /** Called with the size in pixels of the area the animation plays over, so frames match it exactly. */
     fun setViewport(widthPx: Int, heightPx: Int) {
-        if (widthPx > 0 && heightPx > 0) screenAspect = heightPx.toFloat() / widthPx
+        if (widthPx > 0 && heightPx > 0) {
+            viewportWidth = widthPx
+            viewportHeight = heightPx
+        }
     }
 
     fun chooseDarkChat(value: Boolean) {
@@ -184,7 +200,9 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     /**
      * Plays the animation of [message] over the conversation, then fades the overlay out and lets the
      * message settle in its bubble. The text is only handed to the renderer: it is never logged or stored.
-     * The drawing size follows the screen shape; it is lowered while frames take too long.
+     * Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the letters and
+     * particles near screen resolution. Both sizes follow the animation area; they are lowered, one quality
+     * step at a time, while frames take too long.
      */
     private fun play(message: ChatMessage) {
         val animator = animator ?: run { message.settled = true; return }
@@ -198,12 +216,20 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 val mode = effectiveMode
                 val level = message.writingLevel.toUByte()
                 val duration = animator.durationMs(emotion, level, mode, text.length.toUInt()).toLong()
-                var widthIndex = 0
-                fun height(width: Int) = (width * screenAspect).toInt().coerceIn(1, 2048)
+                var step = 0
+                val areaWidth = viewportWidth
+                val aspect = viewportHeight.toFloat() / areaWidth
+                fun width(scale: Float) = (areaWidth * scale).toInt().coerceIn(1, MAX_SIDE)
+                fun height(width: Int) = (width * aspect).toInt().coerceIn(1, MAX_SIDE)
+                var frontWidth = 0
+                var backWidth = 0
                 fun allocate() {
-                    val w = RENDER_WIDTHS[widthIndex]
-                    frameBitmap = Bitmap.createBitmap(w, height(w), Bitmap.Config.ARGB_8888)
-                    frame = frameBitmap.asImageBitmap()
+                    frontWidth = width(QUALITY_STEPS[step].first)
+                    backWidth = width(QUALITY_STEPS[step].second)
+                    frontBitmap = Bitmap.createBitmap(frontWidth, height(frontWidth), Bitmap.Config.ARGB_8888)
+                    backBitmap = Bitmap.createBitmap(backWidth, height(backWidth), Bitmap.Config.ARGB_8888)
+                    frontFrame = frontBitmap.asImageBitmap()
+                    backFrame = backBitmap.asImageBitmap()
                 }
                 allocate()
                 val start = SystemClock.elapsedRealtime()
@@ -213,25 +239,29 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 var recent = 0.0
                 while (isActive) {
                     val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
-                    val width = RENDER_WIDTHS[widthIndex]
                     val begun = System.nanoTime()
-                    val pixels = try {
-                        withContext(animDispatcher) {
-                            animator.render(emotion, level, mode, text, t.toUInt(), width.toUInt(), height(width).toUInt(), SEED, true)
+                    fun draw(layer: FrameLayer, w: Int) =
+                        animator.render(emotion, level, mode, text, t.toUInt(), w.toUInt(), height(w).toUInt(), SEED, layer)
+                    val (back, front) = try {
+                        coroutineScope {
+                            val back = async(backDispatcher) { draw(FrameLayer.BACK, backWidth) }
+                            val front = withContext(frontDispatcher) { draw(FrameLayer.FRONT, frontWidth) }
+                            back.await() to front
                         }
                     } catch (_: Exception) {
                         break // never crash the app for a failed frame; the text is not part of any error
                     }
-                    frameBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels))
+                    backBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(back))
+                    frontBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(front))
                     val spent = (System.nanoTime() - begun) / 1e6
                     frames++; total += spent; worst = maxOf(worst, spent); recent += spent
                     frameTick++
                     hasPlayed = true
-                    renderStats = RenderStats(frames, total / frames, worst, width)
+                    renderStats = RenderStats(frames, total / frames, worst, frontWidth, backWidth)
                     if (frames % ADAPT_EVERY == 0) {
-                        // Too slow: draw smaller (the picture is stretched to the screen).
-                        if (recent / ADAPT_EVERY > SLOW_FRAME_MS && widthIndex < RENDER_WIDTHS.lastIndex) {
-                            widthIndex++
+                        // Too slow: draw both layers smaller (they are stretched to the animation area).
+                        if (recent / ADAPT_EVERY > SLOW_FRAME_MS && step < QUALITY_STEPS.lastIndex) {
+                            step++
                             allocate()
                         }
                         recent = 0.0
@@ -364,8 +394,13 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val WARM_UP = 5
-        /** Drawing widths in pixels, from the sharpest to the cheapest. */
-        val RENDER_WIDTHS = intArrayOf(540, 405, 270)
+        /**
+         * Drawing sizes of the front and back layers as fractions of the animation area's width, from the
+         * sharpest to the cheapest (ADR-0017).
+         */
+        val QUALITY_STEPS = listOf(1f to 0.4f, 0.8f to 0.33f, 0.65f to 0.25f)
+        /** Largest frame side the engine draws. */
+        const val MAX_SIDE = 2048
         const val ADAPT_EVERY = 12
         const val SLOW_FRAME_MS = 28.0
         const val SEED = 1UL
