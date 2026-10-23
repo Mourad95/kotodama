@@ -14,3 +14,9 @@ prompt written by us, and curated by `curate_examples.py` (docs/legal.md L16, L1
 | File | Date | Source | Rows received |
 |---|---|---|---|
 | raw/joie-01.csv | 2026-10-23 | Gemini, owner-run, prompt v1 | 50 |
+| raw/joie-gemini-02.csv ... raw/calme-gemini-02.csv (7 files, 100 messages each) | 2026-10-23 | Gemini, owner-run, prompt v1 + corrections; received as a Python script, lists extracted verbatim | 700 |
+
+Notes on the second batch: the first 50 `joie` lines repeat `joie-01.csv`; `curate_examples.py` drops those and
+other duplicates, messages that belong to another emotion, outdated references and unnatural gender forms
+(`generated/exclude.tsv`), and one message identical to a measurement text. A first attempt written by Claude
+was discarded (too little slang); the Gemini batches are the ones used.
