@@ -62,7 +62,17 @@ private fun SpikeScreen(vm: SpikeViewModel) {
 
         when (val s = vm.engineState) {
             EngineState.Loading -> Text(stringResource(R.string.engine_loading))
-            is EngineState.Ready -> Text(stringResource(R.string.cold_start_line, s.coldStartMs))
+            is EngineState.Ready -> {
+                Text(stringResource(R.string.cold_start_line, s.coldStartMs))
+                Text(stringResource(R.string.open_phases_line, s.verifyMs, s.loadMs), style = MaterialTheme.typography.bodySmall)
+                Text(
+                    stringResource(
+                        R.string.open_memory_line,
+                        mb(s.memory.nativeHeap), mb(s.memory.peakRss), mb(s.memory.rss),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             is EngineState.Fallback -> Text(
                 if (s.reason == null) stringResource(R.string.bundle_missing)
                 else stringResource(R.string.bundle_error, s.reason),

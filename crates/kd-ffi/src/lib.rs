@@ -12,6 +12,7 @@
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::sync::{Arc, Once};
+use std::time::Instant;
 
 use kd_emotion::{Bundle, Embedder, EmotionAnalysis, EmotionError, OrtEmbedder};
 
@@ -144,6 +145,16 @@ fn analyze_with<E: Embedder>(
 #[derive(uniffi::Object)]
 pub struct EmotionEngine {
     inner: kd_emotion::EmotionEngine<OrtEmbedder>,
+    timings: OpenTimings,
+}
+
+/// How long [`EmotionEngine::open`] spent in each phase, in milliseconds (for the M2 measurements).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Record)]
+pub struct OpenTimings {
+    /// Reading the manifest, verifying the SHA-256 of every file, parsing the head.
+    pub verify_ms: u64,
+    /// Loading ONNX Runtime, the model and the tokenizer.
+    pub load_ms: u64,
 }
 
 #[uniffi::export]
@@ -154,12 +165,23 @@ impl EmotionEngine {
     pub fn open(bundle_dir: String, ort_library_path: String) -> Result<Arc<Self>, EngineError> {
         install_panic_hook();
         guarded(|| {
+            let t0 = Instant::now();
             let bundle = Bundle::open(&bundle_dir).map_err(open_error)?;
+            let t1 = Instant::now();
             let inner = bundle
                 .into_engine_with_library(Path::new(&ort_library_path))
                 .map_err(open_error)?;
-            Ok(Arc::new(Self { inner }))
+            let timings = OpenTimings {
+                verify_ms: (t1 - t0).as_millis() as u64,
+                load_ms: t1.elapsed().as_millis() as u64,
+            };
+            Ok(Arc::new(Self { inner, timings }))
         })
+    }
+
+    /// Time spent in each phase of [`EmotionEngine::open`].
+    pub fn open_timings(&self) -> OpenTimings {
+        self.timings
     }
 
     /// Analyses one message. Blocking (tens of milliseconds): call it from a background thread.

@@ -11,6 +11,8 @@
     <string name="bundle_error">Le modèle n\'a pas pu être chargé (%1$s) : repli sur « calme ».</string>
     <string name="engine_loading">Chargement du modèle…</string>
     <string name="cold_start_line">Démarrage à froid (open) : %1$d ms</string>
+    <string name="open_phases_line">Vérification sha256 : %1$d ms — chargement modèle : %2$d ms</string>
+    <string name="open_memory_line">Après open : tas natif %1$d Mo, pic %2$d Mo, RSS %3$d Mo</string>
     <string name="result_effective">Émotion effective : %1$s (choix : %2$s, confiance %3$.2f)</string>
     <string name="result_fallback">Émotion effective : calme (repli, aucun modèle)</string>
     <string name="latency_line">Latence de cet appel : %1$.1f ms</string>

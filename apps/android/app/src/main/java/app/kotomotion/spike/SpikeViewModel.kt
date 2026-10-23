@@ -18,7 +18,7 @@ import java.io.File
 /** What the engine panel shows. */
 sealed interface EngineState {
     data object Loading : EngineState
-    data class Ready(val coldStartMs: Long) : EngineState
+    data class Ready(val coldStartMs: Long, val verifyMs: Long, val loadMs: Long, val memory: MemorySnapshot) : EngineState
     /** No usable model: every message is treated as "calme". */
     data class Fallback(val reason: String?) : EngineState
 }
@@ -63,8 +63,13 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             } else {
                 val t0 = System.nanoTime()
                 try {
-                    engine = EmotionEngine.open(bundleDir.absolutePath, ortPath)
-                    EngineState.Ready((System.nanoTime() - t0) / 1_000_000)
+                    val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath)
+                    engine = opened
+                    val timings = opened.openTimings()
+                    EngineState.Ready(
+                        (System.nanoTime() - t0) / 1_000_000,
+                        timings.verifyMs.toLong(), timings.loadMs.toLong(), memorySnapshot(),
+                    )
                 } catch (e: Exception) {
                     // Only the exception class: its message could in theory echo input.
                     EngineState.Fallback(e.javaClass.simpleName)
