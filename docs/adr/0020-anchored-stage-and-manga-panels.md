@@ -24,8 +24,8 @@ Amending ADR-0019:
   `backdrop` (inner and outer colour, opacity, optional `rays`: 8 to 128 radial speed lines from
   the bubble outwards) drawn as a radial gradient behind everything in the soft layers, and a
   `palette` used by bold, black-outlined props scattered over the screen (`kd_fx::scatter`): few
-  and large, like the motifs of a manga panel, not stickers. The bubble panel is tinted from the backdrop. Both are data; the schema
-  mirrors the Rust types.
+  and large, like the motifs of a manga panel, not stickers. The bubble panel is tinted from the
+  backdrop. Both are data; the schema mirrors the Rust types.
 - **Manga lettering.** Onomatopoeias are lettered opaque on a scratch layer (white rim, black drop
   shadow, thick black outline, vertical gradient fill from a light tint to a dark shade of their
   colour) and faded once, so the layers still add up to the overlay. With a stage they dominate

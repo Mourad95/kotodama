@@ -602,6 +602,41 @@ mod tests {
     }
 
     #[test]
+    fn a_broken_stage_falls_back_to_the_centred_panel() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let over = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                90,
+                160,
+                1,
+                FrameLayer::Over,
+                stage,
+            )
+            .unwrap()
+        };
+        let centred = over(None);
+        for (x, y, width, height) in [
+            (f32::NAN, 0.6, 0.7, 0.12),
+            (0.2, f32::INFINITY, 0.7, 0.12),
+            (0.2, 0.6, -0.7, 0.12),
+            (0.2, 0.6, 0.7, 0.0),
+        ] {
+            let stage = FrameStage {
+                x,
+                y,
+                width,
+                height,
+            };
+            assert_eq!(over(Some(stage)), centred, "{stage:?}");
+        }
+    }
+
+    #[test]
     fn animator_rejects_bad_input_without_panicking() {
         assert!(matches!(
             Animator::new("{}".into()),
