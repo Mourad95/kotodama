@@ -23,3 +23,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0016](0016-animation-plays-over-the-conversation.md) | The animation plays over the conversation, then the message settles in its bubble | accepted |
 | [0017](0017-two-layer-rendering.md) | Render the animation in two layers at the screen's resolution | accepted |
 | [0018](0018-situational-manga-and-persistent-bubbles.md) | Situational manga, persistent bubbles and editable eight-category training data | accepted |
+| [0019](0019-textless-overlay-and-lettered-bubble.md) | Textless overlay, lettered manga bubble, sharp front layer | accepted |

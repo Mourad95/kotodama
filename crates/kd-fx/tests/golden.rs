@@ -144,36 +144,56 @@ fn explicit_line_breaks_keep_letters_aligned_with_the_frame() {
 }
 
 #[test]
-fn overlay_keeps_the_conversation_visible_and_the_message_readable() {
+fn overlay_keeps_the_conversation_visible_and_leaves_the_message_to_the_bubble() {
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
-    let frame = sample(
-        theme.level(Emotion::Calm, Intensity::Low),
-        MESSAGE.chars().count(),
-        3000,
-        SEED,
-        Motion::Full,
-    );
-    let img = Renderer::new()
-        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+    let level = theme.level(Emotion::Energy, Intensity::Full);
+    let renderer = Renderer::new();
+    // Once the full-screen effects have faded, nothing is drawn at the corners: the conversation
+    // shows through.
+    let settled = sample(level, MESSAGE.chars().count(), 4000, SEED, Motion::Full);
+    let img = renderer
+        .render_over(&settled, MESSAGE, SIZE.0, SIZE.1)
         .unwrap();
-    // Nothing is drawn at the corners: the conversation shows through.
     assert_eq!(img.pixel(0, 0).unwrap().alpha(), 0);
     assert_eq!(img.pixel(SIZE.0 - 1, SIZE.1 - 1).unwrap().alpha(), 0);
-    // The letters (ink) and their white halo are drawn, so the message reads on a dark backdrop too.
-    let opaque = img.data().chunks(4).filter(|p| p[3] == 255).count();
-    assert!(opaque > 1500, "only {opaque} opaque pixels");
-    let white = img
+    let frame = sample(level, MESSAGE.chars().count(), 1060, SEED, Motion::Full);
+    let img = renderer
+        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+        .unwrap();
+    // The effects play, but the message is not drawn (ADR-0019): the shell shows it in its bubble.
+    assert!(
+        img.data().chunks(4).any(|p| p[3] == 255),
+        "the effects are drawn"
+    );
+    let other = renderer
+        .render_over(&frame, "Autre texte, mêmes effets", SIZE.0, SIZE.1)
+        .unwrap();
+    assert_eq!(img.data(), other.data());
+}
+
+#[test]
+fn bubbles_carry_the_level_onomatopoeias() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let level = theme.level(Emotion::Anger, Intensity::Full);
+    assert!(!level.onomatopoeias.is_empty());
+    let mut silent = level.clone();
+    silent.onomatopoeias.clear();
+    let with = renderer.render_bubble(level, 320, 140, false).unwrap();
+    let without = renderer.render_bubble(&silent, 320, 140, false).unwrap();
+    let changed = with
         .data()
         .chunks(4)
-        .filter(|p| p[3] > 200 && p[0] > 240 && p[1] > 240 && p[2] > 240)
+        .zip(without.data().chunks(4))
+        .filter(|(a, b)| a != b)
         .count();
-    assert!(white > 50, "no white halo around the letters ({white})");
+    assert!(changed > 400, "only {changed} pixels stamped");
 }
 
 #[test]
 fn back_and_front_layers_add_up_to_the_overlay() {
     // Drawn at the same size, the front layer composited over the back layer is the overlay frame
-    // (ADR-0017), up to 8-bit rounding: the split loses nothing and draws nothing twice.
+    // (ADR-0017, ADR-0019), up to 8-bit rounding: the split loses nothing and draws nothing twice.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
     for (emotion, t) in Emotion::ALL

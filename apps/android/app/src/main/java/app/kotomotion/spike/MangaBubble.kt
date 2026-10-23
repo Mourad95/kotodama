@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,17 +21,32 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import uniffi.kd_ffi.Animator
 import java.nio.ByteBuffer
 
-/** The Rust theme draws the permanent ink; text stays native for wrapping and TalkBack. */
+/**
+ * The Rust theme draws the permanent panel and onomatopoeias; the text stays native for wrapping
+ * and TalkBack, lettered like a manga effect: bundled font, accent extrusion, halo and slant
+ * scaled by the level's depth (ADR-0019).
+ */
 @Composable
 internal fun MangaBubble(vm: SpikeViewModel, message: ChatMessage) {
     val dark = vm.darkChat
@@ -41,8 +57,8 @@ internal fun MangaBubble(vm: SpikeViewModel, message: ChatMessage) {
         if (bounds.width <= 0 || bounds.height <= 0) return@produceState
         value = try {
             withContext(Dispatchers.Default) {
-                // Bound both sides without changing aspect ratio, including large accessibility fonts.
-                val ratio = minOf(1f, 1024f / maxOf(bounds.width, bounds.height))
+                // Full resolution for sharp ink; only huge accessibility layouts are scaled down.
+                val ratio = minOf(1f, 2048f / maxOf(bounds.width, bounds.height))
                 val width = (bounds.width * ratio).toInt().coerceAtLeast(1)
                 val height = (bounds.height * ratio).toInt().coerceAtLeast(1)
                 val pixels = animator.renderBubble(message.emotion, message.writingLevel.toUByte(), width.toUInt(), height.toUInt(), dark)
@@ -70,13 +86,49 @@ internal fun MangaBubble(vm: SpikeViewModel, message: ChatMessage) {
             ))
         } else {
             Canvas(Modifier.matchParentSize()) {
-                drawImage(image, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.Medium)
+                drawImage(image, dstSize = IntSize(size.width.toInt(), size.height.toInt()), filterQuality = FilterQuality.High)
             }
+        }
+        EffectLettering(vm, message, dark)
+    }
+}
+
+/** Native, accessible message text drawn as manga effect lettering. */
+@Composable
+private fun EffectLettering(vm: SpikeViewModel, message: ChatMessage, dark: Boolean) {
+    val look = remember(vm.animator, message.emotion, message.writingLevel) {
+        vm.animator?.let { runCatching { it.bubbleLook(message.emotion, message.writingLevel.toUByte()) }.getOrNull() }
+    }
+    val assets = LocalContext.current.assets
+    val family = remember(assets) {
+        runCatching { FontFamily(Font("fonts/NotoSansJP-Bold-subset.ttf", assets)) }.getOrDefault(FontFamily.Default)
+    }
+    val depth = look?.depth ?: 0f
+    val ink = if (dark) Color(0xFFF6F3F4) else look?.ink.toColor() ?: message.accent
+    val accent = look?.accent.toColor() ?: message.accent
+    val style = TextStyle(
+        fontFamily = family,
+        fontSize = 18.sp,
+        textGeometricTransform = TextGeometricTransform(skewX = -(0.06f + 0.16f * depth)),
+    )
+    val outline = with(LocalDensity.current) { 3.dp.toPx() }
+    Box(Modifier.padding(horizontal = 28.dp, vertical = 30.dp)) {
+        // Extrusion: accent copies stepping down-right, each edged in dark ink.
+        val steps = ceil(depth * 5).toInt()
+        for (i in steps downTo 1) {
+            val shift = Modifier.offset(x = (i * 0.6f * 0.65f).dp, y = (i * 0.6f).dp).clearAndSetSemantics {}
+            Text(message.text, shift, color = Color(0xFF1B1B22), style = style.copy(drawStyle = Stroke(outline * 0.6f, join = StrokeJoin.Round)))
+            Text(message.text, shift, color = accent, style = style)
         }
         Text(
             message.text,
-            Modifier.padding(horizontal = 28.dp, vertical = 24.dp),
-            color = if (dark) Color(0xFFF6F3F4) else message.accent,
+            Modifier.clearAndSetSemantics {},
+            color = if (dark) Color(0xFF14151B) else Color.White,
+            style = style.copy(drawStyle = Stroke(outline, join = StrokeJoin.Round)),
         )
+        Text(message.text, color = ink, style = style)
     }
 }
+
+private fun String?.toColor(): Color? =
+    this?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }

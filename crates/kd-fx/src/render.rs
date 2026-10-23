@@ -8,9 +8,10 @@
 //! impact flash in black, onomatopoeias in their own colour with a white outline. Background effects
 //! are drawn first and the message last, so the words stay readable.
 //!
-//! A frame can be drawn in two [`Layer`]s (ADR-0017): the screen effects are soft and large, so they
-//! can be drawn small and scaled up by the phone, while the particles and letters are drawn at screen
-//! resolution and stay sharp.
+//! A frame can be drawn in two [`Layer`]s (ADR-0017): the soft screen effects can be drawn small and
+//! scaled up by the phone, while the hard-edged effects, particles and manga ink are drawn at screen
+//! resolution and stay sharp. The overlay layers never draw the message: it lives in the native
+//! bubble (ADR-0019).
 //!
 //! Sizes are expressed in a *unit* of the frame (see [`size_unit`]): its height for a 9:16 portrait
 //! frame, less for a wide or short one, so the message and the effects keep their proportions on any
@@ -39,35 +40,14 @@ const FLASH_TEXT_SWITCH: f32 = 0.35;
 /// Line height in em.
 const LINE_HEIGHT: f32 = 1.35;
 
-/// How letters are drawn this frame: the message font size, the frame shake and whether the frame is
-/// composited over a conversation (transparent background, halo).
+/// How letters are drawn this frame: the message font size, the frame shake and the manga lettering
+/// (extrusion depth and accent colour).
 #[derive(Clone, Copy)]
 struct TextStyle {
     font_px: f32,
     shake: Transform,
-    overlay: bool,
     depth: f32,
     accent: Rgb,
-}
-
-/// One of the two passes letters are drawn in over a conversation: every halo first, then every letter,
-/// so a halo never covers a neighbouring letter while letters overlap.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum TextPass {
-    Halo,
-    Ink,
-}
-
-/// Colour of the halo around letters of `ink`: white around dark ink, near black around light ink (the
-/// letters turn white during an impact flash).
-fn halo_of(ink: Rgb) -> Rgb {
-    let Rgb(r, g, b) = ink;
-    let luma = 0.299 * f32::from(r) + 0.587 * f32::from(g) + 0.114 * f32::from(b);
-    if luma > 150.0 {
-        Rgb(24, 22, 30)
-    } else {
-        Rgb(255, 255, 255)
-    }
 }
 
 /// Which part of a frame to draw.
@@ -77,12 +57,13 @@ pub enum Layer {
     Opaque,
     /// Everything, on a transparent background, to composite over a conversation.
     Over,
-    /// Only the screen effects (flash, tint, spotlight, speed lines, screentone, burst, shockwave), on
-    /// a transparent background. They are soft: draw this layer small and scale it up.
+    /// Only the soft screen effects (flash, tint, spotlight), on a transparent background. They have
+    /// no hard edge: draw this layer small and scale it up.
     Back,
-    /// Only the particles, the manga illustration around the message (ADR-0018), the message and the
-    /// onomatopoeias, on a transparent background, with the letters' halo. Its inked lines must stay
-    /// sharp: draw it at screen resolution, over [`Layer::Back`].
+    /// Everything else, on a transparent background: the hard-edged screen effects (speed lines,
+    /// screentone, burst, shockwave), the particles, the manga ink around the stage (ADR-0018) and the
+    /// onomatopoeias. The overlay layers never draw the message itself (ADR-0019): the shell shows it in
+    /// its bubble. Its inked lines must stay sharp: draw it at screen resolution, over [`Layer::Back`].
     Front,
 }
 
@@ -153,8 +134,8 @@ impl Renderer {
     }
 
     /// Like [`Renderer::render`] but on a transparent background, to be composited over a conversation:
-    /// only the effects and the message are drawn, and the letters get a white halo so they stay
-    /// readable over any backdrop (light or dark).
+    /// only the effects are drawn, never the message nor the panel behind it (ADR-0019); the shell
+    /// shows the message in its bubble.
     pub fn render_over(
         &self,
         frame: &Frame,
@@ -165,8 +146,9 @@ impl Renderer {
         self.render_layer(frame, message, width, height, Layer::Over)
     }
 
-    /// Renders a static manga bubble decoration. The shell draws accessible native text above it.
-    /// No message text is accepted or rasterised here. `dark` selects a dark, opaque reading area.
+    /// Renders a static manga bubble decoration: the inked panel and the level's onomatopoeias stamped
+    /// on its corners. The shell draws accessible native text above it. No message text is accepted
+    /// or rasterised here. `dark` selects a dark, opaque reading area.
     pub fn render_bubble(
         &self,
         level: &Level,
@@ -187,7 +169,41 @@ impl Renderer {
                 level.level,
             );
         }
+        self.stamp_onomatopoeias(&mut image, level);
         Some(image)
+    }
+
+    /// Stamps the level's onomatopoeias, still, on the bubble's corners (ADR-0019): the first one
+    /// top right, the next bottom left, then the other two corners. Their size follows the bubble's
+    /// edge band, not its height, so a long message does not blow them up.
+    fn stamp_onomatopoeias(&self, image: &mut Pixmap, level: &Level) {
+        const CORNERS: [(f32, f32, f32); 4] = [
+            (1.0, 0.0, -0.14),
+            (0.0, 1.0, 0.10),
+            (0.0, 0.0, -0.08),
+            (1.0, 1.0, 0.12),
+        ];
+        let (w, h) = (image.width() as f32, image.height() as f32);
+        let edge = h.min(w * 0.38);
+        for (o, &(cx, cy, rotation)) in level.onomatopoeias.iter().zip(CORNERS.iter()) {
+            let size = edge * 0.38 * o.scale.max(0.4);
+            // Keep the word inside the bubble, its centre in the corner's padding band.
+            let y = if cy < 0.5 {
+                size * 0.78
+            } else {
+                h - size * 0.58
+            };
+            let stamp = OnomatopoeiaState {
+                text: o.text.clone(),
+                color: Rgb::from_hex(&o.color),
+                scale: 1.0,
+                rotation,
+                alpha: 0.92,
+                x: cx,
+                y: y / h,
+            };
+            self.draw_onomatopoeia(image, &stamp, size, w, h, Transform::identity());
+        }
     }
 
     /// Draws one [`Layer`] of `frame` at `width` x `height`. Two layers of the same frame line up when
@@ -204,35 +220,26 @@ impl Renderer {
         if layer == Layer::Opaque {
             pixmap.fill(color(self.background, 1.0));
         }
-        let back = layer != Layer::Front;
-        let front = layer != Layer::Back;
-        let overlay = layer != Layer::Opaque;
+        let soft = layer != Layer::Front;
+        let sharp = layer != Layer::Back;
         let (w, h) = (width as f32, height as f32);
         let u = size_unit(w, h);
         let shake = Transform::from_translate(frame.shake.0 * w, frame.shake.1 * h);
         let ink = frame.text_color;
-        // During an impact flash the background goes dark: the message switches to white so it stays readable.
-        let flash = frame
-            .screen
-            .iter()
-            .filter(|s| s.kind == ScreenKind::ImpactFlash)
-            .map(|s| s.alpha)
-            .fold(0.0_f32, f32::max);
-        let text_ink = if flash >= FLASH_TEXT_SWITCH && frame.manga.is_none() {
-            Rgb(255, 255, 255)
-        } else {
-            ink
-        };
-
-        if back {
-            let area = Area { w, h, u, shake };
-            for s in &frame.screen {
+        let area = Area { w, h, u, shake };
+        // Soft effects first, hard-edged ones over them: the same order whether the frame is drawn
+        // whole or as Back then Front.
+        for s in &frame.screen {
+            if s.kind.is_soft() && soft || !s.kind.is_soft() && sharp {
                 draw_screen(&mut pixmap, s, ink, &area);
             }
         }
-        if !front {
+        if !sharp {
             return Some(pixmap);
         }
+        // The overlay layers leave the message to the shell's bubble (ADR-0019): the ink then frames
+        // an empty stage in the middle of the screen.
+        let message = if layer == Layer::Opaque { message } else { "" };
         // Fit long messages into the central stage before measuring the illustration around them.
         let mut font_px = TEXT_SIZE * u;
         let mut placed = self.layout(message, font_px, w, h);
@@ -248,7 +255,6 @@ impl Renderer {
         let style = TextStyle {
             font_px,
             shake,
-            overlay,
             depth: frame
                 .manga
                 .as_ref()
@@ -257,6 +263,18 @@ impl Renderer {
                 .manga
                 .as_ref()
                 .map_or(ink, |m| Rgb::from_hex(&m.style.accent_color)),
+        };
+        // During an impact flash the background goes dark: the message switches to white so it stays readable.
+        let flash = frame
+            .screen
+            .iter()
+            .filter(|s| s.kind == ScreenKind::ImpactFlash)
+            .map(|s| s.alpha)
+            .fold(0.0_f32, f32::max);
+        let text_ink = if flash >= FLASH_TEXT_SWITCH && frame.manga.is_none() {
+            Rgb(255, 255, 255)
+        } else {
+            ink
         };
         let (mut left, mut right, mut top, mut bottom) = (w * 0.25, w * 0.75, h * 0.46, h * 0.54);
         if !placed.is_empty() {
@@ -279,30 +297,24 @@ impl Renderer {
             panel_width,
             panel_height,
         );
+        let panel = layer == Layer::Opaque;
         for p in frame.particles.iter().filter(|p| p.depth <= 0.68) {
             draw_particle(&mut pixmap, p, w, h, u, shake);
         }
         if let Some(m) = &frame.manga {
-            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, false);
+            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, false, panel);
         }
-        let passes: &[TextPass] = if overlay {
-            &[TextPass::Halo, TextPass::Ink]
-        } else {
-            &[TextPass::Ink]
-        };
-        for &pass in passes {
-            for g in &frame.glyphs {
-                if let Some(p) = placed
-                    .get(g.index)
-                    .filter(|p| p.index == g.index)
-                    .or_else(|| placed.iter().find(|p| p.index == g.index))
-                {
-                    self.draw_glyph(&mut pixmap, p, g, text_ink, &style, pass);
-                }
+        for g in &frame.glyphs {
+            if let Some(p) = placed
+                .get(g.index)
+                .filter(|p| p.index == g.index)
+                .or_else(|| placed.iter().find(|p| p.index == g.index))
+            {
+                self.draw_glyph(&mut pixmap, p, g, text_ink, &style);
             }
         }
         if let Some(m) = &frame.manga {
-            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, true);
+            crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, true, panel);
         }
         for p in frame.particles.iter().filter(|p| p.depth > 0.68) {
             draw_particle(&mut pixmap, p, w, h, u, shake);
@@ -412,12 +424,10 @@ impl Renderer {
         g: &GlyphState,
         ink: Rgb,
         style: &TextStyle,
-        pass: TextPass,
     ) {
         let TextStyle {
             font_px,
             shake,
-            overlay,
             depth,
             accent,
         } = *style;
@@ -443,29 +453,6 @@ impl Renderer {
             .pre_concat(Transform::from_row(1.0, 0.0, -0.16 * depth, 1.0, 0.0, 0.0))
             .pre_scale(s, s)
             .post_concat(shake);
-        if pass == TextPass::Halo {
-            if !overlay {
-                return;
-            }
-            // Halo, soft at its edge: the message stays readable over a dark or busy conversation
-            // without looking cut out.
-            for (width, alpha) in [(0.24, 0.35), (0.13, 0.95)] {
-                let stroke = Stroke {
-                    width: width * font_px / s,
-                    line_cap: LineCap::Round,
-                    line_join: tiny_skia::LineJoin::Round,
-                    ..Stroke::default()
-                };
-                pixmap.stroke_path(
-                    &path,
-                    &paint(halo_of(ink), alpha * g.alpha),
-                    &stroke,
-                    t,
-                    None,
-                );
-            }
-            return;
-        }
         if depth > 0.0 {
             // Layered outline offsets imitate an inked side face without a 3D mesh.
             let steps = (depth * 5.0).ceil() as u32;

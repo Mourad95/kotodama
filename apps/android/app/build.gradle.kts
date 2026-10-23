@@ -60,7 +60,7 @@ android {
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/bench-assets"))
         // Verified model bundle embedded in the APK; no runtime network or manual adb copy.
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/model-assets"))
-        // theme.json copied from themes/anime (the one source of truth for the animation).
+        // theme.json copied from themes/anime (the one source of truth for the animation), and the lettering font.
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/theme-assets"))
     }
 
@@ -167,8 +167,13 @@ val benchMessages = tasks.register("generateBenchMessages") {
 // --- Theme ------------------------------------------------------------------------------------
 val copyTheme = tasks.register<Copy>("copyTheme") {
     group = "build"
-    description = "Copies themes/anime/theme.json into the app assets."
+    description = "Copies themes/anime/theme.json and the bubble lettering font (with its licence) into the app assets."
     from(repoRoot.resolve("themes/anime/theme.json"))
+    // The font the engine draws with also letters the bubbles; its OFL text ships with it (docs/legal.md L11).
+    from(repoRoot.resolve("crates/kd-fx/assets/fonts")) {
+        include("NotoSansJP-Bold-subset.ttf", "OFL.txt")
+        into("fonts")
+    }
     into(layout.buildDirectory.dir("generated/theme-assets"))
 }
 

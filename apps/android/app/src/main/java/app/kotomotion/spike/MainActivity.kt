@@ -228,10 +228,10 @@ private fun AnimationOverlay(vm: SpikeViewModel) {
         vm.frameTick
         if (vm.hasPlayed) {
             val dst = IntSize(size.width.toInt(), size.height.toInt())
-            // The soft effects are drawn small and smoothed up; the letters and particles are drawn at
-            // (nearly) screen resolution, so they stay sharp (ADR-0017).
+            // The soft effects are drawn small and smoothed up; the inked lines, particles and onomatopoeias
+            // are drawn at screen resolution, so they stay sharp (ADR-0017, ADR-0019).
             drawImage(vm.backFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.High)
-            drawImage(vm.frontFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.Medium)
+            drawImage(vm.frontFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.High)
         }
     }
 }

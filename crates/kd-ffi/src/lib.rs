@@ -137,12 +137,13 @@ impl From<MotionMode> for kd_fx::scene::Motion {
 pub enum FrameLayer {
     /// Everything, on a light opaque background (export).
     Opaque,
-    /// Everything, on a transparent background, to play over a conversation.
+    /// Every effect, on a transparent background, to play over a conversation. The message itself is
+    /// not drawn: the shell shows it in its bubble (ADR-0019).
     Over,
-    /// Only the soft screen effects, transparent: draw it small and scale it up.
+    /// Only the soft screen effects (flash, tint, spotlight), transparent: draw it small and scale it up.
     Back,
-    /// Only the particles, the message and the onomatopoeias, transparent: draw it at screen
-    /// resolution, over [`FrameLayer::Back`].
+    /// The hard-edged screen effects, the particles, the manga ink and the onomatopoeias, transparent:
+    /// draw it at screen resolution, over [`FrameLayer::Back`].
     Front,
 }
 
@@ -155,6 +156,18 @@ impl From<FrameLayer> for kd_fx::render::Layer {
             FrameLayer::Front => Self::Front,
         }
     }
+}
+
+/// How the shell letters a message in its bubble (ADR-0019): colours `#RRGGBB` and the extrusion depth,
+/// all from the theme.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct BubbleLook {
+    /// Colour of the letters.
+    pub ink: String,
+    /// Colour of the letters' extruded side.
+    pub accent: String,
+    /// Extrusion and slant of the letters, from 0 (flat) to 1.
+    pub depth: f32,
 }
 
 /// Largest frame an [`Animator`] draws, per side, in pixels.
@@ -215,7 +228,22 @@ impl Animator {
         animation_level(&self.theme, &emotion_id, 3).text_color
     }
 
-    /// Draws a permanent manga bubble decoration in premultiplied RGBA.
+    /// How to letter a message of this emotion and writing level in its bubble.
+    pub fn bubble_look(&self, emotion_id: String, writing_level: u8) -> BubbleLook {
+        let level = animation_level(&self.theme, &emotion_id, writing_level);
+        let (accent, depth) = level.manga.as_ref().map_or_else(
+            || (level.text_color.clone(), 0.0),
+            |m| (m.accent_color.clone(), m.depth.clamp(0.0, 1.0)),
+        );
+        BubbleLook {
+            ink: level.text_color,
+            accent,
+            depth,
+        }
+    }
+
+    /// Draws a permanent manga bubble decoration in premultiplied RGBA: the inked panel and the
+    /// level's onomatopoeias.
     /// The shell lays out native, accessible text above it; no message text crosses this call.
     pub fn render_bubble(
         &self,
@@ -391,6 +419,13 @@ mod tests {
         assert_eq!(light.len(), 180 * 80 * 4);
         assert_ne!(light, dark);
         assert_eq!(light[3], 0);
+        let look = animator.bubble_look("colere".into(), 3);
+        assert_eq!(look.accent, "#D74C4C");
+        assert!(look.depth > 0.5 && look.depth <= 1.0);
+        assert_eq!(
+            animator.bubble_look("inconnue".into(), 3),
+            animator.bubble_look("calme".into(), 3)
+        );
         assert!(animator
             .render_bubble("genance".into(), 3, 0, 80, false)
             .is_err());
@@ -452,26 +487,27 @@ mod tests {
     fn overlay_frames_are_transparent_where_nothing_is_drawn() {
         let a = Animator::new(ANIME.into()).unwrap();
         let (w, h) = (90, 160);
-        let settled = a
-            .render(
+        let over = |message: &str, t| {
+            a.render(
                 "joie".into(),
                 3,
-                MotionMode::Minimal,
-                "Bravo".into(),
-                5000,
+                MotionMode::Full,
+                message.into(),
+                t,
                 w,
                 h,
                 1,
                 FrameLayer::Over,
             )
-            .unwrap();
+            .unwrap()
+        };
+        let settled = over("Bravo", 5000);
         let alpha = |x: u32, y: u32| settled[((y * w + x) * 4 + 3) as usize];
         assert_eq!(alpha(0, 0), 0, "the corner is transparent");
         assert_eq!(alpha(w - 1, h - 1), 0);
-        assert!(
-            settled.chunks(4).any(|px| px[3] == 255),
-            "the message itself is drawn"
-        );
+        // The message is left to the bubble (ADR-0019): its text changes nothing in the overlay.
+        assert!(over("Bravo", 900).chunks(4).any(|px| px[3] > 0));
+        assert_eq!(over("Bravo", 900), over("Salut", 900));
         assert_eq!(a.accent_color("joie".into()), "#7A3E00");
         assert_eq!(
             a.accent_color("inconnue".into()),

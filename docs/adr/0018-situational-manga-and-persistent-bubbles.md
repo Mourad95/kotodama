@@ -15,6 +15,8 @@ particle depth; the CPU renderer draws back particles, ink, offset letter outlin
 ribbons and foreground particles. Motifs describe drawing primitives, not theme-specific
 branches. No pretrained imagery or generated mockup is bundled in the app.
 
+(Amended by ADR-0019: the overlay no longer draws the message, and the bubble carries lettering and onomatopoeias.)
+
 With the two-layer rendering of ADR-0017, the manga illustration is drawn in the front layer at
 screen resolution, with the particles and the message, so its inked lines stay sharp; the back layer
 keeps only the soft screen effects. Over a manga scene the letters keep their ink during an impact

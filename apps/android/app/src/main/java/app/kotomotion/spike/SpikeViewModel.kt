@@ -46,7 +46,8 @@ data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double, val err
 
 /**
  * One message of the conversation shown in the app. The conversation lives in memory only and is never
- * stored (docs/legal.md L18). [settled] turns true when its animation is over and the bubble shows.
+ * stored (docs/legal.md L18). [settled] turns true when its bubble shows: as soon as its animation starts,
+ * since the animation itself no longer draws the message (ADR-0019).
  */
 class ChatMessage(
     val id: Int,
@@ -199,11 +200,11 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Plays the animation of [message] over the conversation, then fades the overlay out and lets the
-     * message settle in its bubble. The text is only handed to the renderer: it is never logged or stored.
-     * Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the letters and
-     * particles near screen resolution. Both sizes follow the animation area; they are lowered, one quality
-     * step at a time, while frames take too long.
+     * Plays the animation of [message] over the conversation, around its bubble, then fades the overlay
+     * out. The text is only handed to the renderer: it is never logged or stored, and the overlay does not
+     * draw it (ADR-0019). Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the
+     * inked lines, particles and onomatopoeias at screen resolution. While frames take too long, only the
+     * soft layer is drawn smaller, one quality step at a time: the inked layer never loses sharpness.
      */
     private fun play(message: ChatMessage) {
         val animator = animator ?: run { message.settled = true; return }
@@ -211,6 +212,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         animJob = viewModelScope.launch {
             overlayActive = true
             overlayAlpha = 1f
+            // The overlay plays the effects around the bubble, which carries the message from the start.
+            message.settled = true
             try {
                 val emotion = message.emotion
                 val text = message.text
@@ -260,7 +263,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                     hasPlayed = true
                     renderStats = RenderStats(frames, total / frames, worst, frontWidth, backWidth)
                     if (frames % ADAPT_EVERY == 0) {
-                        // Too slow: draw both layers smaller (they are stretched to the animation area).
+                        // Too slow: draw the soft layer smaller (it is stretched to the animation area).
                         if (recent / ADAPT_EVERY > SLOW_FRAME_MS && step < QUALITY_STEPS.lastIndex) {
                             step++
                             allocate()
@@ -394,9 +397,10 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         const val WARM_UP = 5
         /**
          * Drawing sizes of the front and back layers as fractions of the animation area's width, from the
-         * sharpest to the cheapest (ADR-0017).
+         * sharpest to the cheapest (ADR-0017). The front layer holds every hard edge, so it always stays at
+         * screen resolution (ADR-0019); only the soft back layer shrinks.
          */
-        val QUALITY_STEPS = listOf(1f to 0.4f, 0.8f to 0.33f, 0.65f to 0.25f)
+        val QUALITY_STEPS = listOf(1f to 0.5f, 1f to 0.4f, 1f to 0.33f)
         /** Largest frame side the engine draws. */
         const val MAX_SIDE = 2048
         const val ADAPT_EVERY = 12

@@ -226,6 +226,15 @@ pub enum ScreenKind {
     Burst,
 }
 
+impl ScreenKind {
+    /// True for an effect without hard edges (flash, tint, spotlight): it survives being drawn small and
+    /// scaled up, so it goes in the back layer (ADR-0019). Lines, dots, rings and the burst outline
+    /// stay sharp in the front layer.
+    pub fn is_soft(self) -> bool {
+        matches!(self, Self::ImpactFlash | Self::Tint | Self::Spotlight)
+    }
+}
+
 /// Onomatopoeia text drawn on screen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

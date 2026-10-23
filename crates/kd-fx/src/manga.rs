@@ -313,7 +313,8 @@ fn orbit(c: &mut InkCanvas<'_>, color: Rgb, progress: f32, front: bool, strength
     }
 }
 
-/// Draws the effects behind/around the message in the animated overlay.
+/// Draws the effects behind/around the message in the animated overlay. `panel_drawn` adds the
+/// reading panel under the message; the overlay layers leave it out, as the shell's bubble plays it.
 pub(crate) fn draw_scene(
     image: &mut Pixmap,
     state: &MangaState,
@@ -321,6 +322,7 @@ pub(crate) fn draw_scene(
     bounds: (f32, f32, f32, f32),
     transform: Transform,
     front: bool,
+    panel_drawn: bool,
 ) {
     if state.alpha <= 0.0 {
         return;
@@ -394,7 +396,7 @@ pub(crate) fn draw_scene(
             c.ellipse(0.5, 0.5, 0.50 + spread, 0.45 + spread, accent, 0.035);
         }
     }
-    if let Some(body) = panel(&c, style.motif) {
+    if let Some(body) = panel(&c, style.motif).filter(|_| panel_drawn) {
         let shadow =
             Transform::from_translate(bounds.2 * 0.015, bounds.3 * 0.025).post_concat(transform);
         c.image
