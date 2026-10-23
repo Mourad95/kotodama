@@ -31,8 +31,8 @@ Everything in the repository is in **English**: code, comments, docs, ADRs, comm
 
 ```bash
 cargo fmt --all
-cargo clippy --all-targets -- -D warnings
-cargo test --all
+cargo clippy --all-targets --all-features -- -D warnings
+cargo test --all --all-features
 ```
 
 ## Rules

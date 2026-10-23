@@ -7,6 +7,9 @@
 
 pub mod scene;
 
+#[cfg(feature = "cpu-render")]
+pub mod render;
+
 use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -381,14 +384,14 @@ mod tests {
     fn strong_flashes_long_shakes_and_huge_emitters_are_rejected() {
         let flash =
             r#"{ "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 0.8 }"#;
-        let shake = r#"{ "kind": "shake", "at_ms": 1050, "duration_ms": 400, "strength": 0.7 }"#;
-        let emitter = r#""count": 120"#;
+        let shake = r#"{ "kind": "shake", "at_ms": 1050, "duration_ms": 400, "strength": 0.5 }"#;
+        let emitter = r#""count": 40"#;
         assert!(Theme::from_json(ANIME).is_ok());
         for (from, to) in [
             (flash, &flash.replace("0.8", "0.9")),
-            (shake, &shake.replace("0.7", "0.8")),
+            (shake, &shake.replace("0.5", "0.8")),
             (shake, &shake.replace("400", "700")),
-            (emitter, &emitter.replace("120", "201")),
+            (emitter, &emitter.replace("40", "201")),
         ] {
             assert!(
                 Theme::from_json(&replace_once(ANIME, from, to)).is_err(),
