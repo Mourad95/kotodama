@@ -186,7 +186,7 @@ impl Renderer {
         let (w, h) = (image.width() as f32, image.height() as f32);
         let edge = h.min(w * 0.38);
         for (o, &(cx, cy, rotation)) in level.onomatopoeias.iter().zip(CORNERS.iter()) {
-            let size = edge * 0.38 * o.scale.clamp(0.4, 0.6);
+            let size = edge * 0.34 * o.scale.clamp(0.4, 0.6);
             // Keep the word inside the bubble, its centre in the corner's padding band.
             let y = if cy < 0.5 {
                 size * 0.78
