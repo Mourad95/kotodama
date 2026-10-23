@@ -20,3 +20,13 @@ Notes on the second batch: the first 50 `joie` lines repeat `joie-01.csv`; `cura
 other duplicates, messages that belong to another emotion, outdated references and unnatural gender forms
 (`generated/exclude.tsv`), and one message identical to a measurement text. A first attempt written by Claude
 was discarded (too little slang); the Gemini batches are the ones used.
+
+## Effect of `prototypes_v3.json` (few-shot head, Q4 graph, measured 2026-10-23; no tuning on either set)
+
+| Set | v2 (36 per emotion) | v3 (131-136 per emotion) |
+|---|---|---|
+| dev_v1 (70 messages) | 88.6 % | 94.3 % |
+| test_v2 (301 messages, one measurement) | 82.4 % | 83.7 % |
+
+On `test_v2` the gain is +1.3 points (about 4 messages), inside the +/-5-point uncertainty: not significant.
+`joie` and `calme` improve, `colere` drops (79.1 % to 74.4 %). Reports: `results/round4-*`.
