@@ -185,8 +185,15 @@ impl Animator {
         kd_fx::scene::duration_ms(&level, message_length as usize, mode.into())
     }
 
+    /// Colour of the message text of an emotion (`#RRGGBB`): the shell tints the message bubble with it.
+    pub fn accent_color(&self, emotion_id: String) -> String {
+        animation_level(&self.theme, &emotion_id, 3).text_color
+    }
+
     /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
+    /// With `overlay` the background is transparent, to play over a conversation; otherwise it is
+    /// a light opaque background.
     /// The text is only drawn: it is never logged, stored or put in an error.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
@@ -199,6 +206,7 @@ impl Animator {
         width: u32,
         height: u32,
         seed: u64,
+        overlay: bool,
     ) -> Result<Vec<u8>, EngineError> {
         guarded(|| {
             if width == 0 || height == 0 || width > MAX_FRAME_SIDE || height > MAX_FRAME_SIDE {
@@ -208,10 +216,13 @@ impl Animator {
             let level = animation_level(&self.theme, &emotion_id, writing_level);
             let frame =
                 kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
-            let pixmap = self
-                .renderer
-                .render(&frame, &message, width, height)
-                .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
+            let drawn = if overlay {
+                self.renderer.render_over(&frame, &message, width, height)
+            } else {
+                self.renderer.render(&frame, &message, width, height)
+            };
+            let pixmap =
+                drawn.ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
             Ok(pixmap.take())
         })
     }
@@ -332,7 +343,7 @@ mod tests {
         let a = Animator::new(ANIME.into()).unwrap();
         let (w, h) = (90, 160);
         let draw = |emotion: &str, mode, t| {
-            a.render(emotion.into(), 3, mode, "Bravo !".into(), t, w, h, 1)
+            a.render(emotion.into(), 3, mode, "Bravo !".into(), t, w, h, 1, false)
                 .unwrap()
         };
         let frame = draw("energie", MotionMode::Full, 1100);
@@ -367,6 +378,37 @@ mod tests {
     }
 
     #[test]
+    fn overlay_frames_are_transparent_where_nothing_is_drawn() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let (w, h) = (90, 160);
+        let settled = a
+            .render(
+                "joie".into(),
+                3,
+                MotionMode::Minimal,
+                "Bravo".into(),
+                5000,
+                w,
+                h,
+                1,
+                true,
+            )
+            .unwrap();
+        let alpha = |x: u32, y: u32| settled[((y * w + x) * 4 + 3) as usize];
+        assert_eq!(alpha(0, 0), 0, "the corner is transparent");
+        assert_eq!(alpha(w - 1, h - 1), 0);
+        assert!(
+            settled.chunks(4).any(|px| px[3] == 255),
+            "the message itself is drawn"
+        );
+        assert_eq!(a.accent_color("joie".into()), "#7A3E00");
+        assert_eq!(
+            a.accent_color("inconnue".into()),
+            a.accent_color("calme".into())
+        );
+    }
+
+    #[test]
     fn animator_rejects_bad_input_without_panicking() {
         assert!(matches!(
             Animator::new("{}".into()),
@@ -375,12 +417,32 @@ mod tests {
         let a = Animator::new(ANIME.into()).unwrap();
         for (w, h) in [(0, 10), (10, 0), (4096, 10), (10, 4096)] {
             assert!(a
-                .render("joie".into(), 3, MotionMode::Full, "x".into(), 0, w, h, 1)
+                .render(
+                    "joie".into(),
+                    3,
+                    MotionMode::Full,
+                    "x".into(),
+                    0,
+                    w,
+                    h,
+                    1,
+                    false
+                )
                 .is_err());
         }
         let long = "a".repeat(100_000);
         assert!(a
-            .render("joie".into(), 3, MotionMode::Full, long, 500, 90, 160, 1)
+            .render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                long,
+                500,
+                90,
+                160,
+                1,
+                false
+            )
             .is_ok());
         assert!(a
             .render(
@@ -391,7 +453,8 @@ mod tests {
                 500,
                 90,
                 160,
-                1
+                1,
+                false
             )
             .is_ok());
     }

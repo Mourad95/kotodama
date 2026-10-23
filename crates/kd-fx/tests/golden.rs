@@ -144,6 +144,33 @@ fn explicit_line_breaks_keep_letters_aligned_with_the_frame() {
 }
 
 #[test]
+fn overlay_keeps_the_conversation_visible_and_the_message_readable() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let frame = sample(
+        theme.level(Emotion::Calm, Intensity::Low),
+        MESSAGE.chars().count(),
+        3000,
+        SEED,
+        Motion::Full,
+    );
+    let img = Renderer::new()
+        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+        .unwrap();
+    // Nothing is drawn at the corners: the conversation shows through.
+    assert_eq!(img.pixel(0, 0).unwrap().alpha(), 0);
+    assert_eq!(img.pixel(SIZE.0 - 1, SIZE.1 - 1).unwrap().alpha(), 0);
+    // The letters (ink) and their white halo are drawn, so the message reads on a dark backdrop too.
+    let opaque = img.data().chunks(4).filter(|p| p[3] == 255).count();
+    assert!(opaque > 1500, "only {opaque} opaque pixels");
+    let white = img
+        .data()
+        .chunks(4)
+        .filter(|p| p[3] > 200 && p[0] > 240 && p[1] > 240 && p[2] > 240)
+        .count();
+    assert!(white > 50, "no white halo around the letters ({white})");
+}
+
+#[test]
 fn rendering_is_repeatable() {
     let a = render(Intensity::Full, Motion::Full, 1060);
     let b = render(Intensity::Full, Motion::Full, 1060);

@@ -150,3 +150,7 @@ The current engine (EmbeddingGemma, pruned FR+EN, Q4, few-shot head) reaches 86.
   about 30 plus an automatic manga filter over an open-licence base (Noto Emoji, Apache-2.0; check LICENSE
   first). Needs an ADR, a theme-format extension and an amendment of L15.
 - **Animation ends on the static message/emoji (owner, 2026-10-23).**
+- **Animation over the conversation (owner, 2026-10-23, ADR-0016).** The animation lasts a moment, full
+  screen and transparent over the conversation, then the message returns to its bubble, still. The product is a
+  keyboard for messaging apps such as WhatsApp and the native messages app: there the animation is inserted
+  as an animated WebP (M6/M7), since a keyboard cannot draw over another app.

@@ -31,6 +31,15 @@ const FLASH_TEXT_SWITCH: f32 = 0.35;
 /// Line height in em.
 const LINE_HEIGHT: f32 = 1.35;
 
+/// How letters are drawn this frame: the message font size, the frame shake and whether the frame is
+/// composited over a conversation (transparent background, white halo).
+#[derive(Clone, Copy)]
+struct TextStyle {
+    font_px: f32,
+    shake: Transform,
+    overlay: bool,
+}
+
 /// Draws frames. Cheap to build; reuse it across frames.
 pub struct Renderer {
     font: FontRef<'static>,
@@ -87,8 +96,34 @@ impl Renderer {
     /// Renders `frame` for `message` (the text the frame was sampled for) at `width` x `height`.
     /// Returns `None` for an empty or absurd size.
     pub fn render(&self, frame: &Frame, message: &str, width: u32, height: u32) -> Option<Pixmap> {
+        self.draw(frame, message, width, height, false)
+    }
+
+    /// Like [`Renderer::render`] but on a transparent background, to be composited over a conversation:
+    /// only the effects and the message are drawn, and the letters get a white halo so they stay
+    /// readable over any backdrop (light or dark).
+    pub fn render_over(
+        &self,
+        frame: &Frame,
+        message: &str,
+        width: u32,
+        height: u32,
+    ) -> Option<Pixmap> {
+        self.draw(frame, message, width, height, true)
+    }
+
+    fn draw(
+        &self,
+        frame: &Frame,
+        message: &str,
+        width: u32,
+        height: u32,
+        overlay: bool,
+    ) -> Option<Pixmap> {
         let mut pixmap = Pixmap::new(width, height)?;
-        pixmap.fill(color(self.background, 1.0));
+        if !overlay {
+            pixmap.fill(color(self.background, 1.0));
+        }
         let (w, h) = (width as f32, height as f32);
         let shake = Transform::from_translate(frame.shake.0 * w, frame.shake.1 * h);
         let ink = frame.text_color;
@@ -112,10 +147,15 @@ impl Renderer {
             draw_particle(&mut pixmap, p, w, h, shake);
         }
         let font_px = TEXT_SIZE * h;
+        let style = TextStyle {
+            font_px,
+            shake,
+            overlay,
+        };
         let placed = self.layout(message, font_px, w, h);
         for g in &frame.glyphs {
             if let Some(p) = placed.iter().find(|p| p.index == g.index) {
-                self.draw_glyph(&mut pixmap, p, g, text_ink, font_px, shake);
+                self.draw_glyph(&mut pixmap, p, g, text_ink, &style);
             }
         }
         for o in &frame.onomatopoeias {
@@ -222,9 +262,13 @@ impl Renderer {
         p: &Placed,
         g: &GlyphState,
         ink: Rgb,
-        font_px: f32,
-        shake: Transform,
+        style: &TextStyle,
     ) {
+        let TextStyle {
+            font_px,
+            shake,
+            overlay,
+        } = *style;
         if g.alpha <= 0.0 {
             return;
         }
@@ -246,6 +290,18 @@ impl Renderer {
             .pre_translate(-pivot.0, -pivot.1)
             .pre_scale(s, s)
             .post_concat(shake);
+        if overlay {
+            // White halo: the message stays readable over a dark or busy conversation.
+            let mut halo = Paint::default();
+            halo.set_color(color(Rgb(255, 255, 255), 0.9 * g.alpha));
+            let stroke = Stroke {
+                width: 0.14 * font_px / s,
+                line_cap: LineCap::Round,
+                line_join: tiny_skia::LineJoin::Round,
+                ..Stroke::default()
+            };
+            pixmap.stroke_path(&path, &halo, &stroke, t, None);
+        }
         if g.glow > 0.0 {
             let mut glow = Paint::default();
             glow.set_color(color(ink, 0.45 * g.glow * g.alpha));
