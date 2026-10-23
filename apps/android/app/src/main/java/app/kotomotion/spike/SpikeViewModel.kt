@@ -57,6 +57,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         val ortPath = app.applicationInfo.nativeLibraryDir + "/libonnxruntime.so"
+        // Private storage: only the app can write the receipt that lets later opens skip the checksums.
+        val receipt = File(app.filesDir, "bundle.receipt")
         viewModelScope.launch(engineDispatcher) {
             val state = if (!File(bundleDir, "manifest.json").isFile) {
                 EngineState.Fallback(null)
@@ -64,7 +66,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 val before = memorySnapshot()
                 val t0 = System.nanoTime()
                 try {
-                    val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath)
+                    val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath, receipt.absolutePath)
                     engine = opened
                     val timings = opened.openTimings()
                     EngineState.Ready(

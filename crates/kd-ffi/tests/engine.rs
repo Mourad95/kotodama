@@ -27,18 +27,25 @@ fn ffi_result_equals_engine_result() {
             .unwrap();
         engine.analyze(text).unwrap()
     };
+    let receipt = std::env::temp_dir().join(format!("kd-receipt-{}.txt", std::process::id()));
     let engine = EmotionEngine::open(
         dir.to_string_lossy().into_owned(),
         lib.to_string_lossy().into_owned(),
+        Some(receipt.to_string_lossy().into_owned()),
     )
     .unwrap();
+    assert!(receipt.is_file(), "the first open records a receipt");
+    std::fs::remove_file(&receipt).unwrap();
     let via_ffi = engine.analyze(text.to_owned()).unwrap();
 
     assert_eq!(via_ffi, EmotionResult::from(&direct));
     assert_eq!(via_ffi.choice, direct.scores.choice.id());
     assert!(!via_ffi.probabilities.is_empty());
     // Failures are errors, not panics.
-    assert!(
-        EmotionEngine::open("/nonexistent".into(), lib.to_string_lossy().into_owned()).is_err()
-    );
+    assert!(EmotionEngine::open(
+        "/nonexistent".into(),
+        lib.to_string_lossy().into_owned(),
+        None
+    )
+    .is_err());
 }

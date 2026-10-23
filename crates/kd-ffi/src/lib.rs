@@ -161,12 +161,24 @@ pub struct OpenTimings {
 impl EmotionEngine {
     /// Opens the model bundle in `bundle_dir`, verifying its checksums, and loads ONNX Runtime
     /// from `ort_library_path` (the `libonnxruntime.so` of the onnxruntime-android package).
+    ///
+    /// `receipt_path` is a file in the app's private storage: the checksums are computed once and
+    /// recorded there, and skipped while the bundle is unchanged (ADR-0014). Pass `None` to verify
+    /// on every open.
     #[uniffi::constructor]
-    pub fn open(bundle_dir: String, ort_library_path: String) -> Result<Arc<Self>, EngineError> {
+    pub fn open(
+        bundle_dir: String,
+        ort_library_path: String,
+        receipt_path: Option<String>,
+    ) -> Result<Arc<Self>, EngineError> {
         install_panic_hook();
         guarded(|| {
             let t0 = Instant::now();
-            let bundle = Bundle::open(&bundle_dir).map_err(open_error)?;
+            let bundle = match &receipt_path {
+                Some(receipt) => Bundle::open_with_receipt(&bundle_dir, receipt),
+                None => Bundle::open(&bundle_dir),
+            }
+            .map_err(open_error)?;
             let t1 = Instant::now();
             let inner = bundle
                 .into_engine_with_library(Path::new(&ort_library_path))
@@ -275,6 +287,7 @@ mod tests {
         let e = EmotionEngine::open(
             "/nonexistent/bundle".into(),
             "/nonexistent/libort.so".into(),
+            None,
         );
         assert!(matches!(e, Err(EngineError::Bundle(_))));
     }
