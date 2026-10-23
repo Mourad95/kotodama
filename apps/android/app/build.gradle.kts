@@ -18,8 +18,8 @@ android {
         applicationId = "app.kotomotion.spike"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0-spike"
+        versionCode = 2
+        versionName = "0.2.0-beta"
         // The Rust core is built for these two ABIs only (build-core.sh).
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
@@ -47,6 +47,8 @@ android {
         getByName("main").java.srcDir("src/main/generated")
         // bench_messages.txt generated from the dev set (never from test_v2).
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/bench-assets"))
+        // theme.json copied from themes/anime (the one source of truth for the animation).
+        getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/theme-assets"))
     }
 
     lint {
@@ -104,6 +106,14 @@ val benchMessages = tasks.register("generateBenchMessages") {
         out.get().asFile.apply { parentFile.mkdirs() }.writeText(lines.joinToString("\n", postfix = "\n"))
         logger.lifecycle("bench_messages.txt: ${lines.size} messages")
     }
+}
+
+// --- Theme ------------------------------------------------------------------------------------
+val copyTheme = tasks.register<Copy>("copyTheme") {
+    group = "build"
+    description = "Copies themes/anime/theme.json into the app assets."
+    from(repoRoot.resolve("themes/anime/theme.json"))
+    into(layout.buildDirectory.dir("generated/theme-assets"))
 }
 
 fun parseCsv(s: String): List<List<String>> {
@@ -169,6 +179,6 @@ val verifyPrivacy = tasks.register("verifyPrivacy") {
     }
 }
 
-tasks.named("preBuild") { dependsOn(buildCore, benchMessages) }
+tasks.named("preBuild") { dependsOn(buildCore, benchMessages, copyTheme) }
 tasks.named("check") { dependsOn(verifyPrivacy) }
 tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" }.configureEach { finalizedBy(verifyPrivacy) }

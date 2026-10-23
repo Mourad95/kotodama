@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">KotoMotion Spike</string>
+    <string name="app_name">KotoMotion beta</string>
     <string name="message_label">Message</string>
     <string name="analyse_button">Analyse</string>
     <string name="benchmark_button">Benchmark</string>
@@ -21,4 +21,29 @@
     <string name="memory_line">Memory: native heap %1$d MB, Java heap %2$d MB, peak VmHWM %3$d MB (VmRSS %4$d MB)</string>
     <string name="analysis_error">Analysis failed: %1$s</string>
     <string name="no_bench_messages">bench_messages.txt missing or empty.</string>
+    <string name="animation_unavailable">Animation theme not found.</string>
+    <string name="intensity_label">Effect intensity</string>
+    <string name="intensity_full">Full</string>
+    <string name="intensity_gentle">Gentle</string>
+    <string name="intensity_minimal">Minimal</string>
+    <string name="reduced_motion_forced">The system asks to reduce animations: minimal mode is forced.</string>
+    <string name="writing_level_label">Writing quality: level %1$d (3 = no mistake)</string>
+    <string name="replay_button">Replay</string>
+    <string name="render_stats">Rendering: %1$.1f ms on average, %2$.1f ms worst (%3$d frames, layers %4$d px and %5$d px). 60 fps budget: 16.7 ms.</string>
+    <string name="beta_title">KotoMotion — beta</string>
+    <string name="animate_button">Animate my message</string>
+    <string name="engine_ready">Model ready.</string>
+    <string name="emotion_label">Emotion to animate</string>
+    <string name="emotion_auto">Detected</string>
+    <string name="show_measures">Show measurements (developer)</string>
+    <string name="hide_measures">Hide measurements</string>
+    <string name="close_button">Close</string>
+    <string name="caption_detected">%1$s · confidence %2$.2f · level %3$d</string>
+    <string name="caption_forced">%1$s (chosen) · level %2$d</string>
+    <string name="caption_fallback">calme (fallback, no model) · level %1$d</string>
+    <string name="send_button">Send</string>
+    <string name="settings_button">Settings</string>
+    <string name="back_to_chat">Conversation</string>
+    <string name="dark_chat_label">Dark conversation (readability test)</string>
+    <string name="bundle_missing_short">Model missing: everything is animated as "calme".</string>
 </resources>

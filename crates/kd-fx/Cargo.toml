@@ -18,5 +18,13 @@ thiserror.workspace = true
 tiny-skia = { version = "0.12", optional = true }
 skrifa = { version = "0.49", optional = true }
 
+[[example]]
+name = "render_frames"
+required-features = ["cpu-render"]
+
+[[example]]
+name = "bench_render"
+required-features = ["cpu-render"]
+
 [lints]
 workspace = true

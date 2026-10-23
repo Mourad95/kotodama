@@ -11,6 +11,10 @@ use crate::{LetterKind, Level, Onomatopoeia, ParticleKind, ScreenKind};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
+/// The light background every renderer draws behind the message; text and onomatopoeia colours are
+/// checked against it (contrast tests).
+pub const LIGHT_BACKGROUND: Rgb = Rgb(0xF7, 0xF7, 0xFA);
+
 impl Rgb {
     /// Parses `#RRGGBB` (already validated for themes). Never panics: anything else gives black.
     pub fn from_hex(s: &str) -> Rgb {
@@ -50,7 +54,7 @@ pub struct ParticleState {
     pub x: f32,
     /// Centre, as a fraction of the frame height.
     pub y: f32,
-    /// Size as a fraction of the frame height.
+    /// Size as a fraction of the frame's size unit (its height for a 9:16 portrait frame, see `render::size_unit`).
     pub size: f32,
     /// Rotation in radians.
     pub rotation: f32,
@@ -131,6 +135,44 @@ const GENTLE_PARTICLE_ALPHA: f32 = 0.7;
 const GENTLE_KEEP_PER_FIVE: u32 = 2;
 /// How long the message fades in when motion is reduced, in milliseconds.
 const REDUCED_FADE_MS: f32 = 300.0;
+
+/// How long the animation of `level` lasts for a message of `glyph_count` letters, in milliseconds:
+/// after this instant nothing moves any more and the frame is the settled message. The whole
+/// timeline is covered: letters (with their stagger), screen effects, particles and onomatopoeias.
+pub fn duration_ms(level: &Level, glyph_count: usize, motion: Motion) -> u32 {
+    if motion == Motion::Reduced {
+        return REDUCED_FADE_MS as u32;
+    }
+    let letters = if glyph_count == 0 {
+        0
+    } else {
+        (glyph_count as u64 - 1) * u64::from(level.letters.stagger_ms)
+            + u64::from(level.letters.duration_ms)
+    };
+    let screen = level
+        .screen
+        .iter()
+        .map(|e| u64::from(e.at_ms) + u64::from(e.duration_ms))
+        .max()
+        .unwrap_or(0);
+    let particles = level
+        .particles
+        .iter()
+        .map(|p| (EMIT_WINDOW_LIFETIMES as u64 + 1) * u64::from(p.lifetime_ms))
+        .max()
+        .unwrap_or(0);
+    let onomatopoeias = level
+        .onomatopoeias
+        .iter()
+        .map(|o| u64::from(o.at_ms) + ONOMATOPOEIA_ENTRANCE_MS as u64)
+        .max()
+        .unwrap_or(0);
+    letters
+        .max(screen)
+        .max(particles)
+        .max(onomatopoeias)
+        .min(u64::from(u32::MAX)) as u32
+}
 
 /// Samples `level` at `t_ms` after the start of the message, for a message of `glyph_count`
 /// letters. The same arguments always give the same frame.
@@ -260,13 +302,13 @@ fn glyph(level: &Level, index: usize, t: f32, seed: u64) -> GlyphState {
             g.alpha = (p * 4.0).min(1.0);
         }
         LetterKind::Impact => {
-            g.scale = 1.0 + 2.0 * (1.0 - ease_in(p));
+            g.scale = 1.0 + 1.0 * (1.0 - ease_in(p));
             g.alpha = if p > 0.0 { 1.0 } else { 0.0 };
         }
         LetterKind::Charge => {
             let flicker = 0.5 + 0.5 * (t * 0.045 + index as f32 * 1.7).sin();
             g.scale = 0.9 + 0.1 * eased;
-            g.glow = (1.0 - p) * (0.4 + 0.6 * flicker) + 0.15 * p * flicker;
+            g.glow = (1.0 - p) * (0.4 + 0.6 * flicker);
         }
         LetterKind::Type => g.alpha = if p > 0.0 { 1.0 } else { 0.0 },
         LetterKind::Drip => g.dy = -(1.0 - eased) * 1.2,
@@ -290,7 +332,11 @@ fn screen_fade(kind: ScreenKind, p: f32) -> f32 {
     match kind {
         ScreenKind::ImpactFlash => 1.0 - p,
         ScreenKind::Shockwave => 1.0 - p,
-        ScreenKind::Spotlight | ScreenKind::Tint | ScreenKind::SpeedLines => {
+        ScreenKind::Spotlight
+        | ScreenKind::Tint
+        | ScreenKind::SpeedLines
+        | ScreenKind::Halftone
+        | ScreenKind::Burst => {
             // Fade in over the first 15 %, out over the last 25 %.
             (p / 0.15).min(1.0).min((1.0 - p) / 0.25).clamp(0.0, 1.0)
         }
@@ -395,7 +441,7 @@ fn ease_in(p: f32) -> f32 {
     p * p * p
 }
 
-fn ease_out_back(p: f32) -> f32 {
+pub(crate) fn ease_out_back(p: f32) -> f32 {
     const C1: f32 = 1.701_58;
     const C3: f32 = C1 + 1.0;
     1.0 + C3 * (p - 1.0).powi(3) + C1 * (p - 1.0).powi(2)
@@ -466,7 +512,11 @@ mod tests {
                 .map(|s| s.kind)
                 .collect::<Vec<_>>()
         };
-        assert_eq!(kinds(500), [ScreenKind::SpeedLines]);
+        assert!(kinds(500).contains(&ScreenKind::SpeedLines));
+        assert!(
+            !kinds(500).contains(&ScreenKind::ImpactFlash),
+            "the flash comes later"
+        );
         assert!(kinds(1060).contains(&ScreenKind::ImpactFlash));
         assert!(kinds(1060).contains(&ScreenKind::Shockwave));
         assert!(kinds(9000).is_empty());
@@ -545,6 +595,35 @@ mod tests {
             sample(&level, 3, 300, 3, Motion::Reduced).glyphs[0].alpha,
             1.0
         );
+    }
+
+    #[test]
+    fn nothing_moves_after_the_duration() {
+        let level = anime(Intensity::Full);
+        for motion in [Motion::Full, Motion::Gentle, Motion::Reduced] {
+            let end = duration_ms(&level, 20, motion);
+            assert!(end > 0 && end < 10_000, "{motion:?}: {end} ms");
+            let (a, b) = (
+                sample(&level, 20, end, 5, motion),
+                sample(&level, 20, end + 777, 5, motion),
+            );
+            assert_eq!(a, b, "{motion:?}: frame still changes at the end");
+            assert!(
+                a.particles.is_empty()
+                    && a.screen.is_empty()
+                    && a.onomatopoeias.len() <= level.onomatopoeias.len()
+            );
+            let before = sample(&level, 20, end.saturating_sub(300), 5, motion);
+            assert!(
+                motion == Motion::Reduced || before != a,
+                "{motion:?}: nothing happens before the end"
+            );
+        }
+        assert!(
+            duration_ms(&level, 200, Motion::Full) > duration_ms(&level, 5, Motion::Full)
+                || level.letters.stagger_ms == 0
+        );
+        assert_eq!(duration_ms(&level, 0, Motion::Reduced), 300);
     }
 
     #[test]

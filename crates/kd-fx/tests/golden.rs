@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use kd_core::{Emotion, Intensity};
-use kd_fx::render::Renderer;
+use kd_fx::render::{Layer, Renderer};
 use kd_fx::scene::{sample, Motion};
 use kd_fx::Theme;
 use tiny_skia::Pixmap;
@@ -144,28 +144,144 @@ fn explicit_line_breaks_keep_letters_aligned_with_the_frame() {
 }
 
 #[test]
+fn overlay_keeps_the_conversation_visible_and_the_message_readable() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let frame = sample(
+        theme.level(Emotion::Calm, Intensity::Low),
+        MESSAGE.chars().count(),
+        3000,
+        SEED,
+        Motion::Full,
+    );
+    let img = Renderer::new()
+        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+        .unwrap();
+    // Nothing is drawn at the corners: the conversation shows through.
+    assert_eq!(img.pixel(0, 0).unwrap().alpha(), 0);
+    assert_eq!(img.pixel(SIZE.0 - 1, SIZE.1 - 1).unwrap().alpha(), 0);
+    // The letters (ink) and their white halo are drawn, so the message reads on a dark backdrop too.
+    let opaque = img.data().chunks(4).filter(|p| p[3] == 255).count();
+    assert!(opaque > 1500, "only {opaque} opaque pixels");
+    let white = img
+        .data()
+        .chunks(4)
+        .filter(|p| p[3] > 200 && p[0] > 240 && p[1] > 240 && p[2] > 240)
+        .count();
+    assert!(white > 50, "no white halo around the letters ({white})");
+}
+
+#[test]
+fn back_and_front_layers_add_up_to_the_overlay() {
+    // Drawn at the same size, the front layer composited over the back layer is the overlay frame
+    // (ADR-0017), up to 8-bit rounding: the split loses nothing and draws nothing twice.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    for t in [300, 1060, 1500] {
+        let frame = sample(
+            theme.level(Emotion::Energy, Intensity::Full),
+            MESSAGE.chars().count(),
+            t,
+            SEED,
+            Motion::Full,
+        );
+        let layer = |l| {
+            renderer
+                .render_layer(&frame, MESSAGE, SIZE.0, SIZE.1, l)
+                .unwrap()
+        };
+        let (over, back, front) = (layer(Layer::Over), layer(Layer::Back), layer(Layer::Front));
+        let mut stacked = back.clone();
+        stacked.draw_pixmap(
+            0,
+            0,
+            front.as_ref(),
+            &tiny_skia::PixmapPaint::default(),
+            tiny_skia::Transform::identity(),
+            None,
+        );
+        let worst = over
+            .data()
+            .iter()
+            .zip(stacked.data())
+            .map(|(a, b)| a.abs_diff(*b))
+            .max()
+            .unwrap();
+        assert!(
+            worst <= 4,
+            "t={t}: layers differ from the overlay by {worst}"
+        );
+        assert_ne!(
+            back.data(),
+            front.data(),
+            "t={t}: the layers split the frame"
+        );
+    }
+}
+
+#[test]
 fn rendering_is_repeatable() {
     let a = render(Intensity::Full, Motion::Full, 1060);
     let b = render(Intensity::Full, Motion::Full, 1060);
     assert_eq!(a.data(), b.data());
 }
 
+/// WCAG relative luminance of an RGBA pixel (premultiplied alpha is irrelevant: the frame is opaque).
+fn luminance(p: tiny_skia::PremultipliedColorU8) -> f64 {
+    let lin = |v: u8| {
+        let v = f64::from(v) / 255.0;
+        if v <= 0.03928 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(p.red()) + 0.7152 * lin(p.green()) + 0.0722 * lin(p.blue())
+}
+
 #[test]
-fn the_message_stays_readable_at_every_level() {
-    // Once the letters have settled, the ink colour must dominate where the message is drawn:
-    // count dark ink pixels in the band of the message and require a minimum.
-    for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
-        let img = render(level, Motion::Full, 3000);
-        let band = (SIZE.1 / 3..2 * SIZE.1 / 3).flat_map(|y| (0..SIZE.0).map(move |x| (x, y)));
-        let ink = band
-            .filter(|&(x, y)| {
-                let p = img.pixel(x, y).unwrap();
-                u32::from(p.red()) + u32::from(p.green()) + u32::from(p.blue()) < 3 * 110
-            })
-            .count();
-        assert!(
-            ink > 600,
-            "level {level:?}: only {ink} ink pixels, the message is not readable"
-        );
+fn the_message_stays_readable_for_every_emotion_and_level() {
+    // At many instants (flash and burst frames included) the pixels of the message must stand out from
+    // the background around them: take the darkest and the lightest 5 % of the pixels of the message
+    // band (the middle fifth of the frame, where the two lines of the message sit); the message is readable when those two extremes contrast, and it was drawn (enough pixels
+    // far from the median). Checked on the settled frame and while the animation runs.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let emotions = [
+        Emotion::Joy,
+        Emotion::Anger,
+        Emotion::Energy,
+        Emotion::Suspense,
+        Emotion::Sadness,
+        Emotion::Love,
+        Emotion::Calm,
+    ];
+    for emotion in emotions {
+        for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
+            for t in (0..=3200_u32).step_by(100) {
+                let frame = sample(
+                    theme.level(emotion, level),
+                    MESSAGE.chars().count(),
+                    t,
+                    SEED,
+                    Motion::Full,
+                );
+                let img = renderer.render(&frame, MESSAGE, SIZE.0, SIZE.1).unwrap();
+                if t < 1500 {
+                    continue; // letters are still entering: only the later instants must be fully readable
+                }
+                let mut lum: Vec<f64> = (2 * SIZE.1 / 5..3 * SIZE.1 / 5)
+                    .flat_map(|y| (0..SIZE.0).map(move |x| (x, y)))
+                    .map(|(x, y)| luminance(img.pixel(x, y).unwrap()))
+                    .collect();
+                lum.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                let n = lum.len();
+                let (low, high) = (lum[n / 20], lum[n - 1 - n / 20]);
+                let ratio = (high + 0.05) / (low + 0.05);
+                assert!(
+                    ratio >= 3.0,
+                    "{emotion:?} {level:?} t={t}: message contrast {ratio:.2}"
+                );
+            }
+        }
     }
 }

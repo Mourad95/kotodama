@@ -22,6 +22,16 @@ excluding everything, no analytics or crash SDK, message text is never logged or
 any `uses-permission` other than that signature permission, or if `allowBackup="false"`,
 `dataExtractionRules` or `fullBackupContent` is missing, in the source, debug and release merged manifests.
 
+## Animation (M3)
+
+Below the analysis, the spike plays the theme animation (`themes/anime/theme.json`, copied into the
+assets at build time) for the effective emotion of the message, then keeps the last frame, the settled
+message. The Rust core draws each frame (CPU renderer, `kd_ffi::Animator`) and the shell only shows it.
+Controls: the **intensity setting** (full, gentle, minimal; stored in app-private preferences, forced to
+minimal when the system animator duration scale is 0), the writing level (1 to 3, chosen by hand until the
+grammar loop exists in M4) and a replay button. The screen reports the drawing time per frame against the
+16.7 ms budget of 60 fps: this is the measurement for the M3 exit criterion, to read on a real phone.
+
 ## Prerequisites
 
 - JDK 17+ (built with 21), Android SDK with platform `android-36` and build-tools `36.0.0`

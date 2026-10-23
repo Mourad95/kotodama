@@ -1,0 +1,140 @@
+{
+  "env": {
+    "python": "3.13.16",
+    "machine": "x86_64",
+    "system": "Linux-6.18.44-fc-v153-x86_64-with-glibc2.39",
+    "processor": "x86_64",
+    "dataset": "dev_v1.csv",
+    "prototypes": "prototypes_v3.json"
+  },
+  "results": [
+    {
+      "nom": "gemma2-q4-proto",
+      "n": 70,
+      "global": 88.6,
+      "global_tolerant": 91.4,
+      "fr": 87.8,
+      "en": 90.5,
+      "fautes": 83.3,
+      "sans_fautes": 89.1,
+      "n_fautes": 6,
+      "latence_ms": 47.1,
+      "rappel": {
+        "joie": 72.7,
+        "colere": 70.0,
+        "energie": 100.0,
+        "suspense": 100.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 88.9
+      },
+      "confiance_moy": 0.13,
+      "seuils": {
+        "0.2": {
+          "couverture": 13,
+          "precision": 100.0
+        },
+        "0.3": {
+          "couverture": 6,
+          "precision": 100.0
+        },
+        "0.4": {
+          "couverture": 4,
+          "precision": 100.0
+        },
+        "0.5": {
+          "couverture": 1,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "mdrrr t'es trop drôle",
+          "joie",
+          "colere"
+        ],
+        [
+          "jsuis grave content pour toi",
+          "joie",
+          "amour"
+        ],
+        [
+          "tu m'as encore laissé en vu, sérieux",
+          "colere",
+          "suspense"
+        ],
+        [
+          "ça marche, pas de souci",
+          "calme",
+          "energie"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ],
+        [
+          "I'M SO DONE WITH HIM",
+          "colere",
+          "tristesse"
+        ]
+      ],
+      "taille_mo": 119.7,
+      "remarque": "choix typé (proto), ONNX model_q4.onnx"
+    },
+    {
+      "nom": "gemma2-q4-fewshot",
+      "n": 70,
+      "global": 94.3,
+      "global_tolerant": 97.1,
+      "fr": 93.9,
+      "en": 95.2,
+      "fautes": 83.3,
+      "sans_fautes": 95.3,
+      "n_fautes": 6,
+      "latence_ms": 59.9,
+      "rappel": {
+        "joie": 81.8,
+        "colere": 90.0,
+        "energie": 100.0,
+        "suspense": 100.0,
+        "tristesse": 90.0,
+        "amour": 100.0,
+        "calme": 100.0
+      },
+      "confiance_moy": 0.71,
+      "seuils": {
+        "0.2": {
+          "couverture": 96,
+          "precision": 98.5
+        },
+        "0.3": {
+          "couverture": 93,
+          "precision": 98.5
+        },
+        "0.4": {
+          "couverture": 90,
+          "precision": 98.4
+        },
+        "0.5": {
+          "couverture": 81,
+          "precision": 100.0
+        }
+      },
+      "erreurs": [
+        [
+          "jsuis grave content pour toi",
+          "joie",
+          "amour"
+        ],
+        [
+          "tu ma soulé avec tes histoire",
+          "colere",
+          "suspense"
+        ]
+      ],
+      "taille_mo": 119.7,
+      "remarque": "choix typé (fewshot), ONNX model_q4.onnx"
+    }
+  ]
+}

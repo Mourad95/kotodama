@@ -3,8 +3,8 @@
 //! This is the **only** surface the native shells see. Keep it tiny: a handful of functions with
 //! plain data types. Everything behind it can change without touching Swift or Kotlin.
 //!
-//! Exposed so far: version, intensity and theme validation (M0) and the emotion engine handle
-//! [`EmotionEngine`] (M2). Grammar and rendering arrive with their milestones.
+//! Exposed so far: version, intensity and theme validation (M0), the emotion engine handle
+//! [`EmotionEngine`] (M2) and the animation player [`Animator`] (M3). Grammar and rendering arrive with their milestones.
 //!
 //! Privacy (ADR-0007, rules L1/L18): message text is only ever passed to the engine; it is never
 //! logged, stored, or put in an error message.
@@ -50,6 +50,9 @@ pub enum EngineError {
     /// The analysis of one message failed.
     #[error("analysis failed: {0}")]
     Analysis(String),
+    /// A theme could not be loaded or an animation could not be drawn.
+    #[error("animation unavailable: {0}")]
+    Animation(String),
     /// An internal error (a panic was caught at the boundary).
     #[error("internal error")]
     Internal,
@@ -104,6 +107,146 @@ fn open_error(e: EmotionError) -> EngineError {
     match e {
         EmotionError::Embedder(m) => EngineError::Runtime(m),
         other => EngineError::Bundle(other.to_string()),
+    }
+}
+
+/// How much motion the viewer accepts: the user's intensity setting (full, gentle, minimal).
+/// The shell must force [`MotionMode::Minimal`] when the OS asks to reduce motion (docs/legal.md L26).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum MotionMode {
+    /// The theme as designed.
+    Full,
+    /// Fewer, fainter particles; no flash, shockwave or shake.
+    Gentle,
+    /// The message only fades in.
+    Minimal,
+}
+
+impl From<MotionMode> for kd_fx::scene::Motion {
+    fn from(m: MotionMode) -> Self {
+        match m {
+            MotionMode::Full => Self::Full,
+            MotionMode::Gentle => Self::Gentle,
+            MotionMode::Minimal => Self::Reduced,
+        }
+    }
+}
+
+/// Which part of a frame [`Animator::render`] draws (ADR-0017).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, uniffi::Enum)]
+pub enum FrameLayer {
+    /// Everything, on a light opaque background (export).
+    Opaque,
+    /// Everything, on a transparent background, to play over a conversation.
+    Over,
+    /// Only the soft screen effects, transparent: draw it small and scale it up.
+    Back,
+    /// Only the particles, the message and the onomatopoeias, transparent: draw it at screen
+    /// resolution, over [`FrameLayer::Back`].
+    Front,
+}
+
+impl From<FrameLayer> for kd_fx::render::Layer {
+    fn from(l: FrameLayer) -> Self {
+        match l {
+            FrameLayer::Opaque => Self::Opaque,
+            FrameLayer::Over => Self::Over,
+            FrameLayer::Back => Self::Back,
+            FrameLayer::Front => Self::Front,
+        }
+    }
+}
+
+/// Largest frame an [`Animator`] draws, per side, in pixels.
+const MAX_FRAME_SIDE: u32 = 2048;
+/// Longest message an [`Animator`] draws, in characters (same cap as the emotion engine).
+const MAX_ANIMATED_CHARS: usize = 2000;
+
+/// Plays a theme: draws the frames of the animation of a message. Build it once from the theme
+/// file, then call [`Animator::render`] for each instant from a background thread.
+#[derive(uniffi::Object)]
+pub struct Animator {
+    theme: kd_fx::Theme,
+    renderer: kd_fx::render::Renderer,
+}
+
+fn animation_level(theme: &kd_fx::Theme, emotion_id: &str, writing_level: u8) -> kd_fx::Level {
+    let emotion = kd_core::Emotion::from_id(emotion_id).unwrap_or(kd_core::Emotion::Calm);
+    let intensity = match writing_level {
+        0 | 1 => kd_core::Intensity::Low,
+        2 => kd_core::Intensity::Medium,
+        _ => kd_core::Intensity::Full,
+    };
+    theme.level(emotion, intensity).clone()
+}
+
+#[uniffi::export]
+impl Animator {
+    /// Parses and validates a theme file (a `theme.json` file under `themes/`).
+    #[uniffi::constructor]
+    pub fn new(theme_json: String) -> Result<Arc<Self>, EngineError> {
+        install_panic_hook();
+        guarded(|| {
+            let theme = kd_fx::Theme::from_json(&theme_json)
+                .map_err(|e| EngineError::Animation(e.to_string()))?;
+            Ok(Arc::new(Self {
+                theme,
+                renderer: kd_fx::render::Renderer::new(),
+            }))
+        })
+    }
+
+    /// Duration of the animation in milliseconds: after it, the frame no longer changes.
+    /// `emotion_id` is an id such as `joie` (unknown ids play `calme`); `writing_level` is 1 to 3
+    /// (3 when the message has no mistake). Only the length of the message is used, not its text.
+    pub fn duration_ms(
+        &self,
+        emotion_id: String,
+        writing_level: u8,
+        mode: MotionMode,
+        message_length: u32,
+    ) -> u32 {
+        let level = animation_level(&self.theme, &emotion_id, writing_level);
+        kd_fx::scene::duration_ms(&level, message_length as usize, mode.into())
+    }
+
+    /// Colour of the message text of an emotion (`#RRGGBB`): the shell tints the message bubble with it.
+    pub fn accent_color(&self, emotion_id: String) -> String {
+        animation_level(&self.theme, &emotion_id, 3).text_color
+    }
+
+    /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
+    /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
+    /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
+    /// screen area, whatever their pixel sizes.
+    /// The text is only drawn: it is never logged, stored or put in an error.
+    #[allow(clippy::too_many_arguments)]
+    pub fn render(
+        &self,
+        emotion_id: String,
+        writing_level: u8,
+        mode: MotionMode,
+        message: String,
+        t_ms: u32,
+        width: u32,
+        height: u32,
+        seed: u64,
+        layer: FrameLayer,
+    ) -> Result<Vec<u8>, EngineError> {
+        guarded(|| {
+            if width == 0 || height == 0 || width > MAX_FRAME_SIDE || height > MAX_FRAME_SIDE {
+                return Err(EngineError::Animation("unsupported frame size".into()));
+            }
+            let message: String = message.chars().take(MAX_ANIMATED_CHARS).collect();
+            let level = animation_level(&self.theme, &emotion_id, writing_level);
+            let frame =
+                kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
+            let pixmap = self
+                .renderer
+                .render_layer(&frame, &message, width, height, layer.into())
+                .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
+            Ok(pixmap.take())
+        })
     }
 }
 
@@ -213,6 +356,139 @@ mod tests {
         assert_eq!(intensity_level(2), 1);
         assert!(validate_theme(include_str!("../../../themes/anime/theme.json").into()).is_none());
         assert!(validate_theme("{}".into()).is_some());
+    }
+
+    const ANIME: &str = include_str!("../../../themes/anime/theme.json");
+
+    #[test]
+    fn animator_draws_frames_and_reports_durations() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let (w, h) = (90, 160);
+        let draw = |emotion: &str, mode, t| {
+            a.render(
+                emotion.into(),
+                3,
+                mode,
+                "Bravo !".into(),
+                t,
+                w,
+                h,
+                1,
+                FrameLayer::Opaque,
+            )
+            .unwrap()
+        };
+        let frame = draw("energie", MotionMode::Full, 1100);
+        assert_eq!(frame.len(), (w * h * 4) as usize);
+        assert!(
+            frame.chunks(4).all(|px| px[3] == 255),
+            "the background is opaque"
+        );
+        assert_ne!(
+            frame,
+            draw("energie", MotionMode::Minimal, 1100),
+            "modes differ"
+        );
+        assert_eq!(
+            frame,
+            draw("energie", MotionMode::Full, 1100),
+            "deterministic"
+        );
+        // Unknown emotions play `calme`.
+        assert_eq!(
+            draw("inconnue", MotionMode::Full, 500),
+            draw("calme", MotionMode::Full, 500)
+        );
+        // The frame stops changing at the announced duration.
+        let end = a.duration_ms("energie".into(), 3, MotionMode::Full, 7);
+        assert!(end > 1000 && end < 10_000, "{end}");
+        assert_eq!(
+            draw("energie", MotionMode::Full, end),
+            draw("energie", MotionMode::Full, end + 5000)
+        );
+        assert!(a.duration_ms("energie".into(), 3, MotionMode::Minimal, 7) < end);
+    }
+
+    #[test]
+    fn overlay_frames_are_transparent_where_nothing_is_drawn() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let (w, h) = (90, 160);
+        let settled = a
+            .render(
+                "joie".into(),
+                3,
+                MotionMode::Minimal,
+                "Bravo".into(),
+                5000,
+                w,
+                h,
+                1,
+                FrameLayer::Over,
+            )
+            .unwrap();
+        let alpha = |x: u32, y: u32| settled[((y * w + x) * 4 + 3) as usize];
+        assert_eq!(alpha(0, 0), 0, "the corner is transparent");
+        assert_eq!(alpha(w - 1, h - 1), 0);
+        assert!(
+            settled.chunks(4).any(|px| px[3] == 255),
+            "the message itself is drawn"
+        );
+        assert_eq!(a.accent_color("joie".into()), "#7A3E00");
+        assert_eq!(
+            a.accent_color("inconnue".into()),
+            a.accent_color("calme".into())
+        );
+    }
+
+    #[test]
+    fn animator_rejects_bad_input_without_panicking() {
+        assert!(matches!(
+            Animator::new("{}".into()),
+            Err(EngineError::Animation(_))
+        ));
+        let a = Animator::new(ANIME.into()).unwrap();
+        for (w, h) in [(0, 10), (10, 0), (4096, 10), (10, 4096)] {
+            assert!(a
+                .render(
+                    "joie".into(),
+                    3,
+                    MotionMode::Full,
+                    "x".into(),
+                    0,
+                    w,
+                    h,
+                    1,
+                    FrameLayer::Opaque
+                )
+                .is_err());
+        }
+        let long = "a".repeat(100_000);
+        assert!(a
+            .render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                long,
+                500,
+                90,
+                160,
+                1,
+                FrameLayer::Opaque
+            )
+            .is_ok());
+        assert!(a
+            .render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                String::new(),
+                500,
+                90,
+                160,
+                1,
+                FrameLayer::Opaque
+            )
+            .is_ok());
     }
 
     use kd_core::{Emotion, EmotionScores};
