@@ -12,7 +12,7 @@ tested without a GPU, and CI machines have none.
    no font, no GPU. It returns what to draw (letter transforms, particles, screen effects,
    onomatopoeias, shake) in resolution-independent units. Particles are computed in closed form from
    `t` and a hash of `(seed, emitter, index)`, so any instant can be sampled without stepping.
-2. A **CPU reference renderer** (planned: `tiny-skia`, bundled subset of Noto Sans JP; licences to be recorded in `docs/legal.md` when added, L10/L11) draws a `Frame` to
+2. A **CPU reference renderer** (`tiny-skia` for drawing, `skrifa` for glyph outlines, a bundled subset of Noto Sans JP Bold; behind the `cpu-render` feature so the shells do not link it by default; licences in `docs/legal.md`) draws a `Frame` to
    pixels. It is the golden-frame reference in CI and the future GIF/WebP exporter.
 3. The on-screen renderer is **`wgpu`** (planned) (Metal/Vulkan) drawing the same `Frame`; it is checked against
    the CPU renderer on a few frames with a tolerance.

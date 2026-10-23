@@ -115,11 +115,20 @@ pub struct Frame {
 pub enum Motion {
     /// The theme as designed.
     Full,
+    /// A calmer version for people who find effects tiring: fewer, fainter particles, softer
+    /// screen effects, and no impact flash, shockwave or shake. Letters and onomatopoeias play as designed.
+    Gentle,
     /// The OS asked to reduce motion (or the user lowered effects): the message only fades in,
     /// with no letter movement, particles, screen effects, shake or onomatopoeias.
     Reduced,
 }
 
+/// In gentle mode, screen effects keep this share of their strength.
+const GENTLE_SCREEN: f32 = 0.5;
+/// In gentle mode, particles keep this share of their opacity.
+const GENTLE_PARTICLE_ALPHA: f32 = 0.7;
+/// In gentle mode, this many particles out of every five are drawn.
+const GENTLE_KEEP_PER_FIVE: u32 = 2;
 /// How long the message fades in when motion is reduced, in milliseconds.
 const REDUCED_FADE_MS: f32 = 300.0;
 
@@ -149,9 +158,17 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         };
     }
     let glyphs = (0..glyph_count).map(|i| glyph(level, i, t, seed)).collect();
+    let gentle = motion == Motion::Gentle;
     let mut shake = (0.0, 0.0);
     let mut screen = Vec::new();
     for (n, effect) in level.screen.iter().enumerate() {
+        let jarring = matches!(
+            effect.kind,
+            ScreenKind::ImpactFlash | ScreenKind::Shockwave | ScreenKind::Shake
+        );
+        if gentle && jarring {
+            continue;
+        }
         let (start, duration) = (effect.at_ms as f32, effect.duration_ms as f32);
         if t < start || t >= start + duration {
             continue;
@@ -171,7 +188,9 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
                 kind: effect.kind,
                 progress,
                 strength: effect.strength,
-                alpha: effect.strength * screen_fade(effect.kind, progress),
+                alpha: effect.strength
+                    * screen_fade(effect.kind, progress)
+                    * if gentle { GENTLE_SCREEN } else { 1.0 },
             });
         }
     }
@@ -180,19 +199,21 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         let lifetime = emitter.lifetime_ms as f32;
         let window = lifetime * EMIT_WINDOW_LIFETIMES;
         for k in 0..emitter.count {
+            // Gentle mode keeps two particles out of every five.
+            if gentle && k % 5 >= GENTLE_KEEP_PER_FIVE {
+                continue;
+            }
             let r = |salt| hash01(seed, 100 + e as u64, u64::from(k), salt);
             let age = t - r(0) * window;
             if age < 0.0 || age >= lifetime || emitter.colors.is_empty() {
                 continue;
             }
             let color = Rgb::from_hex(&emitter.colors[k as usize % emitter.colors.len()]);
-            particles.push(particle(
-                emitter.kind,
-                age / lifetime,
-                lifetime / 1000.0,
-                color,
-                r,
-            ));
+            let mut state = particle(emitter.kind, age / lifetime, lifetime / 1000.0, color, r);
+            if gentle {
+                state.alpha *= GENTLE_PARTICLE_ALPHA;
+            }
+            particles.push(state);
         }
     }
     let onomatopoeias = level
@@ -349,7 +370,7 @@ fn onomatopoeia(o: &Onomatopoeia, n: usize, t: f32, seed: u64) -> Option<Onomato
         return None;
     }
     let p = (age / ONOMATOPOEIA_ENTRANCE_MS).clamp(0.0, 1.0);
-    // Placed above the message, alternating sides so several of them do not overlap.
+    // Placed above the message, alternating sides and heights so several of them do not overlap.
     let side = if n.is_multiple_of(2) { -1.0 } else { 1.0 };
     let jitter = hash01(seed, 200 + n as u64, 0, 0) - 0.5;
     Some(OnomatopoeiaState {
@@ -358,8 +379,8 @@ fn onomatopoeia(o: &Onomatopoeia, n: usize, t: f32, seed: u64) -> Option<Onomato
         scale: o.scale * ease_out_back(p),
         rotation: side * (0.12 + 0.1 * jitter),
         alpha: (p * 3.0).min(1.0),
-        x: 0.5 + side * 0.18 + 0.05 * jitter,
-        y: 0.3 + 0.04 * jitter,
+        x: 0.5 + side * 0.1 + 0.04 * jitter,
+        y: if n.is_multiple_of(2) { 0.33 } else { 0.19 } + 0.02 * jitter,
     })
 }
 
@@ -524,6 +545,32 @@ mod tests {
             sample(&level, 3, 300, 3, Motion::Reduced).glyphs[0].alpha,
             1.0
         );
+    }
+
+    #[test]
+    fn gentle_mode_is_calmer_but_still_animated() {
+        let level = anime(Intensity::Full);
+        let full = sample(&level, 8, 1100, 3, Motion::Full);
+        let gentle = sample(&level, 8, 1100, 3, Motion::Gentle);
+        assert!(gentle.particles.len() < full.particles.len() && !gentle.particles.is_empty());
+        assert!(gentle.screen.iter().all(|s| !matches!(
+            s.kind,
+            ScreenKind::ImpactFlash | ScreenKind::Shockwave | ScreenKind::Shake
+        )));
+        assert_eq!(gentle.shake, (0.0, 0.0));
+        assert!(gentle.glyphs == full.glyphs, "letters play as designed");
+        let strength = |f: &Frame| {
+            f.screen
+                .iter()
+                .find(|s| s.kind == ScreenKind::SpeedLines)
+                .map(|s| s.alpha)
+        };
+        let (a, b) = (
+            sample(&level, 8, 500, 3, Motion::Full),
+            sample(&level, 8, 500, 3, Motion::Gentle),
+        );
+        assert!(strength(&b).unwrap() < strength(&a).unwrap());
+        assert_eq!(gentle.onomatopoeias.len(), full.onomatopoeias.len());
     }
 
     #[test]

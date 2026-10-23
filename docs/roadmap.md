@@ -129,3 +129,24 @@ From the round 2 benchmark (`research/emotion-benchmark/`):
 global ≥ 80 %, messages with errors ≥ 70 %, recall on `energie` and `suspense` ≥ 70 %,
 confidence threshold giving ≥ 85 % precision on ≥ 70 % of messages.
 The current engine (EmbeddingGemma, pruned FR+EN, Q4, few-shot head) reaches 86.7 % / 81.4 % / 93.0 % / 90.7 %.
+
+---
+
+## Decisions for later (not implemented yet)
+
+- **Ephemeral animation (owner, 2026-10-23).** The animation should play for a limited time, around
+  4 to 5 seconds, then end. Not built: today a theme's timeline is whatever its effects declare
+  (about 2 s for the anime energy level 3). To settle when it is implemented: what stays on screen
+  afterwards (the message alone?), whether the user can replay it, and a hard cap on a level's total
+  duration enforced when a theme loads, like the photosensitivity limits (L26).
+- **Intensity setting (owner, 2026-10-23).** A user-facing control with three positions: full,
+  gentle, minimal. The sampler already has `Motion::{Full, Gentle, Reduced}`; the control belongs to
+  the shells (M5) and the OS reduced-motion setting must force minimal.
+- **Visual style (owner, 2026-10-23).** Sober, with the message always easy to read, manga look inspired by
+  the owner's mockups (a coloured comedy burst and a black-and-white impact burst). The current look of the
+  CPU renderer is a placeholder to be reworked against them.
+- **Emoji stickers (owner, 2026-10-23, postponed).** Native emojis redrawn in manga style, animated, chosen
+  from a dedicated picker; the animation plays, then the emoji stays still. Artwork idea: a hand-made set of
+  about 30 plus an automatic manga filter over an open-licence base (Noto Emoji, Apache-2.0; check LICENSE
+  first). Needs an ADR, a theme-format extension and an amendment of L15.
+- **Animation ends on the static message/emoji (owner, 2026-10-23).**
