@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "anime",
   "name": "Anime",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "emotions": {
     "joie": {
       "levels": [
@@ -23,6 +23,7 @@
             { "kind": "stars", "count": 8, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1200 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2200, "strength": 0.5 },
             { "kind": "tint", "duration_ms": 1600, "strength": 0.4 }
           ],
           "onomatopoeias": [
@@ -38,6 +39,8 @@
             { "kind": "stars", "count": 16, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1300 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2600, "strength": 0.6 },
+            { "kind": "burst", "duration_ms": 2600, "strength": 1.0 },
             { "kind": "tint", "duration_ms": 1800, "strength": 0.5 },
             { "kind": "shockwave", "duration_ms": 900, "strength": 0.4, "at_ms": 500 }
           ],
@@ -66,6 +69,7 @@
             { "kind": "embers", "count": 20, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1300 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2000, "strength": 0.5 },
             { "kind": "speed_lines", "duration_ms": 900, "strength": 0.3 }
           ],
           "onomatopoeias": [
@@ -80,6 +84,8 @@
             { "kind": "embers", "count": 36, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1400 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2400, "strength": 0.7 },
+            { "kind": "burst", "duration_ms": 1400, "strength": 1.0 },
             { "kind": "speed_lines", "duration_ms": 900, "strength": 0.35 },
             { "kind": "impact_flash", "duration_ms": 120, "strength": 0.8, "at_ms": 900 },
             { "kind": "shake", "duration_ms": 400, "strength": 0.5, "at_ms": 950 }
@@ -109,6 +115,7 @@
             { "kind": "aura", "count": 24, "colors": ["#378ADD", "#85B7EB", "#FAC775"], "lifetime_ms": 700 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2200, "strength": 0.5 },
             { "kind": "speed_lines", "duration_ms": 1200, "strength": 0.3 }
           ],
           "onomatopoeias": [
@@ -123,6 +130,8 @@
             { "kind": "aura", "count": 40, "colors": ["#378ADD", "#85B7EB", "#FAC775"], "lifetime_ms": 800 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2400, "strength": 0.6 },
+            { "kind": "burst", "duration_ms": 1800, "strength": 1.0, "at_ms": 200 },
             { "kind": "speed_lines", "duration_ms": 1000, "strength": 0.35 },
             { "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 0.8 },
             { "kind": "shockwave", "at_ms": 1050, "duration_ms": 900, "strength": 0.6 },
@@ -153,6 +162,7 @@
             { "kind": "stars", "count": 12, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1500 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2400, "strength": 0.5 },
             { "kind": "spotlight", "duration_ms": 2200, "strength": 0.5 }
           ],
           "onomatopoeias": [
@@ -167,6 +177,7 @@
             { "kind": "stars", "count": 20, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1600 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2800, "strength": 0.7 },
             { "kind": "spotlight", "duration_ms": 2600, "strength": 0.7 },
             { "kind": "tint", "duration_ms": 2000, "strength": 0.3, "at_ms": 300 }
           ],
@@ -195,6 +206,7 @@
             { "kind": "rain", "count": 24, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1700 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2600, "strength": 0.5 },
             { "kind": "tint", "duration_ms": 2200, "strength": 0.4 }
           ],
           "onomatopoeias": [
@@ -209,6 +221,7 @@
             { "kind": "rain", "count": 40, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1800 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 3000, "strength": 0.7 },
             { "kind": "tint", "duration_ms": 2600, "strength": 0.6 },
             { "kind": "spotlight", "duration_ms": 2600, "strength": 0.4 }
           ],
@@ -237,6 +250,7 @@
             { "kind": "hearts", "count": 20, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1900 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2400, "strength": 0.5 },
             { "kind": "tint", "duration_ms": 2000, "strength": 0.4 }
           ],
           "onomatopoeias": [
@@ -252,6 +266,8 @@
             { "kind": "petals", "count": 14, "colors": ["#FFA8A8", "#FCC2D7"], "lifetime_ms": 2000 }
           ],
           "screen": [
+            { "kind": "halftone", "duration_ms": 2800, "strength": 0.6 },
+            { "kind": "burst", "duration_ms": 2800, "strength": 1.0 },
             { "kind": "tint", "duration_ms": 2400, "strength": 0.5 }
           ],
           "onomatopoeias": [
@@ -277,6 +293,9 @@
           "level": 3,
           "text_color": "#085041",
           "letters": { "kind": "rise", "duration_ms": 500, "stagger_ms": 25 },
+          "screen": [
+            { "kind": "halftone", "duration_ms": 2000, "strength": 0.3 }
+          ],
           "onomatopoeias": [
             { "text": "ふわ", "at_ms": 200, "color": "#085041", "scale": 0.4 }
           ]

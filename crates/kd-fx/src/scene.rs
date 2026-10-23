@@ -332,7 +332,11 @@ fn screen_fade(kind: ScreenKind, p: f32) -> f32 {
     match kind {
         ScreenKind::ImpactFlash => 1.0 - p,
         ScreenKind::Shockwave => 1.0 - p,
-        ScreenKind::Spotlight | ScreenKind::Tint | ScreenKind::SpeedLines => {
+        ScreenKind::Spotlight
+        | ScreenKind::Tint
+        | ScreenKind::SpeedLines
+        | ScreenKind::Halftone
+        | ScreenKind::Burst => {
             // Fade in over the first 15 %, out over the last 25 %.
             (p / 0.15).min(1.0).min((1.0 - p) / 0.25).clamp(0.0, 1.0)
         }
@@ -437,7 +441,7 @@ fn ease_in(p: f32) -> f32 {
     p * p * p
 }
 
-fn ease_out_back(p: f32) -> f32 {
+pub(crate) fn ease_out_back(p: f32) -> f32 {
     const C1: f32 = 1.701_58;
     const C3: f32 = C1 + 1.0;
     1.0 + C3 * (p - 1.0).powi(3) + C1 * (p - 1.0).powi(2)
@@ -508,7 +512,11 @@ mod tests {
                 .map(|s| s.kind)
                 .collect::<Vec<_>>()
         };
-        assert_eq!(kinds(500), [ScreenKind::SpeedLines]);
+        assert!(kinds(500).contains(&ScreenKind::SpeedLines));
+        assert!(
+            !kinds(500).contains(&ScreenKind::ImpactFlash),
+            "the flash comes later"
+        );
         assert!(kinds(1060).contains(&ScreenKind::ImpactFlash));
         assert!(kinds(1060).contains(&ScreenKind::Shockwave));
         assert!(kinds(9000).is_empty());

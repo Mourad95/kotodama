@@ -178,6 +178,10 @@ pub enum ScreenKind {
     Tint,
     /// Screen shake.
     Shake,
+    /// Manga screentone: a grid of dots, bigger towards the edges, in the level's ink colour.
+    Halftone,
+    /// Manga explosion: a pale spiky shape with an ink outline drawn behind the message.
+    Burst,
 }
 
 /// Onomatopoeia text drawn on screen.

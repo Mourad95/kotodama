@@ -83,7 +83,7 @@
             "additionalProperties": false,
             "required": ["kind", "duration_ms", "strength"],
             "properties": {
-              "kind": { "enum": ["speed_lines", "impact_flash", "shockwave", "spotlight", "tint", "shake"] },
+              "kind": { "enum": ["speed_lines", "impact_flash", "shockwave", "spotlight", "tint", "shake", "halftone", "burst"] },
               "at_ms": { "type": "integer", "minimum": 0 },
               "duration_ms": { "type": "integer", "minimum": 1 },
               "strength": { "type": "number", "minimum": 0, "maximum": 1 }

@@ -26,6 +26,8 @@ const TEXT_SIZE: f32 = 0.07;
 const TEXT_WIDTH: f32 = 0.84;
 /// Characters that never start a line: they stay with the word they follow.
 const STICKS_TO_PREVIOUS: &str = ",.;:!?…)»”’";
+/// Flash opacity from which the message is drawn in white instead of its ink colour.
+const FLASH_TEXT_SWITCH: f32 = 0.35;
 /// Line height in em.
 const LINE_HEIGHT: f32 = 1.35;
 
@@ -90,6 +92,18 @@ impl Renderer {
         let (w, h) = (width as f32, height as f32);
         let shake = Transform::from_translate(frame.shake.0 * w, frame.shake.1 * h);
         let ink = frame.text_color;
+        // During an impact flash the background goes dark: the message switches to white so it stays readable.
+        let flash = frame
+            .screen
+            .iter()
+            .filter(|s| s.kind == ScreenKind::ImpactFlash)
+            .map(|s| s.alpha)
+            .fold(0.0_f32, f32::max);
+        let text_ink = if flash >= FLASH_TEXT_SWITCH {
+            Rgb(255, 255, 255)
+        } else {
+            ink
+        };
 
         for s in &frame.screen {
             draw_screen(&mut pixmap, s, ink, w, h, shake);
@@ -101,7 +115,7 @@ impl Renderer {
         let placed = self.layout(message, font_px, w, h);
         for g in &frame.glyphs {
             if let Some(p) = placed.iter().find(|p| p.index == g.index) {
-                self.draw_glyph(&mut pixmap, p, g, ink, font_px, shake);
+                self.draw_glyph(&mut pixmap, p, g, text_ink, font_px, shake);
             }
         }
         for o in &frame.onomatopoeias {
@@ -402,7 +416,97 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, s
                 );
             }
         }
+        ScreenKind::Halftone => draw_halftone(pixmap, s, ink, w, h, shake),
+        ScreenKind::Burst => draw_burst(pixmap, s, ink, w, h, shake),
         ScreenKind::Shake => {}
+    }
+}
+
+/// Screentone: staggered rows of dots whose size grows from nothing near the centre (where the message
+/// is) to a full dot at the edges, so the middle of the frame stays clean.
+fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, shake: Transform) {
+    let step = 0.03 * h;
+    let half_diagonal = (w * w + h * h).sqrt() / 2.0;
+    let mut dots = PathBuilder::new();
+    let mut row = 0_u32;
+    let mut y = step / 2.0;
+    while y < h + step {
+        let offset = if row.is_multiple_of(2) {
+            0.0
+        } else {
+            step / 2.0
+        };
+        let mut x = offset;
+        while x < w + step {
+            let d = ((x - w / 2.0).powi(2) + (y - h / 2.0).powi(2)).sqrt() / half_diagonal;
+            let grow = ((d - 0.35) / 0.65).clamp(0.0, 1.0);
+            let r = step * 0.5 * grow * grow * s.strength.clamp(0.0, 1.0);
+            if r > 0.8 {
+                dots.push_circle(x, y, r);
+            }
+            x += step;
+        }
+        y += step * 0.9;
+        row += 1;
+    }
+    if let Some(path) = dots.finish() {
+        pixmap.fill_path(
+            &path,
+            &paint(ink, 0.4 * s.alpha / s.strength.max(0.01)),
+            FillRule::Winding,
+            shake,
+            None,
+        );
+    }
+}
+
+/// Manga explosion: a spiky pale shape (a tint of the ink colour) with an ink outline, popping in with
+/// a little overshoot. Drawn behind the message, so the words sit on a clean light area.
+fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, w: f32, h: f32, shake: Transform) {
+    const SPIKES: u32 = 18;
+    let entrance = (s.progress / 0.12).clamp(0.0, 1.0);
+    let grow = crate::scene::ease_out_back(entrance);
+    let base = 0.5 * w.min(h * 0.7) * 1.05 * grow;
+    if base < 2.0 {
+        return;
+    }
+    let mut pb = PathBuilder::new();
+    for i in 0..SPIKES * 2 {
+        let spike = i % 2 == 0;
+        // Deterministic irregularity so the shape looks drawn by hand, not stamped.
+        let wobble = 0.88 + 0.24 * (((u64::from(i) * 2_654_435_761) >> 7) % 100) as f32 / 100.0;
+        let radius = if spike { base * wobble } else { base * 0.74 };
+        let angle = i as f32 / (SPIKES * 2) as f32 * std::f32::consts::TAU;
+        let (x, y) = (
+            w / 2.0 + radius * 1.1 * angle.cos(),
+            h / 2.0 + radius * 1.0 * angle.sin(),
+        );
+        if i == 0 {
+            pb.move_to(x, y);
+        } else {
+            pb.line_to(x, y);
+        }
+    }
+    pb.close();
+    if let Some(path) = pb.finish() {
+        let pale = Rgb(
+            (u16::from(ink.0) / 10 + 230) as u8,
+            (u16::from(ink.1) / 10 + 230) as u8,
+            (u16::from(ink.2) / 10 + 230) as u8,
+        );
+        pixmap.fill_path(
+            &path,
+            &paint(pale, 0.92 * s.alpha),
+            FillRule::Winding,
+            shake,
+            None,
+        );
+        let stroke = Stroke {
+            width: 0.007 * h,
+            line_join: tiny_skia::LineJoin::Miter,
+            ..Stroke::default()
+        };
+        pixmap.stroke_path(&path, &paint(ink, 0.85 * s.alpha), &stroke, shake, None);
     }
 }
 

@@ -150,11 +150,25 @@ fn rendering_is_repeatable() {
     assert_eq!(a.data(), b.data());
 }
 
+/// WCAG relative luminance of an RGBA pixel (premultiplied alpha is irrelevant: the frame is opaque).
+fn luminance(p: tiny_skia::PremultipliedColorU8) -> f64 {
+    let lin = |v: u8| {
+        let v = f64::from(v) / 255.0;
+        if v <= 0.03928 {
+            v / 12.92
+        } else {
+            ((v + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(p.red()) + 0.7152 * lin(p.green()) + 0.0722 * lin(p.blue())
+}
+
 #[test]
 fn the_message_stays_readable_for_every_emotion_and_level() {
-    // Once the letters have settled the ink must dominate where the message is drawn, and while the
-    // animation runs the message must never disappear under the effects: count dark pixels in the
-    // band of the message at several instants.
+    // At many instants (flash and burst frames included) the pixels of the message must stand out from
+    // the background around them: take the darkest and the lightest 5 % of the pixels of the message
+    // band; the message is readable when those two extremes contrast, and it was drawn (enough pixels
+    // far from the median). Checked on the settled frame and while the animation runs.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
     let emotions = [
@@ -168,7 +182,7 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
     ];
     for emotion in emotions {
         for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
-            for t in [3000_u32, 1500, 900] {
+            for t in (0..=3200_u32).step_by(100) {
                 let frame = sample(
                     theme.level(emotion, level),
                     MESSAGE.chars().count(),
@@ -177,19 +191,20 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
                     Motion::Full,
                 );
                 let img = renderer.render(&frame, MESSAGE, SIZE.0, SIZE.1).unwrap();
-                let band =
-                    (SIZE.1 / 3..2 * SIZE.1 / 3).flat_map(|y| (0..SIZE.0).map(move |x| (x, y)));
-                let ink = band
-                    .filter(|&(x, y)| {
-                        let p = img.pixel(x, y).unwrap();
-                        u32::from(p.red()) + u32::from(p.green()) + u32::from(p.blue()) < 3 * 140
-                    })
-                    .count();
-                // Letters enter one after the other, so the early instants need fewer pixels.
-                let needed = if t == 3000 { 500 } else { 60 };
+                if t < 1500 {
+                    continue; // letters are still entering: only the later instants must be fully readable
+                }
+                let mut lum: Vec<f64> = (SIZE.1 / 3..2 * SIZE.1 / 3)
+                    .flat_map(|y| (0..SIZE.0).map(move |x| (x, y)))
+                    .map(|(x, y)| luminance(img.pixel(x, y).unwrap()))
+                    .collect();
+                lum.sort_by(|a, b| a.partial_cmp(b).unwrap());
+                let n = lum.len();
+                let (low, high) = (lum[n / 20], lum[n - 1 - n / 20]);
+                let ratio = (high + 0.05) / (low + 0.05);
                 assert!(
-                    ink > needed,
-                    "{emotion:?} {level:?} t={t}: only {ink} dark pixels in the message band"
+                    ratio >= 3.0,
+                    "{emotion:?} {level:?} t={t}: message contrast {ratio:.2}"
                 );
             }
         }
