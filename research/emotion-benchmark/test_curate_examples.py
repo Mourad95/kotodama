@@ -72,3 +72,19 @@ def test_merge_keeps_the_base_untouched(tmp_path):
     merged = ce.merge(base, r)
     assert merged["joie"]["examples"] == ["x", "nouveau message"] and base["joie"]["examples"] == ["x"]
     json.dumps(merged)
+
+
+def test_slang_detection():
+    assert ce.has_slang("ptdrrr jpp ce prof")
+    assert ce.has_slang("c'est relou ce truc")
+    assert ce.has_slang("Il est vénère")
+    assert not ce.has_slang("Je suis arrivé à la gare à huit heures")
+
+
+def test_exclusions_drop_matching_rows(tmp_path):
+    ex = tmp_path / "ex.tsv"
+    ex.write_text("# comment\nTrop MIGNON ton frère !!\tbelongs to amour\n", encoding="utf-8")
+    r = ce.curate([write(tmp_path, "a.csv", "text,label\ntrop mignon ton frère,joie\nautre message,joie\n")], [], [],
+                  ce.read_exclusions(ex))
+    assert r.accepted["joie"] == ["autre message"]
+    assert reasons(r) == ["excluded: belongs to amour"]

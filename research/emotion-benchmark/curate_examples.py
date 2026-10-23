@@ -28,12 +28,29 @@ LABELS = ["joie", "colere", "energie", "suspense", "tristesse", "amour", "calme"
 MAX_CHARS = 300
 NEAR_DUPLICATE = 0.88
 TARGET_PER_LABEL = 150
+MIN_SLANG_SHARE = 0.5
+# Markers of teen slang, verlan and messaging abbreviations (whole words, accents and case ignored).
+SLANG = re.compile(
+    r"\b(mdr+|ptdr+|jpp|jsp|jsuis|chui|tkt|tfk|tmtc|wesh|wsh|wallah|wlh|frr+|frero|frere|reuf|reus|sah|"
+    r"relou|chelou|zarbi|ouf|venere?|vnr|saoul\w*|gave|kiff\w*|askip|bg|boloss|seum|flemme|daron\w*|"
+    r"meuf|keum|teuf|tarpin|abuse|oklm|bail|ptn|pk|pq|bcp|dsl|stp|svp|vsy|tjrs|tt|jtm|jtd|cv|"
+    r"chaud\w*|ghost\w*|crush|lache rien|niaque|hess|pls|bad|gener|chanme|taff|squatt\w*|sheesh|"
+    r"fdp|ntm|miskine|dead|ouais|nan|waouh|wow|yes+|ahah\w*|haha\w*|lol|omg|omgg+|bro)\b"
+    r"|trop |de ouf|ca passe|a fond|j'en peux plus|jpense|jvais|jveux|jsais|j'suis|t'es|y'a|ya ",
+    re.I,
+)
 PERSONAL = [
     (re.compile(r"\d{6,}"), "long number"),
     (re.compile(r"\S+@\S+\.\S+"), "e-mail"),
     (re.compile(r"https?://|www\.", re.I), "link"),
     (re.compile(r"(?<!\w)@\w{2,}"), "@handle"),
 ]
+
+
+def has_slang(text: str) -> bool:
+    """True if the message carries a slang, verlan or abbreviation marker (accents and case ignored)."""
+    plain = "".join(c for c in unicodedata.normalize("NFKD", text) if not unicodedata.combining(c))
+    return bool(SLANG.search(plain))
 
 
 def normalise(text: str) -> str:
@@ -66,7 +83,21 @@ def similar(key: str, known: list[str]) -> str | None:
     return None
 
 
-def curate(files: list[Path], base_examples: list[str], reference_texts: list[str]) -> Report:
+def read_exclusions(path: Path | None) -> dict[str, str]:
+    """`text<TAB>reason` lines (blank lines and `#` comments ignored) -> {normalised text: reason}."""
+    if path is None or not path.exists():
+        return {}
+    out = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            text, _, reason = line.partition("\t")
+            out[normalise(text)] = reason.strip() or "excluded by hand"
+    return out
+
+
+def curate(files: list[Path], base_examples: list[str], reference_texts: list[str],
+           exclusions: dict[str, str] | None = None) -> Report:
+    exclusions = exclusions or {}
     report = Report()
     known = [normalise(t) for t in base_examples]
     reference = [normalise(t) for t in reference_texts]
@@ -97,6 +128,8 @@ def curate(files: list[Path], base_examples: list[str], reference_texts: list[st
                     reject(f"personal data ({personal})")
                 elif not key:
                     reject("no letters or digits")
+                elif key in exclusions:
+                    reject(f"excluded: {exclusions[key]}")
                 elif dup:
                     reject(f"{dup} of an accepted or base example")
                 elif leak:
@@ -118,20 +151,30 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("files", nargs="+", type=Path)
     ap.add_argument("--base", type=Path, default=HERE / "prototypes_v2.json")
+    ap.add_argument("--exclude", type=Path, default=HERE / "generated" / "exclude.tsv",
+                    help="`text<TAB>reason` lines of messages to drop (mislabelled, outdated...)")
     ap.add_argument("--write", type=Path, help="write the merged prototypes to this new file")
     args = ap.parse_args()
 
     base = json.loads(args.base.read_text(encoding="utf-8"))
     base_examples = [e for l in LABELS for e in [base[l]["description"], *base[l]["examples"]]]
     reference = read_texts(HERE / "dev_v1.csv") + read_texts(HERE / "test_v2.csv")
-    report = curate(args.files, base_examples, reference)
+    report = curate(args.files, base_examples, reference, read_exclusions(args.exclude))
 
-    print("accepted per label (base examples + new, target new >= %d):" % TARGET_PER_LABEL)
+    print("accepted per label (base examples + new; slang share must be >= %d %%):" % (MIN_SLANG_SHARE * 100))
+    low = []
     for l in LABELS:
-        print(f"  {l:9s} +{len(report.accepted[l]):3d}  -> {len(base[l]['examples']) + len(report.accepted[l])}")
+        new = report.accepted[l]
+        share = sum(map(has_slang, new)) / len(new) if new else 1.0
+        flag = "  <-- too little slang" if share < MIN_SLANG_SHARE else ""
+        if flag:
+            low.append(l)
+        print(f"  {l:9s} +{len(new):3d}  -> {len(base[l]['examples']) + len(new):3d}   slang {share:4.0%}{flag}")
     print(f"rejected: {len(report.rejected)}")
     for file, line, reason, text in report.rejected:
         print(f"  {file}:{line}: {reason}: {text[:70]!r}")
+    if low and args.write:
+        sys.exit(f"not writing: too little slang in {', '.join(low)}")
     if args.write:
         if args.write.resolve() == args.base.resolve():
             sys.exit("refusing to overwrite the base prototypes file")
