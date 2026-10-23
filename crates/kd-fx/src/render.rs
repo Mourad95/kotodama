@@ -450,15 +450,21 @@ impl Renderer {
             .pre_rotate(g.rotation.to_degrees())
             .pre_scale(g.scale, g.scale)
             .pre_translate(-pivot.0, -pivot.1)
-            .pre_concat(Transform::from_row(1.0, 0.0, -0.16 * depth, 1.0, 0.0, 0.0))
+            .pre_concat(Transform::from_row(
+                1.0,
+                0.0,
+                -crate::letter_slant(depth),
+                1.0,
+                0.0,
+                0.0,
+            ))
             .pre_scale(s, s)
             .post_concat(shake);
         if depth > 0.0 {
             // Layered outline offsets imitate an inked side face without a 3D mesh.
-            let steps = (depth * 5.0).ceil() as u32;
-            for i in (1..=steps).rev() {
-                let offset = i as f32 * font_px * 0.014;
-                let side = t.post_translate(offset * 0.65, offset);
+            let (dx, dy) = crate::EXTRUSION_STEP;
+            for i in (1..=crate::extrusion_steps(depth)).rev() {
+                let side = t.post_translate(i as f32 * font_px * dx, i as f32 * font_px * dy);
                 let stroke = Stroke {
                     width: font_px * 0.035 / s,
                     line_join: tiny_skia::LineJoin::Round,

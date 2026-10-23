@@ -235,6 +235,19 @@ impl ScreenKind {
     }
 }
 
+/// Slant of manga lettering at extrusion `depth` (0 to 1), as a horizontal skew to the right.
+pub fn letter_slant(depth: f32) -> f32 {
+    0.16 * depth
+}
+
+/// Number of offset copies drawn to extrude manga lettering at `depth` (0 to 1).
+pub fn extrusion_steps(depth: f32) -> u32 {
+    (depth.clamp(0.0, 1.0) * 5.0).ceil() as u32
+}
+
+/// Offset of each extrusion copy, down and to the right, as fractions of the font size.
+pub const EXTRUSION_STEP: (f32, f32) = (0.014 * 0.65, 0.014);
+
 /// Onomatopoeia text drawn on screen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -402,6 +415,16 @@ mod tests {
     use super::*;
 
     const ANIME: &str = include_str!("../../../themes/anime/theme.json");
+
+    #[test]
+    fn lettering_grows_with_depth_and_is_flat_at_zero() {
+        assert_eq!(letter_slant(0.0), 0.0);
+        assert_eq!(extrusion_steps(0.0), 0);
+        assert_eq!(extrusion_steps(0.5), 3);
+        assert_eq!(extrusion_steps(1.0), 5);
+        assert_eq!(extrusion_steps(7.0), 5, "depth is clamped");
+        assert!(letter_slant(1.0) > letter_slant(0.5));
+    }
 
     #[test]
     fn anime_theme_is_valid() {

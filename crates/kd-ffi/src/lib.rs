@@ -158,16 +158,22 @@ impl From<FrameLayer> for kd_fx::render::Layer {
     }
 }
 
-/// How the shell letters a message in its bubble (ADR-0019): colours `#RRGGBB` and the extrusion depth,
-/// all from the theme.
+/// How the shell letters a message in its bubble (ADR-0019): colours `#RRGGBB` from the theme and the
+/// same slant and extrusion as the renderer's letters, so the rule lives in one place.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
 pub struct BubbleLook {
     /// Colour of the letters.
     pub ink: String,
     /// Colour of the letters' extruded side.
     pub accent: String,
-    /// Extrusion and slant of the letters, from 0 (flat) to 1.
-    pub depth: f32,
+    /// Horizontal skew of the letters to the right (0 is upright).
+    pub slant: f32,
+    /// Number of offset copies that extrude the letters (0 is flat).
+    pub extrusion_steps: u32,
+    /// Offset of each copy to the right, as a fraction of the font size.
+    pub extrusion_dx: f32,
+    /// Offset of each copy downwards, as a fraction of the font size.
+    pub extrusion_dy: f32,
 }
 
 /// Largest frame an [`Animator`] draws, per side, in pixels.
@@ -223,11 +229,6 @@ impl Animator {
         kd_fx::scene::duration_ms(&level, message_length as usize, mode.into())
     }
 
-    /// Colour of the message text of an emotion (`#RRGGBB`): the shell tints the message bubble with it.
-    pub fn accent_color(&self, emotion_id: String) -> String {
-        animation_level(&self.theme, &emotion_id, 3).text_color
-    }
-
     /// How to letter a message of this emotion and writing level in its bubble.
     pub fn bubble_look(&self, emotion_id: String, writing_level: u8) -> BubbleLook {
         let level = animation_level(&self.theme, &emotion_id, writing_level);
@@ -235,10 +236,14 @@ impl Animator {
             || (level.text_color.clone(), 0.0),
             |m| (m.accent_color.clone(), m.depth.clamp(0.0, 1.0)),
         );
+        let (extrusion_dx, extrusion_dy) = kd_fx::EXTRUSION_STEP;
         BubbleLook {
             ink: level.text_color,
             accent,
-            depth,
+            slant: kd_fx::letter_slant(depth),
+            extrusion_steps: kd_fx::extrusion_steps(depth),
+            extrusion_dx,
+            extrusion_dy,
         }
     }
 
@@ -421,7 +426,8 @@ mod tests {
         assert_eq!(light[3], 0);
         let look = animator.bubble_look("colere".into(), 3);
         assert_eq!(look.accent, "#D74C4C");
-        assert!(look.depth > 0.5 && look.depth <= 1.0);
+        assert!(look.slant > 0.0 && look.slant <= 0.16);
+        assert!((3..=5).contains(&look.extrusion_steps));
         assert_eq!(
             animator.bubble_look("inconnue".into(), 3),
             animator.bubble_look("calme".into(), 3)
@@ -508,11 +514,7 @@ mod tests {
         // The message is left to the bubble (ADR-0019): its text changes nothing in the overlay.
         assert!(over("Bravo", 900).chunks(4).any(|px| px[3] > 0));
         assert_eq!(over("Bravo", 900), over("Salut", 900));
-        assert_eq!(a.accent_color("joie".into()), "#7A3E00");
-        assert_eq!(
-            a.accent_color("inconnue".into()),
-            a.accent_color("calme".into())
-        );
+        assert_eq!(a.bubble_look("joie".into(), 3).ink, "#7A3E00");
     }
 
     #[test]

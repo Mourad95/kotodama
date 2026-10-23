@@ -1,6 +1,6 @@
 # ADR-0016 — The animation plays over the conversation, then the message settles in its bubble
 
-**Status:** accepted · 2026-10-23 (decided by the owner)
+**Status:** accepted · 2026-10-23 (decided by the owner) · amended by ADR-0019 (the message sits in its bubble from the start; the overlay draws no text)
 
 ## Context
 The first betas drew the animation on an opaque full-screen background. KotoMotion is meant to be a

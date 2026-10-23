@@ -200,7 +200,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Plays the animation of [message] over the conversation, around its bubble, then fades the overlay
+     * Plays the animation of [message] over the conversation (the ink frames the middle of the
+     * screen while the message already sits in its bubble), then fades the overlay
      * out. The text is only handed to the renderer: it is never logged or stored, and the overlay does not
      * draw it (ADR-0019). Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the
      * inked lines, particles and onomatopoeias at screen resolution. While frames take too long, only the
@@ -332,7 +333,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, writingLevel)
                 else -> app.getString(R.string.caption_fallback, writingLevel)
             }
-            val accent = animator?.accentColor(emotion)?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+            val accent = animator?.bubbleLook(emotion, writingLevel.toUByte())?.ink?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
                 ?: Color(0xFF444444)
             val message = ChatMessage(nextId++, input, true, emotion, accent, writingLevel, false)
             messages.add(message)
