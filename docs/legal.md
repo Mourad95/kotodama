@@ -22,6 +22,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 | L23 | No new test set (test_v3) is collected from real teenagers without parental consent. Until then test data is written by us. | Gate | test_v3 |
 | L24 | No magic-link or email sign-in in v1: the app works without any account. | Rule | — |
 | L25 | Export of an animation goes through the system share sheet, which the user controls; the app has no upload feature of its own. | Rule | — |
+| L26 | Photosensitivity: a theme level may not contain more than three impact flashes within any one second, and shake strength is capped. `kd-fx` rejects themes that break this at load time; the shells honour the OS reduced-motion setting by showing the message with a minimal fade only. | Rule | — |
 
 ## 2. Third-party licences
 

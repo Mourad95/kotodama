@@ -2,7 +2,10 @@
 //!
 //! A theme is data: for each emotion and each intensity level it describes how letters enter,
 //! which particles and screen effects play, which onomatopoeias appear. This crate parses and
-//! validates themes; the `wgpu` renderer that interprets them arrives in milestone M3.
+//! validates themes, and [`scene::sample`] turns a level into what to draw at a given time. The
+//! renderers that draw it (a CPU reference renderer, then `wgpu`) come in milestone M3 (ADR-0015).
+
+pub mod scene;
 
 use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
@@ -248,10 +251,46 @@ impl Theme {
                         "{emotion}: screen effect strength must be in [0, 1] and duration > 0"
                     )));
                 }
+                if let Some(reason) = photosensitivity_violation(&level.screen) {
+                    return Err(fail(format!("{emotion} level {}: {reason}", level.level)));
+                }
             }
         }
         Ok(())
     }
+}
+
+/// Most flashes allowed in any one second (WCAG 2.3.1: no more than three).
+pub const MAX_FLASHES_PER_SECOND: usize = 3;
+/// Strongest shake a theme may ask for (the frame moves at most 3 % of its size at 1.0).
+pub const MAX_SHAKE_STRENGTH: f32 = 1.0;
+
+/// Photosensitivity rules for the screen effects of one level (docs/legal.md L26, gpu-effects skill).
+/// Returns what is wrong, or `None`.
+fn photosensitivity_violation(effects: &[ScreenEffect]) -> Option<String> {
+    let flashes: Vec<u32> = effects
+        .iter()
+        .filter(|e| e.kind == ScreenKind::ImpactFlash)
+        .map(|e| e.at_ms)
+        .collect();
+    for &start in &flashes {
+        let in_window = flashes
+            .iter()
+            .filter(|&&other| other >= start && other < start + 1000)
+            .count();
+        if in_window > MAX_FLASHES_PER_SECOND {
+            return Some(format!(
+                "more than {MAX_FLASHES_PER_SECOND} impact flashes within one second"
+            ));
+        }
+    }
+    if effects
+        .iter()
+        .any(|e| e.kind == ScreenKind::Shake && e.strength > MAX_SHAKE_STRENGTH)
+    {
+        return Some("shake strength above the allowed maximum".into());
+    }
+    None
 }
 
 fn is_hex_color(s: &str) -> bool {
@@ -282,6 +321,26 @@ mod tests {
         let calm = theme.level(Emotion::Calm, Intensity::Low);
         let missing = theme.level(Emotion::Sadness, Intensity::Low);
         assert_eq!(calm, missing);
+    }
+
+    #[test]
+    fn more_than_three_flashes_per_second_are_rejected() {
+        let flash = |at| {
+            format!(
+                r#"{{ "kind": "impact_flash", "at_ms": {at}, "duration_ms": 80, "strength": 0.8 }}"#
+            )
+        };
+        let with = |at: &[u32]| {
+            let list: Vec<String> = at.iter().map(|&a| flash(a)).collect();
+            ANIME.replacen(
+                r#"{ "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 1.0 }"#,
+                &list.join(","),
+                1,
+            )
+        };
+        assert!(Theme::from_json(&with(&[1000, 1300, 1600])).is_ok());
+        assert!(Theme::from_json(&with(&[1000, 1200, 1400, 1600])).is_err());
+        assert!(Theme::from_json(&with(&[1000, 2100, 3200, 4300, 5400])).is_ok());
     }
 
     #[test]
