@@ -38,8 +38,9 @@ selects another validated eight-category source. `--prototypes /path/to/prototyp
 restores the legacy seven-category pipeline.
 
 The manifest records the dataset filename, SHA-256 and actual training count. Messages shared
-with `dev_v1.csv` are excluded before training. The frozen research files remain unchanged;
-`test_v2.csv` is never used by the training importer. The legacy development set does not
+with `dev_v1.csv` or `test_v2.csv` are excluded before training, ignoring punctuation and spacing.
+`test_v2.csv` is read only for that exclusion: nothing is tuned or measured on it. The frozen
+research files remain unchanged. The legacy development set does not
 measure embarrassment recall: eight-category quality needs a separately labelled evaluation set.
 Adding examples changes the next trained head, not an already installed app's weights.
 

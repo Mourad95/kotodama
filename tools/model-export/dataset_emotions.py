@@ -16,6 +16,8 @@ import zipfile
 
 REPO = Path(__file__).resolve().parents[2]
 DEFAULT_DATASET = REPO / "data" / "emotions" / "dataset_emotions.xlsx"
+# Read only to keep its messages out of training (a leak guard), never to tune or measure anything.
+TEST_SET = REPO / "research" / "emotion-benchmark" / "test_v2.csv"
 LABELS = ("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance")
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -24,6 +26,18 @@ REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 def text_key(text: str) -> str:
     """Compare duplicate messages without changing the text used for training."""
     return " ".join(unicodedata.normalize("NFKC", text).casefold().replace("’", "'").split())
+
+
+def leak_key(text: str) -> str:
+    """Compare held-out messages loosely: punctuation and spacing differences do not hide a leak."""
+    letters = "".join(c if c.isalnum() or c == "'" else " " for c in text_key(text))
+    return " ".join(letters.split())
+
+
+def held_out_test_texts(path: Path = TEST_SET) -> set[str]:
+    """Leak keys of the frozen test set, used only to exclude its messages from training."""
+    with path.open(encoding="utf-8", newline="") as stream:
+        return {leak_key(row["text"]) for row in csv.DictReader(stream)}
 
 
 def _sheet_rows(archive: zipfile.ZipFile, path: str, strings: list[str]) -> list[dict[str, str]]:
@@ -110,11 +124,14 @@ def read_dataset(path: Path = DEFAULT_DATASET) -> list[dict[str, str]]:
 
 
 def training_rows(rows: list[dict[str, str]], dev: list[dict[str, str]]) -> list[dict[str, str]]:
-    """Keep development messages out of training; never read or tune against the frozen test set."""
-    held_out = {text_key(row["text"]) for row in dev}
-    result = [row for row in rows if text_key(row["text"]) not in held_out]
+    """Keep development and frozen test messages out of training.
+
+    The test set is only read for this exclusion; nothing is tuned or measured against it.
+    """
+    held_out = {leak_key(row["text"]) for row in dev} | held_out_test_texts()
+    result = [row for row in rows if leak_key(row["text"]) not in held_out]
     if set(LABELS) - {row["label"] for row in result}:
-        raise ValueError("a category is empty after excluding development messages")
+        raise ValueError("a category is empty after excluding held-out messages")
     return result
 
 

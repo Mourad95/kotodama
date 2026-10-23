@@ -27,8 +27,12 @@ android {
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
     }
 
-    signingConfigs.getByName("debug") {
-        storeFile = rootProject.file(".signing/debug.keystore")
+    // A shared debug key keeps installs updatable across machines; without it, the default debug key is used.
+    val sharedDebugKey = rootProject.file(".signing/debug.keystore")
+    if (sharedDebugKey.exists()) {
+        signingConfigs.getByName("debug") {
+            storeFile = sharedDebugKey
+        }
     }
 
     buildTypes {

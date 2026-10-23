@@ -80,8 +80,9 @@ pub enum Layer {
     /// Only the screen effects (flash, tint, spotlight, speed lines, screentone, burst, shockwave), on
     /// a transparent background. They are soft: draw this layer small and scale it up.
     Back,
-    /// Only the particles, the message and the onomatopoeias, on a transparent background, with the
-    /// letters' halo. Draw it at screen resolution, over [`Layer::Back`].
+    /// Only the particles, the manga illustration around the message (ADR-0018), the message and the
+    /// onomatopoeias, on a transparent background, with the letters' halo. Its inked lines must stay
+    /// sharp: draw it at screen resolution, over [`Layer::Back`].
     Front,
 }
 

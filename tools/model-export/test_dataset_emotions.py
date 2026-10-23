@@ -8,7 +8,8 @@ import zipfile
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from dataset_emotions import DEFAULT_DATASET, LABELS, NS, read_dataset, training_rows
+from dataset_emotions import (DEFAULT_DATASET, LABELS, NS, held_out_test_texts, leak_key, read_dataset,
+                              training_rows)
 
 
 def test_workbook_reads_category_sheets_once_and_matches_csv():
@@ -70,6 +71,19 @@ def test_missing_classes_and_blank_text_are_rejected(tmp_path):
 
 def test_development_messages_are_excluded_before_training():
     rows = read_dataset()
+    baseline = training_rows(rows, [])
     filtered = training_rows(rows, [{"text": rows[0]["text"].upper()}])
-    assert len(filtered) == len(rows) - 1
+    assert len(filtered) == len(baseline) - 1
     assert rows[0] not in filtered
+
+
+def test_training_never_contains_a_frozen_test_message():
+    # The workbook holds "je suis dans le bus j'arrive dans 10 min", which test_v2 has with a comma.
+    rows = read_dataset()
+    test = held_out_test_texts()
+    assert any(leak_key(row["text"]) in test for row in rows)
+    assert not any(leak_key(row["text"]) in test for row in training_rows(rows, []))
+
+
+def test_leak_key_ignores_punctuation_and_spacing():
+    assert leak_key("Je suis dans le bus, j’arrive !") == leak_key("je suis dans le bus j'arrive")

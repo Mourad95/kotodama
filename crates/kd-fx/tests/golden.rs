@@ -176,9 +176,12 @@ fn back_and_front_layers_add_up_to_the_overlay() {
     // (ADR-0017), up to 8-bit rounding: the split loses nothing and draws nothing twice.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
-    for t in [300, 1060, 1500] {
+    for (emotion, t) in Emotion::ALL
+        .into_iter()
+        .flat_map(|e| [300, 1060, 1500].map(|t| (e, t)))
+    {
         let frame = sample(
-            theme.level(Emotion::Energy, Intensity::Full),
+            theme.level(emotion, Intensity::Full),
             MESSAGE.chars().count(),
             t,
             SEED,
@@ -208,7 +211,7 @@ fn back_and_front_layers_add_up_to_the_overlay() {
             .unwrap();
         assert!(
             worst <= 4,
-            "t={t}: layers differ from the overlay by {worst}"
+            "{emotion:?} t={t}: layers differ from the overlay by {worst}"
         );
         assert_ne!(
             back.data(),
@@ -275,6 +278,28 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
                 );
             }
         }
+    }
+}
+
+#[test]
+fn the_message_stays_readable_during_an_impact_flash_over_a_manga_scene() {
+    // The letters keep their ink over a manga scene instead of turning white during a flash
+    // (ADR-0018): the flash must not hide them. Energy at full intensity flashes at 1000 ms.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let level = theme.level(Emotion::Energy, Intensity::Full);
+    assert!(level.manga.is_some());
+    let renderer = Renderer::new();
+    for t in (1000..=1120_u32).step_by(20) {
+        let frame = sample(level, MESSAGE.chars().count(), t, SEED, Motion::Full);
+        let img = renderer.render(&frame, MESSAGE, SIZE.0, SIZE.1).unwrap();
+        let mut lum: Vec<f64> = (2 * SIZE.1 / 5..3 * SIZE.1 / 5)
+            .flat_map(|y| (0..SIZE.0).map(move |x| (x, y)))
+            .map(|(x, y)| luminance(img.pixel(x, y).unwrap()))
+            .collect();
+        lum.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let n = lum.len();
+        let ratio = (lum[n - 1 - n / 20] + 0.05) / (lum[n / 20] + 0.05);
+        assert!(ratio >= 3.0, "t={t}: message contrast {ratio:.2}");
     }
 }
 

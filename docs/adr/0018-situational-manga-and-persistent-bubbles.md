@@ -15,6 +15,11 @@ particle depth; the CPU renderer draws back particles, ink, offset letter outlin
 ribbons and foreground particles. Motifs describe drawing primitives, not theme-specific
 branches. No pretrained imagery or generated mockup is bundled in the app.
 
+With the two-layer rendering of ADR-0017, the manga illustration is drawn in the front layer at
+screen resolution, with the particles and the message, so its inked lines stay sharp; the back layer
+keeps only the soft screen effects. Over a manga scene the letters keep their ink during an impact
+flash (their depth outline keeps them readable) instead of turning white.
+
 Animations last at most 4.5 seconds. Letter stagger is compressed for long messages so every
 letter finishes within the cap. Long text is fitted into the central stage. Reduced motion
 remains a plain fade; gentle mode softens illustration strength and removes jarring effects.

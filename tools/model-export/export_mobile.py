@@ -119,7 +119,7 @@ def main() -> None:
         rows = training_rows(all_rows, dev)
         labels = LABELS
         source_kind = "training_dataset"
-        print(f"Dataset emotions: {len(rows)} training messages; {len(all_rows) - len(rows)} development overlaps excluded")
+        print(f"Dataset emotions: {len(rows)} training messages; {len(all_rows) - len(rows)} held-out (dev_v1, test_v2) overlaps excluded")
 
     sys.path.insert(0, str(BENCH))
     if args.export:
