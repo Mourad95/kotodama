@@ -19,3 +19,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0012](0012-cli-crate.md) | A small `kd-cli` crate for manual analysis and evaluation | accepted |
 | [0013](0013-slim-onnx-graph.md) | Slim the ONNX graph so the session opens fast | accepted |
 | [0014](0014-verify-the-bundle-once.md) | Verify the bundle checksums once, not at every launch | accepted |
+| [0015](0015-scene-sampling-and-two-renderers.md) | Effects: a pure scene sampler, a CPU reference renderer, then wgpu | accepted |

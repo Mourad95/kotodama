@@ -22,6 +22,7 @@ None of this is legal advice: every gate ends with a review by a qualified lawye
 | L23 | No new test set (test_v3) is collected from real teenagers without parental consent. Until then test data is written by us. | Gate | test_v3 |
 | L24 | No magic-link or email sign-in in v1: the app works without any account. | Rule | — |
 | L25 | Export of an animation goes through the system share sheet, which the user controls; the app has no upload feature of its own. | Rule | — |
+| L26 | Photosensitivity and reduced motion. At theme load, `kd-fx` rejects a level with more than three impact flashes in any one second, an impact flash stronger than 0.8 (never full white), a shake stronger than 0.7 or longer than 600 ms, or an emitter above 200 particles. `scene::sample` has a `Motion::Reduced` mode (plain fade, no movement, particles, screen effects, shake or onomatopoeias) that the shells must use when the OS asks to reduce motion. **Open until the M3 exit:** flash area and luminance contrast are not measured (only the count and strength), the shake changes about 30 times a second within its amplitude cap, and the shells' use of `Motion::Reduced` is not yet wired. | Rule | M3 exit |
 
 ## 2. Third-party licences
 
