@@ -12,7 +12,7 @@ Use the same word for the same thing everywhere. Do not invent synonyms.
 
 | Say | Never | Meaning |
 |---|---|---|
-| `emotion` | mood, feeling, sentiment | one of the 7 labels |
+| `emotion` | mood, feeling, sentiment | one of the 8 labels |
 | `intensity` | power, strength level, tier | 1 low, 2 medium, 3 full |
 | `theme` | skin, style pack | JSON motion language |
 | `level` | stage | one intensity step inside a theme |
@@ -62,7 +62,7 @@ type hints everywhere. Script names are verbs: `prune_vocab.py`, `quantize_onnx.
 - JSON keys: `snake_case`. Enum values in data: `snake_case` (`speed_lines`, `impact_flash`).
 - Theme ids and bundle names: lowercase `kebab-case` (`anime`, `minimal`).
 - Emotion ids: the French identifiers `joie`, `colere`, `energie`, `suspense`, `tristesse`, `amour`,
-  `calme`. They are data keys, not words to use in prose or in code identifiers (use the English enum).
+  `calme`, `genance`. They are data keys, not words to use in prose or in code identifiers (use the English enum).
 - Versions: semver for themes and bundles (`0.1.0`); integers for `schema_version`.
 
 ## Files and folders

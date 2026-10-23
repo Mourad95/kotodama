@@ -1,0 +1,9 @@
+KotoMotion beta
+
+Embedding model: google/embeddinggemma-2, Apache License 2.0.
+The embedding graph is the verified pruned, quantized bundle supplied by the owner.
+The eight-category classification head is trained locally from Dataset emotions.
+Model publisher: https://huggingface.co/google/embeddinggemma-2
+
+Noto Sans JP Bold subset: SIL Open Font License 1.1.
+See NotoSansJP-OFL.txt. Original outlines are unchanged.

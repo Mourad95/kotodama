@@ -22,12 +22,23 @@
         "suspense": { "$ref": "#/$defs/motion" },
         "tristesse": { "$ref": "#/$defs/motion" },
         "amour": { "$ref": "#/$defs/motion" },
-        "calme": { "$ref": "#/$defs/motion" }
+        "calme": { "$ref": "#/$defs/motion" },
+        "genance": { "$ref": "#/$defs/motion" }
       }
     }
   },
   "$defs": {
     "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "manga": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["motif", "accent_color", "depth"],
+      "properties": {
+        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush"] },
+        "accent_color": { "$ref": "#/$defs/color" },
+        "depth": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
     "motion": {
       "type": "object",
       "additionalProperties": false,
@@ -52,12 +63,13 @@
       "properties": {
         "level": { "enum": [1, 2, 3] },
         "text_color": { "$ref": "#/$defs/color" },
+        "manga": { "$ref": "#/$defs/manga" },
         "letters": {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "duration_ms", "stagger_ms"],
           "properties": {
-            "kind": { "enum": ["rise", "pop", "impact", "charge", "type", "drip", "bloom", "glitch"] },
+            "kind": { "enum": ["rise", "pop", "impact", "charge", "type", "drip", "bloom", "glitch", "shy"] },
             "duration_ms": { "type": "integer", "minimum": 1 },
             "stagger_ms": { "type": "integer", "minimum": 0 }
           }

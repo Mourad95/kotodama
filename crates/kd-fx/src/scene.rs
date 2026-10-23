@@ -5,7 +5,7 @@
 //! (bottom), the message is centred on (0.5, 0.5). Sizes are fractions of the frame height and
 //! letter offsets are in em (the message font size), so the same frame renders at any resolution.
 
-use crate::{LetterKind, Level, Onomatopoeia, ParticleKind, ScreenKind};
+use crate::{LetterKind, Level, MangaStyle, Onomatopoeia, ParticleKind, ScreenKind};
 
 /// An 8-bit RGB colour.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +62,8 @@ pub struct ParticleState {
     pub alpha: f32,
     /// Colour.
     pub color: Rgb,
+    /// Perspective plane, from distant (zero) to foreground (one).
+    pub depth: f32,
 }
 
 /// What a running full-screen effect asks the renderer to draw this frame.
@@ -96,12 +98,27 @@ pub struct OnomatopoeiaState {
     pub y: f32,
 }
 
+/// Time-sampled ink illustration, independent of any rendering API.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MangaState {
+    /// Drawing primitives and highlight colour from the theme.
+    pub style: MangaStyle,
+    /// Normalised time within the illustration.
+    pub progress: f32,
+    /// Fade applied to the complete illustration.
+    pub alpha: f32,
+    /// Writing intensity, softened by gentle mode.
+    pub strength: f32,
+}
+
 /// Everything to draw at one instant, back to front: screen effects, particles, letters,
 /// onomatopoeias (the message stays readable above the background effects).
 #[derive(Debug, Clone, PartialEq)]
 pub struct Frame {
     /// Colour of the message text.
     pub text_color: Rgb,
+    /// Optional manga illustration; absent in reduced motion.
+    pub manga: Option<MangaState>,
     /// Letters of the message, in order.
     pub glyphs: Vec<GlyphState>,
     /// Living particles.
@@ -146,8 +163,7 @@ pub fn duration_ms(level: &Level, glyph_count: usize, motion: Motion) -> u32 {
     let letters = if glyph_count == 0 {
         0
     } else {
-        (glyph_count as u64 - 1) * u64::from(level.letters.stagger_ms)
-            + u64::from(level.letters.duration_ms)
+        (letter_span_ms(level, glyph_count) + level.letters.duration_ms.min(1800) as f32) as u64
     };
     let screen = level
         .screen
@@ -171,7 +187,8 @@ pub fn duration_ms(level: &Level, glyph_count: usize, motion: Motion) -> u32 {
         .max(screen)
         .max(particles)
         .max(onomatopoeias)
-        .min(u64::from(u32::MAX)) as u32
+        .max(if level.manga.is_some() { 3000 } else { 0 })
+        .min(4500) as u32
 }
 
 /// Samples `level` at `t_ms` after the start of the message, for a message of `glyph_count`
@@ -182,6 +199,7 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         let alpha = (t / REDUCED_FADE_MS).clamp(0.0, 1.0);
         return Frame {
             text_color: Rgb::from_hex(&level.text_color),
+            manga: None,
             glyphs: (0..glyph_count)
                 .map(|index| GlyphState {
                     index,
@@ -199,7 +217,11 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
             shake: (0.0, 0.0),
         };
     }
-    let glyphs = (0..glyph_count).map(|i| glyph(level, i, t, seed)).collect();
+    let end = duration_ms(level, glyph_count, motion) as f32;
+    let t = t.min(end);
+    let glyphs = (0..glyph_count)
+        .map(|i| glyph(level, i, glyph_count, t, seed))
+        .collect();
     let gentle = motion == Motion::Gentle;
     let mut shake = (0.0, 0.0);
     let mut screen = Vec::new();
@@ -212,7 +234,7 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
             continue;
         }
         let (start, duration) = (effect.at_ms as f32, effect.duration_ms as f32);
-        if t < start || t >= start + duration {
+        if t >= end || t < start || t >= start + duration {
             continue;
         }
         let progress = (t - start) / duration;
@@ -247,7 +269,7 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
             }
             let r = |salt| hash01(seed, 100 + e as u64, u64::from(k), salt);
             let age = t - r(0) * window;
-            if age < 0.0 || age >= lifetime || emitter.colors.is_empty() {
+            if t >= end || age < 0.0 || age >= lifetime || emitter.colors.is_empty() {
                 continue;
             }
             let color = Rgb::from_hex(&emitter.colors[k as usize % emitter.colors.len()]);
@@ -266,6 +288,12 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         .collect();
     Frame {
         text_color: Rgb::from_hex(&level.text_color),
+        manga: level.manga.as_ref().map(|style| MangaState {
+            style: style.clone(),
+            progress: t / end.max(1.0),
+            alpha: ((t / 250.0).min(1.0) * ((end - t) / 450.0).clamp(0.0, 1.0)),
+            strength: (0.35 + 0.65 * level.level as f32 / 3.0) * if gentle { 0.55 } else { 1.0 },
+        }),
         glyphs,
         particles,
         screen,
@@ -281,10 +309,14 @@ const SHAKE_STEP_MS: f32 = 33.0;
 /// Particles are born over this many lifetimes, so an emitter fades in rather than bursting.
 const EMIT_WINDOW_LIFETIMES: f32 = 2.0;
 
-fn glyph(level: &Level, index: usize, t: f32, seed: u64) -> GlyphState {
+fn letter_span_ms(level: &Level, count: usize) -> f32 {
+    (count.saturating_sub(1) as f32 * level.letters.stagger_ms as f32).min(1200.0)
+}
+
+fn glyph(level: &Level, index: usize, count: usize, t: f32, seed: u64) -> GlyphState {
     let letters = &level.letters;
-    let start = index as f32 * letters.stagger_ms as f32;
-    let p = ((t - start) / letters.duration_ms as f32).clamp(0.0, 1.0);
+    let start = index as f32 / count.saturating_sub(1).max(1) as f32 * letter_span_ms(level, count);
+    let p = ((t - start) / letters.duration_ms.min(1800) as f32).clamp(0.0, 1.0);
     let mut g = GlyphState {
         index,
         dx: 0.0,
@@ -315,6 +347,12 @@ fn glyph(level: &Level, index: usize, t: f32, seed: u64) -> GlyphState {
         LetterKind::Bloom => {
             g.scale = 0.2 + 0.8 * ease_out_back(p);
             g.rotation = (1.0 - eased) * 0.8;
+        }
+        LetterKind::Shy => {
+            g.scale = 0.78 + 0.22 * eased;
+            g.dy = -0.15 * (1.0 - eased);
+            g.rotation = (index as f32 * 1.7).sin() * 0.10 * (1.0 - eased);
+            g.dx = (t * 0.012 + index as f32).sin() * 0.045 * (1.0 - p);
         }
         LetterKind::Glitch => {
             if p > 0.0 && p < 1.0 {
@@ -399,14 +437,27 @@ fn particle(
             1.0,
         ),
     };
+    let depth = r(7);
+    let perspective = 0.55 + depth * 1.15;
+    // Large foreground fragments stay outside the central reading area.
+    let x = if depth > 0.68 && (0.18..0.82).contains(&x) {
+        if x < 0.5 {
+            0.08 + x * 0.12
+        } else {
+            0.86 + (x - 0.5) * 0.12
+        }
+    } else {
+        x
+    };
     ParticleState {
         kind,
         x,
         y,
-        size,
+        size: size * perspective,
         rotation,
         alpha: alpha * fade,
         color,
+        depth,
     }
 }
 
@@ -620,7 +671,7 @@ mod tests {
             );
         }
         assert!(
-            duration_ms(&level, 200, Motion::Full) > duration_ms(&level, 5, Motion::Full)
+            duration_ms(&level, 200, Motion::Full) >= duration_ms(&level, 5, Motion::Full)
                 || level.letters.stagger_ms == 0
         );
         assert_eq!(duration_ms(&level, 0, Motion::Reduced), 300);
@@ -673,6 +724,7 @@ mod tests {
             particles: Vec::new(),
             screen: Vec::new(),
             onomatopoeias: Vec::new(),
+            manga: None,
         };
         for kind in [
             LetterKind::Rise,
@@ -683,6 +735,7 @@ mod tests {
             LetterKind::Drip,
             LetterKind::Bloom,
             LetterKind::Glitch,
+            LetterKind::Shy,
         ] {
             let level = letter(kind);
             for t in (0..1200).step_by(25) {

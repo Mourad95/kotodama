@@ -14,8 +14,8 @@ power) and *motion*: the better the words, the more power the message has.
 ## The core loop
 
 1. The user types a message (in a keyboard, or in the app).
-2. On device, the **emotion engine** picks one of 7 emotions: `joie`, `colere`, `energie`,
-   `suspense`, `tristesse`, `amour`, `calme` (`calme` is also the fallback when the engine is unsure).
+2. On device, the **emotion engine** picks one of 8 supported emotions: `joie`, `colere`, `energie`,
+   `suspense`, `tristesse`, `amour`, `calme`, `genance` (`calme` is also the fallback when the engine is unsure).
 3. On device, the **grammar checker** finds spelling and grammar issues.
 4. The number of issues gives an **intensity** (3 levels): no error → full animation, one error →
    medium, two or more → low (faulty words glitch).
@@ -54,12 +54,14 @@ animation gets crazier.
 TikTok/Instagram plugins are **not possible** (Meta Spark is discontinued); the keyboard avoids
 leaving the host app.
 
-## The 7 emotions, defined
+## The emotions, defined
 
 Authoritative definitions and examples live in `research/emotion-benchmark/prototypes.json`.
 Short version: `joie` happiness/pride, `colere` anger/blame, `energie` motivation/hype,
 `suspense` curiosity/secret/rumour, `tristesse` sadness/failure, `amour` affection/warm thanks,
-`calme` neutral/practical/unsure.
+`calme` neutral/practical/unsure. `genance` covers embarrassment and awkwardness (ADR-0017).
+The legacy prototypes describe seven labels; Dataset emotions adds the eighth. Existing model
+bundles keep their original categories until a new head is trained and installed.
 
 ## Themes
 

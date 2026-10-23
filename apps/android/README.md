@@ -117,3 +117,18 @@ and build type visible on the screenshot, on at least one recent and one mid-ran
 M2 build here was produced in a container with no device or emulator: it compiles, packages and
 passes the privacy gate and lint, but is **not verified on device**. Last successful run
 (2026-10-22): `./gradlew assembleDebug assembleRelease lint check`.
+
+## Situational manga and settled bubbles (ADR-0017)
+
+The conversation overlay now uses the theme's situation-specific ink motifs and perspective
+layers. Once it finishes, each sent bubble keeps a static Rust-rendered decoration with native
+text above it. Dark mode, text wrapping and accessibility font sizes use the measured bubble
+bounds. Decorations are generated off the UI thread and discarded with the in-memory conversation.
+The settings include embarrassment (`genance`). A legacy seven-label head cannot select it
+automatically; install a head trained with Dataset emotions to enable that category in detection.
+
+Actual CPU keyframes and bubble decorations can be generated without Android:
+
+```bash
+cargo run -p kd-fx --features cpu-render --example manga_preview -- output/manga
+```

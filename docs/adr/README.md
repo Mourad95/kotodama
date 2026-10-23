@@ -21,3 +21,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0014](0014-verify-the-bundle-once.md) | Verify the bundle checksums once, not at every launch | accepted |
 | [0015](0015-scene-sampling-and-two-renderers.md) | Effects: a pure scene sampler, a CPU reference renderer, then wgpu | accepted |
 | [0016](0016-animation-plays-over-the-conversation.md) | The animation plays over the conversation, then the message settles in its bubble | accepted |
+| [0017](0017-situational-manga-and-persistent-bubbles.md) | Situational manga, persistent bubbles and editable eight-category training data | accepted |

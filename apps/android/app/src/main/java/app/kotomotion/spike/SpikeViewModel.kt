@@ -76,7 +76,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile
     private var engine: EmotionEngine? = null
 
-    val bundleDir: File = File(app.getExternalFilesDir(null) ?: app.filesDir, "bundle")
+    var bundleDir: File by mutableStateOf(File(app.filesDir, "models"))
+        private set
 
     var text by mutableStateOf("")
     var engineState: EngineState by mutableStateOf(EngineState.Loading)
@@ -261,25 +262,22 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         // Private storage: only the app can write the receipt that lets later opens skip the checksums.
         val receipt = File(app.filesDir, "bundle.receipt")
         viewModelScope.launch(engineDispatcher) {
-            val state = if (!File(bundleDir, "manifest.json").isFile) {
-                EngineState.Fallback(null)
-            } else {
-                val before = memorySnapshot()
-                val t0 = System.nanoTime()
-                try {
-                    val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath, receipt.absolutePath)
-                    engine = opened
-                    val timings = opened.openTimings()
-                    EngineState.Ready(
-                        (System.nanoTime() - t0) / 1_000_000,
-                        timings.verifyMs.toLong(), timings.loadMs.toLong(), before, memorySnapshot(),
-                    )
-                } catch (e: Exception) {
-                    // Only the exception class: its message could in theory echo input.
-                    EngineState.Fallback(e.javaClass.simpleName)
-                } catch (e: UnsatisfiedLinkError) {
-                    EngineState.Fallback(e.javaClass.simpleName)
-                }
+            val before = memorySnapshot()
+            val t0 = System.nanoTime()
+            val state = try {
+                val prepared = BundledModel.prepare(File(app.filesDir, "models")) { path -> app.assets.open(path) }
+                bundleDir = prepared
+                val opened = EmotionEngine.open(prepared.absolutePath, ortPath, receipt.absolutePath)
+                engine = opened
+                val timings = opened.openTimings()
+                EngineState.Ready(
+                    (System.nanoTime() - t0) / 1_000_000,
+                    timings.verifyMs.toLong(), timings.loadMs.toLong(), before, memorySnapshot(),
+                )
+            } catch (e: Exception) {
+                EngineState.Fallback(e.javaClass.simpleName)
+            } catch (e: UnsatisfiedLinkError) {
+                EngineState.Fallback(e.javaClass.simpleName)
             }
             engineState = state
         }

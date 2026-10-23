@@ -22,5 +22,9 @@ skrifa = { version = "0.49", optional = true }
 name = "render_frames"
 required-features = ["cpu-render"]
 
+[[example]]
+name = "manga_preview"
+required-features = ["cpu-render"]
+
 [lints]
 workspace = true

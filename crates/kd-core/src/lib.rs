@@ -34,11 +34,14 @@ pub enum Emotion {
     /// Neutral or practical message. Also the fallback when the engine is unsure.
     #[serde(rename = "calme")]
     Calm,
+    /// Embarrassment and awkwardness. Available for explicit selection; legacy heads have no label for it.
+    #[serde(rename = "genance")]
+    Embarrassment,
 }
 
 impl Emotion {
     /// All emotions, in the canonical order used by models and data files.
-    pub const ALL: [Emotion; 7] = [
+    pub const ALL: [Emotion; 8] = [
         Emotion::Joy,
         Emotion::Anger,
         Emotion::Energy,
@@ -46,6 +49,7 @@ impl Emotion {
         Emotion::Sadness,
         Emotion::Love,
         Emotion::Calm,
+        Emotion::Embarrassment,
     ];
 
     /// Identifier used in data files (`joie`, `colere`, …).
@@ -58,6 +62,7 @@ impl Emotion {
             Emotion::Sadness => "tristesse",
             Emotion::Love => "amour",
             Emotion::Calm => "calme",
+            Emotion::Embarrassment => "genance",
         }
     }
 
@@ -216,7 +221,10 @@ mod tests {
     #[test]
     fn scores_fall_back_to_calm_when_unsure() {
         let unsure = EmotionScores::from_probabilities(
-            Emotion::ALL.iter().map(|e| (*e, 1.0 / 7.0)).collect(),
+            Emotion::ALL
+                .iter()
+                .map(|e| (*e, 1.0 / Emotion::ALL.len() as f32))
+                .collect(),
         )
         .unwrap();
         assert_eq!(unsure.effective(0.2), Emotion::Calm);

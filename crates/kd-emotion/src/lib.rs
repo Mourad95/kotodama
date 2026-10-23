@@ -234,6 +234,24 @@ mod tests {
     }
 
     #[test]
+    fn eight_label_heads_can_select_embarrassment() {
+        let mut bias = vec![0.0; Emotion::ALL.len()];
+        bias[Emotion::ALL.len() - 1] = 9.0;
+        let json = serde_json::json!({
+            "labels": Emotion::ALL.map(Emotion::id),
+            "weights": vec![vec![0.0; 3]; Emotion::ALL.len()],
+            "bias": bias,
+        });
+        let engine = EmotionEngine::new(
+            KeywordEmbedder,
+            EmotionHead::from_json(&json.to_string()).unwrap(),
+        );
+        let result = engine.analyze("A test message").unwrap();
+        assert_eq!(result.effective, Emotion::Embarrassment);
+        assert_eq!(result.scores.probabilities.len(), 8);
+    }
+
+    #[test]
     fn head_rejects_bad_files() {
         assert!(EmotionHead::from_json(r#"{"labels":["joie"],"weights":[],"bias":[0]}"#).is_err());
         assert!(

@@ -10,6 +10,9 @@ pub mod scene;
 #[cfg(feature = "cpu-render")]
 pub mod render;
 
+#[cfg(feature = "cpu-render")]
+mod manga;
+
 use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -77,6 +80,43 @@ pub struct Level {
     /// Onomatopoeias drawn around the message.
     #[serde(default)]
     pub onomatopoeias: Vec<Onomatopoeia>,
+    /// Optional ink illustration, shared by the animated overlay and the settled bubble.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manga: Option<MangaStyle>,
+}
+
+/// Data-driven illustration language; motifs describe drawing primitives, not theme identifiers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MangaStyle {
+    /// Ink composition around the message.
+    pub motif: MangaMotif,
+    /// Highlight colour, distinct from the darker readable text colour.
+    pub accent_color: String,
+    /// Amount of offset lettering and perspective, between zero and one.
+    pub depth: f32,
+}
+
+/// Original manga illustration primitives understood by the renderer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MangaMotif {
+    /// Warm rays and four-point glints.
+    Radiance,
+    /// Jagged ink pressure and an anger mark.
+    Pressure,
+    /// Perspective energy ribbon and angular shards.
+    Orbit,
+    /// Converging hatching and a dark local aura.
+    Tension,
+    /// Descending gloom hatching and ink drops.
+    Rainfall,
+    /// Soft floral contours and blush hatching.
+    Blossom,
+    /// Sparse flowing curves and leaves.
+    Breeze,
+    /// Blush, hesitation marks and a sweat drop.
+    Blush,
 }
 
 /// Letter entrance animation.
@@ -111,6 +151,8 @@ pub enum LetterKind {
     Bloom,
     /// Faulty word glitch (used for words with issues).
     Glitch,
+    /// Hesitate, tilt inward and gently shrink into place.
+    Shy,
 }
 
 /// A particle emitter.
@@ -239,6 +281,7 @@ impl Theme {
             }
             for level in &motion.levels {
                 let colors = std::iter::once(&level.text_color)
+                    .chain(level.manga.iter().map(|m| &m.accent_color))
                     .chain(level.particles.iter().flat_map(|p| &p.colors))
                     .chain(level.onomatopoeias.iter().map(|o| &o.color));
                 for color in colors {
@@ -248,6 +291,22 @@ impl Theme {
                 }
                 if level.letters.duration_ms == 0 {
                     return Err(fail(format!("{emotion}: letter duration must be > 0")));
+                }
+                if level
+                    .manga
+                    .as_ref()
+                    .is_some_and(|m| !(0.0..=1.0).contains(&m.depth))
+                {
+                    return Err(fail(format!("{emotion}: manga depth must be in [0, 1]")));
+                }
+                if level
+                    .particles
+                    .iter()
+                    .any(|p| p.colors.is_empty() || p.lifetime_ms == 0)
+                {
+                    return Err(fail(format!(
+                        "{emotion}: emitters need colours and a positive lifetime"
+                    )));
                 }
                 if level
                     .screen

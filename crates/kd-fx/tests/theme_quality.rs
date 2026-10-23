@@ -8,15 +8,7 @@ use kd_fx::scene::{Rgb, LIGHT_BACKGROUND};
 use kd_fx::Theme;
 
 const ANIME: &str = include_str!("../../../themes/anime/theme.json");
-const ALL: [Emotion; 7] = [
-    Emotion::Joy,
-    Emotion::Anger,
-    Emotion::Energy,
-    Emotion::Suspense,
-    Emotion::Sadness,
-    Emotion::Love,
-    Emotion::Calm,
-];
+const ALL: [Emotion; 8] = Emotion::ALL;
 const LEVELS: [Intensity; 3] = [Intensity::Low, Intensity::Medium, Intensity::Full];
 
 /// WCAG relative luminance.
