@@ -11,6 +11,10 @@ use crate::{LetterKind, Level, Onomatopoeia, ParticleKind, ScreenKind};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rgb(pub u8, pub u8, pub u8);
 
+/// The light background every renderer draws behind the message; text and onomatopoeia colours are
+/// checked against it (contrast tests).
+pub const LIGHT_BACKGROUND: Rgb = Rgb(0xF7, 0xF7, 0xFA);
+
 impl Rgb {
     /// Parses `#RRGGBB` (already validated for themes). Never panics: anything else gives black.
     pub fn from_hex(s: &str) -> Rgb {
@@ -298,7 +302,7 @@ fn glyph(level: &Level, index: usize, t: f32, seed: u64) -> GlyphState {
             g.alpha = (p * 4.0).min(1.0);
         }
         LetterKind::Impact => {
-            g.scale = 1.0 + 2.0 * (1.0 - ease_in(p));
+            g.scale = 1.0 + 1.0 * (1.0 - ease_in(p));
             g.alpha = if p > 0.0 { 1.0 } else { 0.0 };
         }
         LetterKind::Charge => {

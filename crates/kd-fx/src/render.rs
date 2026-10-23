@@ -78,7 +78,7 @@ impl Renderer {
     pub fn new() -> Self {
         Self {
             font: FontRef::new(FONT).expect("the bundled font is valid"),
-            background: Rgb(0xF7, 0xF7, 0xFA),
+            background: crate::scene::LIGHT_BACKGROUND,
         }
     }
 
@@ -108,6 +108,14 @@ impl Renderer {
             self.draw_onomatopoeia(&mut pixmap, o, font_px, w, h, shake);
         }
         Some(pixmap)
+    }
+
+    /// True if the bundled font has a glyph for every character of `text` (spaces and newlines aside).
+    pub fn covers(&self, text: &str) -> bool {
+        let map = self.font.charmap();
+        text.chars()
+            .filter(|c| !c.is_whitespace())
+            .all(|c| map.map(c).is_some())
     }
 
     fn scale(&self, font_px: f32) -> f32 {

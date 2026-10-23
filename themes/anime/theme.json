@@ -2,8 +2,95 @@
   "schema_version": 1,
   "id": "anime",
   "name": "Anime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "emotions": {
+    "joie": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#7A3E00",
+          "letters": { "kind": "pop", "duration_ms": 280, "stagger_ms": 25 },
+          "particles": [
+            { "kind": "confetti", "count": 10, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1400 }
+          ]
+        },
+        {
+          "level": 2,
+          "text_color": "#7A3E00",
+          "letters": { "kind": "pop", "duration_ms": 300, "stagger_ms": 30 },
+          "particles": [
+            { "kind": "confetti", "count": 24, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1500 },
+            { "kind": "stars", "count": 8, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1200 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 1600, "strength": 0.4 }
+          ],
+          "onomatopoeias": [
+            { "text": "わーい", "color": "#7A3E00", "scale": 0.45, "at_ms": 250 }
+          ]
+        },
+        {
+          "level": 3,
+          "text_color": "#7A3E00",
+          "letters": { "kind": "pop", "duration_ms": 320, "stagger_ms": 30 },
+          "particles": [
+            { "kind": "confetti", "count": 40, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1600 },
+            { "kind": "stars", "count": 16, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1300 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 1800, "strength": 0.5 },
+            { "kind": "shockwave", "duration_ms": 900, "strength": 0.4, "at_ms": 500 }
+          ],
+          "onomatopoeias": [
+            { "text": "わーい", "color": "#7A3E00", "scale": 0.5, "at_ms": 150 },
+            { "text": "キラキラ", "color": "#C2410C", "scale": 0.4, "at_ms": 650 }
+          ]
+        }
+      ]
+    },
+    "colere": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#8F1D1D",
+          "letters": { "kind": "charge", "duration_ms": 320, "stagger_ms": 35 },
+          "particles": [
+            { "kind": "embers", "count": 8, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1200 }
+          ]
+        },
+        {
+          "level": 2,
+          "text_color": "#8F1D1D",
+          "letters": { "kind": "impact", "duration_ms": 260, "stagger_ms": 35 },
+          "particles": [
+            { "kind": "embers", "count": 20, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1300 }
+          ],
+          "screen": [
+            { "kind": "speed_lines", "duration_ms": 900, "strength": 0.3 }
+          ],
+          "onomatopoeias": [
+            { "text": "ムカッ", "color": "#8F1D1D", "scale": 0.5, "at_ms": 300 }
+          ]
+        },
+        {
+          "level": 3,
+          "text_color": "#8F1D1D",
+          "letters": { "kind": "impact", "duration_ms": 240, "stagger_ms": 35 },
+          "particles": [
+            { "kind": "embers", "count": 36, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1400 }
+          ],
+          "screen": [
+            { "kind": "speed_lines", "duration_ms": 900, "strength": 0.35 },
+            { "kind": "impact_flash", "duration_ms": 120, "strength": 0.8, "at_ms": 900 },
+            { "kind": "shake", "duration_ms": 400, "strength": 0.5, "at_ms": 950 }
+          ],
+          "onomatopoeias": [
+            { "text": "プンプン", "color": "#8F1D1D", "scale": 0.45, "at_ms": 250 },
+            { "text": "ドン!", "color": "#8F1D1D", "scale": 0.6, "at_ms": 950 }
+          ]
+        }
+      ]
+    },
     "energie": {
       "levels": [
         {
@@ -25,7 +112,7 @@
             { "kind": "speed_lines", "duration_ms": 1200, "strength": 0.3 }
           ],
           "onomatopoeias": [
-            { "text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 1.2 }
+            { "text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 0.45 }
           ]
         },
         {
@@ -42,8 +129,134 @@
             { "kind": "shake", "at_ms": 1050, "duration_ms": 400, "strength": 0.5 }
           ],
           "onomatopoeias": [
-            { "text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 1.2 },
-            { "text": "ドン!", "at_ms": 1050, "color": "#0C447C", "scale": 2.2 }
+            { "text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 0.45 },
+            { "text": "ドン!", "at_ms": 1050, "color": "#0C447C", "scale": 0.6 }
+          ]
+        }
+      ]
+    },
+    "suspense": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#3B2A63",
+          "letters": { "kind": "type", "duration_ms": 70, "stagger_ms": 45 },
+          "particles": [
+            { "kind": "stars", "count": 6, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1400 }
+          ]
+        },
+        {
+          "level": 2,
+          "text_color": "#3B2A63",
+          "letters": { "kind": "type", "duration_ms": 70, "stagger_ms": 45 },
+          "particles": [
+            { "kind": "stars", "count": 12, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1500 }
+          ],
+          "screen": [
+            { "kind": "spotlight", "duration_ms": 2200, "strength": 0.5 }
+          ],
+          "onomatopoeias": [
+            { "text": "ドキドキ", "color": "#3B2A63", "scale": 0.45, "at_ms": 400 }
+          ]
+        },
+        {
+          "level": 3,
+          "text_color": "#3B2A63",
+          "letters": { "kind": "type", "duration_ms": 70, "stagger_ms": 50 },
+          "particles": [
+            { "kind": "stars", "count": 20, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1600 }
+          ],
+          "screen": [
+            { "kind": "spotlight", "duration_ms": 2600, "strength": 0.7 },
+            { "kind": "tint", "duration_ms": 2000, "strength": 0.3, "at_ms": 300 }
+          ],
+          "onomatopoeias": [
+            { "text": "ドキドキ", "color": "#3B2A63", "scale": 0.5, "at_ms": 400 },
+            { "text": "ゴクリ", "color": "#3B2A63", "scale": 0.5, "at_ms": 1200 }
+          ]
+        }
+      ]
+    },
+    "tristesse": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#1F3A5F",
+          "letters": { "kind": "drip", "duration_ms": 600, "stagger_ms": 50 },
+          "particles": [
+            { "kind": "rain", "count": 10, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1600 }
+          ]
+        },
+        {
+          "level": 2,
+          "text_color": "#1F3A5F",
+          "letters": { "kind": "drip", "duration_ms": 650, "stagger_ms": 55 },
+          "particles": [
+            { "kind": "rain", "count": 24, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1700 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 2200, "strength": 0.4 }
+          ],
+          "onomatopoeias": [
+            { "text": "しくしく", "color": "#1F3A5F", "scale": 0.45, "at_ms": 500 }
+          ]
+        },
+        {
+          "level": 3,
+          "text_color": "#1F3A5F",
+          "letters": { "kind": "drip", "duration_ms": 700, "stagger_ms": 60 },
+          "particles": [
+            { "kind": "rain", "count": 40, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1800 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 2600, "strength": 0.6 },
+            { "kind": "spotlight", "duration_ms": 2600, "strength": 0.4 }
+          ],
+          "onomatopoeias": [
+            { "text": "しくしく", "color": "#1F3A5F", "scale": 0.45, "at_ms": 500 },
+            { "text": "ズーン", "color": "#1F3A5F", "scale": 0.5, "at_ms": 1300 }
+          ]
+        }
+      ]
+    },
+    "amour": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#A3204A",
+          "letters": { "kind": "bloom", "duration_ms": 450, "stagger_ms": 40 },
+          "particles": [
+            { "kind": "hearts", "count": 8, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1800 }
+          ]
+        },
+        {
+          "level": 2,
+          "text_color": "#A3204A",
+          "letters": { "kind": "bloom", "duration_ms": 500, "stagger_ms": 40 },
+          "particles": [
+            { "kind": "hearts", "count": 20, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1900 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 2000, "strength": 0.4 }
+          ],
+          "onomatopoeias": [
+            { "text": "ドキドキ", "color": "#A3204A", "scale": 0.45, "at_ms": 400 }
+          ]
+        },
+        {
+          "level": 3,
+          "text_color": "#A3204A",
+          "letters": { "kind": "bloom", "duration_ms": 520, "stagger_ms": 45 },
+          "particles": [
+            { "kind": "hearts", "count": 36, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 2000 },
+            { "kind": "petals", "count": 14, "colors": ["#FFA8A8", "#FCC2D7"], "lifetime_ms": 2000 }
+          ],
+          "screen": [
+            { "kind": "tint", "duration_ms": 2400, "strength": 0.5 }
+          ],
+          "onomatopoeias": [
+            { "text": "キュン", "color": "#A3204A", "scale": 0.5, "at_ms": 400 },
+            { "text": "ドキドキ", "color": "#A3204A", "scale": 0.45, "at_ms": 1100 }
           ]
         }
       ]
@@ -65,7 +278,7 @@
           "text_color": "#085041",
           "letters": { "kind": "rise", "duration_ms": 500, "stagger_ms": 25 },
           "onomatopoeias": [
-            { "text": "ふわ", "at_ms": 200, "color": "#085041", "scale": 1.0 }
+            { "text": "ふわ", "at_ms": 200, "color": "#085041", "scale": 0.4 }
           ]
         }
       ]

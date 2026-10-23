@@ -42,7 +42,7 @@ data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double, val err
 enum class Intensity(val mode: MotionMode) { FULL(MotionMode.FULL), GENTLE(MotionMode.GENTLE), MINIMAL(MotionMode.MINIMAL) }
 
 /** Drawing cost of the animation, in milliseconds per frame (the 60 fps budget is 16.7 ms). */
-data class RenderStats(val frames: Int, val avgMs: Double, val maxMs: Double)
+data class RenderStats(val frames: Int, val avgMs: Double, val maxMs: Double, val width: Int)
 
 /** A finished benchmark run. */
 data class BenchmarkUi(val stats: LatencyStats, val warmUp: Int, val memory: MemorySnapshot)
@@ -101,8 +101,20 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var renderStats: RenderStats? by mutableStateOf(null)
         private set
-    val frame: ImageBitmap get() = frameBitmap.asImageBitmap()
-    private val frameBitmap: Bitmap = Bitmap.createBitmap(FRAME_W, FRAME_H, Bitmap.Config.ARGB_8888)
+    private var frameBitmap: Bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    /** The frame to show; replaced when the drawing size changes. */
+    var frame: ImageBitmap by mutableStateOf(frameBitmap.asImageBitmap())
+        private set
+    /** True while the full-screen animation is shown. */
+    var fullscreen by mutableStateOf(false)
+        private set
+    /** Emotion forced by the tester (null = the detected one), to see every animation without the model. */
+    var forcedEmotion: String? by mutableStateOf(null)
+        private set
+    /** Short description of the last animation ("joie, confiance 0.71"), for the testers. */
+    var caption by mutableStateOf("")
+        private set
+    private val screenAspect: Float = app.resources.displayMetrics.let { it.heightPixels.toFloat() / it.widthPixels }
     var hasPlayed by mutableStateOf(false)
         private set
 
@@ -112,6 +124,15 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         intensity = value
         prefs.edit().putString("intensity", value.name).apply()
         replay()
+    }
+
+    fun chooseEmotion(id: String?) {
+        forcedEmotion = id
+    }
+
+    fun closeAnimation() {
+        animJob?.cancel()
+        fullscreen = false
     }
 
     fun chooseWritingLevel(value: Int) {
@@ -124,8 +145,9 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Plays the animation of [message] for [emotion], then keeps the last frame (the settled message).
-     * The text is only handed to the renderer: it is never logged or stored.
+     * Plays the animation of [message] for [emotion] on the whole screen, then keeps the last frame
+     * (the settled message). The text is only handed to the renderer: it is never logged or stored.
+     * The drawing size follows the screen shape; it is lowered while frames take too long.
      */
     private fun play(emotion: String, message: String) {
         val animator = animator ?: return
@@ -135,26 +157,44 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             val mode = effectiveMode
             val level = writingLevel.toUByte()
             val duration = animator.durationMs(emotion, level, mode, message.length.toUInt()).toLong()
+            var widthIndex = 0
+            fun height(width: Int) = (width * screenAspect).toInt().coerceIn(1, 2048)
+            fun allocate() {
+                val w = RENDER_WIDTHS[widthIndex]
+                frameBitmap = Bitmap.createBitmap(w, height(w), Bitmap.Config.ARGB_8888)
+                frame = frameBitmap.asImageBitmap()
+            }
+            allocate()
             val start = SystemClock.elapsedRealtime()
             var frames = 0
             var total = 0.0
             var worst = 0.0
+            var recent = 0.0
             while (isActive) {
                 val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
+                val width = RENDER_WIDTHS[widthIndex]
                 val begun = System.nanoTime()
                 val pixels = try {
                     withContext(animDispatcher) {
-                        animator.render(emotion, level, mode, message, t.toUInt(), FRAME_W.toUInt(), FRAME_H.toUInt(), SEED)
+                        animator.render(emotion, level, mode, message, t.toUInt(), width.toUInt(), height(width).toUInt(), SEED)
                     }
                 } catch (_: Exception) {
                     break // never crash the app for a failed frame; the text is not part of any error
                 }
                 frameBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels))
                 val spent = (System.nanoTime() - begun) / 1e6
-                frames++; total += spent; worst = maxOf(worst, spent)
+                frames++; total += spent; worst = maxOf(worst, spent); recent += spent
                 frameTick++
                 hasPlayed = true
-                renderStats = RenderStats(frames, total / frames, worst)
+                renderStats = RenderStats(frames, total / frames, worst, width)
+                if (frames % ADAPT_EVERY == 0) {
+                    // Too slow: draw smaller (the picture is stretched to the screen).
+                    if (recent / ADAPT_EVERY > SLOW_FRAME_MS && widthIndex < RENDER_WIDTHS.lastIndex) {
+                        widthIndex++
+                        allocate()
+                    }
+                    recent = 0.0
+                }
                 if (t >= duration) break // the last frame stays on screen
                 if (spent < FRAME_INTERVAL_MS) delay((FRAME_INTERVAL_MS - spent).toLong())
             }
@@ -192,10 +232,21 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     fun analyse() {
         val input = text
+        if (input.isBlank()) return
         viewModelScope.launch {
-            val done = withContext(engineDispatcher) { analyseOnce(input) }
+            val forced = forcedEmotion
+            val done = if (forced == null) withContext(engineDispatcher) { analyseOnce(input) } else AnalysisUi(null, 0.0)
             analysis = done
-            play(done.result?.effective ?: "calme", input)
+            val emotion = forced ?: done.result?.effective ?: "calme"
+            caption = when {
+                forced != null -> getApplication<Application>().getString(R.string.caption_forced, forced, writingLevel)
+                done.result != null -> getApplication<Application>().getString(
+                    R.string.caption_detected, emotion, done.result.confidence, writingLevel,
+                )
+                else -> getApplication<Application>().getString(R.string.caption_fallback, writingLevel)
+            }
+            fullscreen = true
+            play(emotion, input)
         }
     }
 
@@ -254,8 +305,10 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val WARM_UP = 5
-        const val FRAME_W = 540
-        const val FRAME_H = 960
+        /** Drawing widths in pixels, from the sharpest to the cheapest. */
+        val RENDER_WIDTHS = intArrayOf(540, 405, 270)
+        const val ADAPT_EVERY = 12
+        const val SLOW_FRAME_MS = 28.0
         const val SEED = 1UL
         const val FRAME_INTERVAL_MS = 16.0
     }

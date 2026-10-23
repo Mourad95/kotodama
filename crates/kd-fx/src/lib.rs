@@ -345,7 +345,8 @@ mod tests {
 
     #[test]
     fn missing_emotion_falls_back_to_calm() {
-        let theme = Theme::from_json(ANIME).unwrap();
+        let mut theme = Theme::from_json(ANIME).unwrap();
+        theme.emotions.remove(&Emotion::Sadness);
         let calm = theme.level(Emotion::Calm, Intensity::Low);
         let missing = theme.level(Emotion::Sadness, Intensity::Low);
         assert_eq!(calm, missing);

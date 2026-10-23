@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- French first; English translations in values-en. Keys are English. -->
 <resources>
-    <string name="app_name">KotoMotion Spike</string>
+    <string name="app_name">KotoMotion bêta</string>
     <string name="message_label">Message</string>
     <string name="analyse_button">Analyser</string>
     <string name="benchmark_button">Benchmark</string>
@@ -30,5 +30,16 @@
     <string name="reduced_motion_forced">Le système demande de réduire les animations : mode minimal imposé.</string>
     <string name="writing_level_label">Qualité d\'écriture : niveau %1$d (3 = sans faute)</string>
     <string name="replay_button">Rejouer</string>
-    <string name="render_stats">Rendu : %1$.1f ms en moyenne, %2$.1f ms au pire (%3$d images). Budget 60 fps : 16,7 ms.</string>
+    <string name="render_stats">Rendu : %1$.1f ms en moyenne, %2$.1f ms au pire (%3$d images, largeur %4$d px). Budget 60 fps : 16,7 ms.</string>
+    <string name="beta_title">KotoMotion — bêta</string>
+    <string name="animate_button">Animer mon message</string>
+    <string name="engine_ready">Modèle prêt.</string>
+    <string name="emotion_label">Émotion à animer</string>
+    <string name="emotion_auto">Détectée</string>
+    <string name="show_measures">Afficher les mesures (développeur)</string>
+    <string name="hide_measures">Masquer les mesures</string>
+    <string name="close_button">Fermer</string>
+    <string name="caption_detected">%1$s · confiance %2$.2f · niveau %3$d</string>
+    <string name="caption_forced">%1$s (choisie) · niveau %2$d</string>
+    <string name="caption_fallback">calme (repli, aucun modèle) · niveau %1$d</string>
 </resources>

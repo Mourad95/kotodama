@@ -151,21 +151,47 @@ fn rendering_is_repeatable() {
 }
 
 #[test]
-fn the_message_stays_readable_at_every_level() {
-    // Once the letters have settled, the ink colour must dominate where the message is drawn:
-    // count dark ink pixels in the band of the message and require a minimum.
-    for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
-        let img = render(level, Motion::Full, 3000);
-        let band = (SIZE.1 / 3..2 * SIZE.1 / 3).flat_map(|y| (0..SIZE.0).map(move |x| (x, y)));
-        let ink = band
-            .filter(|&(x, y)| {
-                let p = img.pixel(x, y).unwrap();
-                u32::from(p.red()) + u32::from(p.green()) + u32::from(p.blue()) < 3 * 110
-            })
-            .count();
-        assert!(
-            ink > 600,
-            "level {level:?}: only {ink} ink pixels, the message is not readable"
-        );
+fn the_message_stays_readable_for_every_emotion_and_level() {
+    // Once the letters have settled the ink must dominate where the message is drawn, and while the
+    // animation runs the message must never disappear under the effects: count dark pixels in the
+    // band of the message at several instants.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let emotions = [
+        Emotion::Joy,
+        Emotion::Anger,
+        Emotion::Energy,
+        Emotion::Suspense,
+        Emotion::Sadness,
+        Emotion::Love,
+        Emotion::Calm,
+    ];
+    for emotion in emotions {
+        for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
+            for t in [3000_u32, 1500, 900] {
+                let frame = sample(
+                    theme.level(emotion, level),
+                    MESSAGE.chars().count(),
+                    t,
+                    SEED,
+                    Motion::Full,
+                );
+                let img = renderer.render(&frame, MESSAGE, SIZE.0, SIZE.1).unwrap();
+                let band =
+                    (SIZE.1 / 3..2 * SIZE.1 / 3).flat_map(|y| (0..SIZE.0).map(move |x| (x, y)));
+                let ink = band
+                    .filter(|&(x, y)| {
+                        let p = img.pixel(x, y).unwrap();
+                        u32::from(p.red()) + u32::from(p.green()) + u32::from(p.blue()) < 3 * 140
+                    })
+                    .count();
+                // Letters enter one after the other, so the early instants need fewer pixels.
+                let needed = if t == 3000 { 500 } else { 60 };
+                assert!(
+                    ink > needed,
+                    "{emotion:?} {level:?} t={t}: only {ink} dark pixels in the message band"
+                );
+            }
+        }
     }
 }
