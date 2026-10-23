@@ -141,10 +141,7 @@ impl Renderer {
             let line = lines.last_mut().expect("at least one line");
             if line_w + adv > max_width && ch != ' ' && !STICKS_TO_PREVIOUS.contains(ch) {
                 // Break at the last space of the line if there is one, else mid-word.
-                let split = line[word_start..]
-                    .iter()
-                    .position(|_| true)
-                    .map(|_| word_start);
+                let split = (word_start < line.len()).then_some(word_start);
                 let mut next = Vec::new();
                 if let Some(at) = split.filter(|&at| at > 0) {
                     next = line.split_off(at);

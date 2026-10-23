@@ -118,6 +118,32 @@ fn level_3_reduced_motion() {
 }
 
 #[test]
+fn explicit_line_breaks_keep_letters_aligned_with_the_frame() {
+    // Letter indices count every character, the newline included, so a frame sampled for the
+    // whole text lines up with the layout: all non-newline letters must be drawn once settled.
+    let text = "Oui\nmerci";
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let frame = sample(
+        theme.level(Emotion::Calm, Intensity::Low),
+        text.chars().count(),
+        3000,
+        SEED,
+        Motion::Full,
+    );
+    let one_line = Renderer::new()
+        .render(&frame, text, SIZE.0, SIZE.1)
+        .unwrap();
+    let rows_with_ink = |img: &Pixmap| {
+        (0..SIZE.1)
+            .filter(|&y| (0..SIZE.0).any(|x| img.pixel(x, y).unwrap().red() < 100))
+            .count()
+    };
+    let blank = Renderer::new().render(&frame, "", SIZE.0, SIZE.1).unwrap();
+    assert_eq!(rows_with_ink(&blank), 0);
+    assert!(rows_with_ink(&one_line) > 0, "the two lines are drawn");
+}
+
+#[test]
 fn rendering_is_repeatable() {
     let a = render(Intensity::Full, Motion::Full, 1060);
     let b = render(Intensity::Full, Motion::Full, 1060);
