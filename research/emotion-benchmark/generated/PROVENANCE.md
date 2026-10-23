@@ -8,7 +8,7 @@ prompt written by us, and curated by `curate_examples.py` (docs/legal.md L16, L1
 - The generated texts are never mixed with `dev_v1.csv` or `test_v2.csv`. `curate_examples.py` reads those two
   files only to drop generated texts identical or nearly identical to them (leak guard); nothing is tuned on them.
 - Terms to keep in mind: the Gemini API terms forbid using the service to develop competing models; training a
-  small emotion classifier is not the case they name, and the question is recorded as open in docs/legal.md.
+  small emotion classifier is not the case they name, and the question is recorded as open in docs/legal.md (L27). `prototypes_v3.json` is not wired into the app or the model bundle yet: shipping it waits on L27 and on an ADR.
 - Raw files are kept exactly as received in `raw/`; rejected rows are listed by the script, not edited by hand.
 
 | File | Date | Source | Rows received |
@@ -30,3 +30,9 @@ was discarded (too little slang); the Gemini batches are the ones used.
 
 On `test_v2` the gain is +1.3 points (about 4 messages), inside the +/-5-point uncertainty: not significant.
 `joie` and `calme` improve, `colere` drops (79.1 % to 74.4 %). Reports: `results/round4-*`.
+
+Caveats: `dev_v1` is no longer a clean held-out set for this change (the exclusion and slang rules were set while
+looking at the generated output), so its +5.7 points overstate the gain. `test_v2` is spent for this change: v3 is
+not shown to be better than v2 on it.
+
+Tests of the curation script: `cd research/emotion-benchmark && python3 -m pytest test_curate_examples.py`.
