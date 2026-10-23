@@ -18,7 +18,7 @@ import java.io.File
 /** What the engine panel shows. */
 sealed interface EngineState {
     data object Loading : EngineState
-    data class Ready(val coldStartMs: Long, val verifyMs: Long, val loadMs: Long, val memory: MemorySnapshot) : EngineState
+    data class Ready(val coldStartMs: Long, val verifyMs: Long, val loadMs: Long, val before: MemorySnapshot, val memory: MemorySnapshot) : EngineState
     /** No usable model: every message is treated as "calme". */
     data class Fallback(val reason: String?) : EngineState
 }
@@ -61,6 +61,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             val state = if (!File(bundleDir, "manifest.json").isFile) {
                 EngineState.Fallback(null)
             } else {
+                val before = memorySnapshot()
                 val t0 = System.nanoTime()
                 try {
                     val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath)
@@ -68,7 +69,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                     val timings = opened.openTimings()
                     EngineState.Ready(
                         (System.nanoTime() - t0) / 1_000_000,
-                        timings.verifyMs.toLong(), timings.loadMs.toLong(), memorySnapshot(),
+                        timings.verifyMs.toLong(), timings.loadMs.toLong(), before, memorySnapshot(),
                     )
                 } catch (e: Exception) {
                     // Only the exception class: its message could in theory echo input.

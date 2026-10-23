@@ -7,7 +7,10 @@ import java.io.File
 data class LatencyStats(val n: Int, val p50: Double, val p95: Double, val max: Double)
 
 /** Memory snapshot in bytes (`-1` when unavailable). */
-data class MemorySnapshot(val nativeHeap: Long, val javaHeap: Long, val peakRss: Long, val rss: Long)
+data class MemorySnapshot(
+    val nativeHeap: Long, val javaHeap: Long, val peakRss: Long, val rss: Long,
+    val rssAnon: Long = -1, val rssFile: Long = -1,
+)
 
 /** Nearest-rank percentile over [sortedMs] (ascending, non-empty). */
 fun percentile(sortedMs: List<Double>, p: Double): Double {
@@ -37,5 +40,7 @@ fun memorySnapshot(): MemorySnapshot {
         javaHeap = rt.totalMemory() - rt.freeMemory(),
         peakRss = kb("VmHWM"),
         rss = kb("VmRSS"),
+        rssAnon = kb("RssAnon"),
+        rssFile = kb("RssFile"),
     )
 }

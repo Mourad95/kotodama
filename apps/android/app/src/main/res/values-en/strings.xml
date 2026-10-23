@@ -11,6 +11,7 @@
     <string name="engine_loading">Loading the model…</string>
     <string name="cold_start_line">Cold start (open): %1$d ms</string>
     <string name="open_phases_line">sha256 check: %1$d ms — model load: %2$d ms</string>
+    <string name="open_split_line">Before open: RSS %1$d MB — after: anonymous %2$d MB, files %3$d MB</string>
     <string name="open_memory_line">After open: native heap %1$d MB, peak %2$d MB, RSS %3$d MB</string>
     <string name="result_effective">Effective emotion: %1$s (choice: %2$s, confidence %3$.2f)</string>
     <string name="result_fallback">Effective emotion: calme (fallback, no model)</string>

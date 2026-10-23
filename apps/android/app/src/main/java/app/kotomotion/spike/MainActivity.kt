@@ -72,6 +72,13 @@ private fun SpikeScreen(vm: SpikeViewModel) {
                     ),
                     style = MaterialTheme.typography.bodySmall,
                 )
+                Text(
+                    stringResource(
+                        R.string.open_split_line,
+                        mb(s.before.rss), mb(s.memory.rssAnon), mb(s.memory.rssFile),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             is EngineState.Fallback -> Text(
                 if (s.reason == null) stringResource(R.string.bundle_missing)
