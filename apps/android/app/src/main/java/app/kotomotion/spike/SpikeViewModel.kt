@@ -5,6 +5,9 @@ import android.graphics.Bitmap
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import kotlinx.coroutines.Job
@@ -37,6 +40,22 @@ sealed interface EngineState {
 
 /** One analysed message; [result] is null in fallback mode. Holds numbers only, never the text. */
 data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double, val errorClass: String? = null)
+
+/**
+ * One message of the conversation shown in the app. The conversation lives in memory only and is never
+ * stored (docs/legal.md L18). [settled] turns true when its animation is over and the bubble shows.
+ */
+class ChatMessage(
+    val id: Int,
+    val text: String,
+    val mine: Boolean,
+    val emotion: String,
+    val accent: Color,
+    val writingLevel: Int,
+    settled: Boolean,
+) {
+    var settled by mutableStateOf(settled)
+}
 
 /** The user's intensity setting (docs/roadmap.md): how much motion the animation shows. */
 enum class Intensity(val mode: MotionMode) { FULL(MotionMode.FULL), GENTLE(MotionMode.GENTLE), MINIMAL(MotionMode.MINIMAL) }
@@ -77,7 +96,6 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     private val animDispatcher: CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1)
     private val prefs = app.getSharedPreferences("settings", Application.MODE_PRIVATE)
     private var animJob: Job? = null
-    private var lastPlayed: Pair<String, String>? = null
 
     /** Null if the theme could not be loaded: the screen then shows no animation. */
     val animator: Animator? = try {
@@ -105,8 +123,19 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     /** The frame to show; replaced when the drawing size changes. */
     var frame: ImageBitmap by mutableStateOf(frameBitmap.asImageBitmap())
         private set
-    /** True while the full-screen animation is shown. */
-    var fullscreen by mutableStateOf(false)
+    /** True while the animation plays over the conversation. */
+    var overlayActive by mutableStateOf(false)
+        private set
+    /** Opacity of the overlay: 1 while playing, fading to 0 when the message returns to its bubble. */
+    var overlayAlpha by mutableFloatStateOf(1f)
+        private set
+    /** The conversation, in memory only. */
+    val messages = mutableStateListOf(
+        ChatMessage(0, "Salut ! Écris-moi un message et regarde-le s'animer.", false, "calme", Color(0xFF085041), 3, true),
+    )
+    private var nextId = 1
+    /** Dark conversation background, to check the message stays readable over it. */
+    var darkChat by mutableStateOf(false)
         private set
     /** Emotion forced by the tester (null = the detected one), to see every animation without the model. */
     var forcedEmotion: String? by mutableStateOf(null)
@@ -114,7 +143,16 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     /** Short description of the last animation ("joie, confiance 0.71"), for the testers. */
     var caption by mutableStateOf("")
         private set
-    private val screenAspect: Float = app.resources.displayMetrics.let { it.heightPixels.toFloat() / it.widthPixels }
+    private var screenAspect: Float = app.resources.displayMetrics.let { it.heightPixels.toFloat() / it.widthPixels }
+
+    /** Called with the real size of the screen layer, so frames have its exact shape. */
+    fun setViewport(widthPx: Int, heightPx: Int) {
+        if (widthPx > 0 && heightPx > 0) screenAspect = heightPx.toFloat() / widthPx
+    }
+
+    fun chooseDarkChat(value: Boolean) {
+        darkChat = value
+    }
     var hasPlayed by mutableStateOf(false)
         private set
 
@@ -123,80 +161,97 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     fun chooseIntensity(value: Intensity) {
         intensity = value
         prefs.edit().putString("intensity", value.name).apply()
-        replay()
     }
 
     fun chooseEmotion(id: String?) {
         forcedEmotion = id
     }
 
-    fun closeAnimation() {
+    /** Ends the animation now: the message goes straight back to its bubble. */
+    fun skipAnimation() {
         animJob?.cancel()
-        fullscreen = false
     }
 
     fun chooseWritingLevel(value: Int) {
         writingLevel = value
-        replay()
     }
 
-    fun replay() {
-        lastPlayed?.let { (emotion, message) -> play(emotion, message) }
+    /** Plays the animation of a message again (tap on its bubble); the bubble stays visible. */
+    fun replay(message: ChatMessage) {
+        if (!overlayActive) play(message)
     }
 
     /**
-     * Plays the animation of [message] for [emotion] on the whole screen, then keeps the last frame
-     * (the settled message). The text is only handed to the renderer: it is never logged or stored.
+     * Plays the animation of [message] over the conversation, then fades the overlay out and lets the
+     * message settle in its bubble. The text is only handed to the renderer: it is never logged or stored.
      * The drawing size follows the screen shape; it is lowered while frames take too long.
      */
-    private fun play(emotion: String, message: String) {
-        val animator = animator ?: return
-        lastPlayed = emotion to message
+    private fun play(message: ChatMessage) {
+        val animator = animator ?: run { message.settled = true; return }
         animJob?.cancel()
         animJob = viewModelScope.launch {
-            val mode = effectiveMode
-            val level = writingLevel.toUByte()
-            val duration = animator.durationMs(emotion, level, mode, message.length.toUInt()).toLong()
-            var widthIndex = 0
-            fun height(width: Int) = (width * screenAspect).toInt().coerceIn(1, 2048)
-            fun allocate() {
-                val w = RENDER_WIDTHS[widthIndex]
-                frameBitmap = Bitmap.createBitmap(w, height(w), Bitmap.Config.ARGB_8888)
-                frame = frameBitmap.asImageBitmap()
-            }
-            allocate()
-            val start = SystemClock.elapsedRealtime()
-            var frames = 0
-            var total = 0.0
-            var worst = 0.0
-            var recent = 0.0
-            while (isActive) {
-                val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
-                val width = RENDER_WIDTHS[widthIndex]
-                val begun = System.nanoTime()
-                val pixels = try {
-                    withContext(animDispatcher) {
-                        animator.render(emotion, level, mode, message, t.toUInt(), width.toUInt(), height(width).toUInt(), SEED)
-                    }
-                } catch (_: Exception) {
-                    break // never crash the app for a failed frame; the text is not part of any error
+            overlayActive = true
+            overlayAlpha = 1f
+            try {
+                val emotion = message.emotion
+                val text = message.text
+                val mode = effectiveMode
+                val level = message.writingLevel.toUByte()
+                val duration = animator.durationMs(emotion, level, mode, text.length.toUInt()).toLong()
+                var widthIndex = 0
+                fun height(width: Int) = (width * screenAspect).toInt().coerceIn(1, 2048)
+                fun allocate() {
+                    val w = RENDER_WIDTHS[widthIndex]
+                    frameBitmap = Bitmap.createBitmap(w, height(w), Bitmap.Config.ARGB_8888)
+                    frame = frameBitmap.asImageBitmap()
                 }
-                frameBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels))
-                val spent = (System.nanoTime() - begun) / 1e6
-                frames++; total += spent; worst = maxOf(worst, spent); recent += spent
-                frameTick++
-                hasPlayed = true
-                renderStats = RenderStats(frames, total / frames, worst, width)
-                if (frames % ADAPT_EVERY == 0) {
-                    // Too slow: draw smaller (the picture is stretched to the screen).
-                    if (recent / ADAPT_EVERY > SLOW_FRAME_MS && widthIndex < RENDER_WIDTHS.lastIndex) {
-                        widthIndex++
-                        allocate()
+                allocate()
+                val start = SystemClock.elapsedRealtime()
+                var frames = 0
+                var total = 0.0
+                var worst = 0.0
+                var recent = 0.0
+                while (isActive) {
+                    val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
+                    val width = RENDER_WIDTHS[widthIndex]
+                    val begun = System.nanoTime()
+                    val pixels = try {
+                        withContext(animDispatcher) {
+                            animator.render(emotion, level, mode, text, t.toUInt(), width.toUInt(), height(width).toUInt(), SEED, true)
+                        }
+                    } catch (_: Exception) {
+                        break // never crash the app for a failed frame; the text is not part of any error
                     }
-                    recent = 0.0
+                    frameBitmap.copyPixelsFromBuffer(ByteBuffer.wrap(pixels))
+                    val spent = (System.nanoTime() - begun) / 1e6
+                    frames++; total += spent; worst = maxOf(worst, spent); recent += spent
+                    frameTick++
+                    hasPlayed = true
+                    renderStats = RenderStats(frames, total / frames, worst, width)
+                    if (frames % ADAPT_EVERY == 0) {
+                        // Too slow: draw smaller (the picture is stretched to the screen).
+                        if (recent / ADAPT_EVERY > SLOW_FRAME_MS && widthIndex < RENDER_WIDTHS.lastIndex) {
+                            widthIndex++
+                            allocate()
+                        }
+                        recent = 0.0
+                    }
+                    if (t >= duration) break
+                    if (spent < FRAME_INTERVAL_MS) delay((FRAME_INTERVAL_MS - spent).toLong())
                 }
-                if (t >= duration) break // the last frame stays on screen
-                if (spent < FRAME_INTERVAL_MS) delay((FRAME_INTERVAL_MS - spent).toLong())
+                // The animation is over: fade the overlay out while the message returns to its bubble.
+                val fadeStart = SystemClock.elapsedRealtime()
+                while (isActive) {
+                    val left = 1f - (SystemClock.elapsedRealtime() - fadeStart) / FADE_OUT_MS
+                    overlayAlpha = left.coerceIn(0f, 1f)
+                    frameTick++
+                    if (left <= 0f) break
+                    delay(FRAME_INTERVAL_MS.toLong())
+                }
+            } finally {
+                // Also when skipped or cancelled: never leave the overlay on screen.
+                overlayActive = false
+                message.settled = true
             }
         }
     }
@@ -230,23 +285,27 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun analyse() {
-        val input = text
-        if (input.isBlank()) return
+    /** Sends the typed message: detects its emotion, then plays its animation over the conversation. */
+    fun send() {
+        val input = text.trim()
+        if (input.isEmpty() || overlayActive) return
+        text = ""
         viewModelScope.launch {
             val forced = forcedEmotion
             val done = if (forced == null) withContext(engineDispatcher) { analyseOnce(input) } else AnalysisUi(null, 0.0)
             analysis = done
             val emotion = forced ?: done.result?.effective ?: "calme"
+            val app = getApplication<Application>()
             caption = when {
-                forced != null -> getApplication<Application>().getString(R.string.caption_forced, forced, writingLevel)
-                done.result != null -> getApplication<Application>().getString(
-                    R.string.caption_detected, emotion, done.result.confidence, writingLevel,
-                )
-                else -> getApplication<Application>().getString(R.string.caption_fallback, writingLevel)
+                forced != null -> app.getString(R.string.caption_forced, forced, writingLevel)
+                done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, writingLevel)
+                else -> app.getString(R.string.caption_fallback, writingLevel)
             }
-            fullscreen = true
-            play(emotion, input)
+            val accent = animator?.accentColor(emotion)?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+                ?: Color(0xFF444444)
+            val message = ChatMessage(nextId++, input, true, emotion, accent, writingLevel, false)
+            messages.add(message)
+            play(message)
         }
     }
 
@@ -311,5 +370,6 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         const val SLOW_FRAME_MS = 28.0
         const val SEED = 1UL
         const val FRAME_INTERVAL_MS = 16.0
+        const val FADE_OUT_MS = 350f
     }
 }

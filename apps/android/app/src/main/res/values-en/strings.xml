@@ -41,4 +41,9 @@
     <string name="caption_detected">%1$s · confidence %2$.2f · level %3$d</string>
     <string name="caption_forced">%1$s (chosen) · level %2$d</string>
     <string name="caption_fallback">calme (fallback, no model) · level %1$d</string>
+    <string name="send_button">Send</string>
+    <string name="settings_button">Settings</string>
+    <string name="back_to_chat">Conversation</string>
+    <string name="dark_chat_label">Dark conversation (readability test)</string>
+    <string name="bundle_missing_short">Model missing: everything is animated as "calme".</string>
 </resources>
