@@ -21,8 +21,8 @@ use skrifa::instance::{LocationRef, Size};
 use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::{FontRef, GlyphId, MetadataProvider};
 use tiny_skia::{
-    Color, FillRule, GradientStop, LineCap, Mask, Paint, Path, PathBuilder, Pixmap, Point,
-    RadialGradient, SpreadMode, Stroke, Transform,
+    Color, FillRule, GradientStop, LineCap, LinearGradient, Mask, Paint, Path, PathBuilder, Pixmap,
+    Point, RadialGradient, SpreadMode, Stroke, Transform,
 };
 
 use crate::scene::{Frame, GlyphState, OnomatopoeiaState, ParticleState, Rgb, ScreenState};
@@ -186,7 +186,7 @@ impl Renderer {
         let (w, h) = (image.width() as f32, image.height() as f32);
         let edge = h.min(w * 0.38);
         for (o, &(cx, cy, rotation)) in level.onomatopoeias.iter().zip(CORNERS.iter()) {
-            let size = edge * 0.38 * o.scale.max(0.4);
+            let size = edge * 0.38 * o.scale.clamp(0.4, 0.6);
             // Keep the word inside the bubble, its centre in the corner's padding band.
             let y = if cy < 0.5 {
                 size * 0.78
@@ -197,6 +197,7 @@ impl Renderer {
                 text: o.text.clone(),
                 color: Rgb::from_hex(&o.color),
                 scale: 1.0,
+                entrance: 1.0,
                 rotation,
                 alpha: 0.92,
                 x: cx,
@@ -216,6 +217,34 @@ impl Renderer {
         height: u32,
         layer: Layer,
     ) -> Option<Pixmap> {
+        self.draw(frame, message, width, height, layer, None)
+    }
+
+    /// Like [`Renderer::render_layer`] with no message, the effects anchored on `stage`: the message
+    /// bubble's place on screen (ADR-0020). The ink, the bursts and the particles that cling to the
+    /// message frame the bubble; the soft fills and the other particles still cover the whole frame,
+    /// and the foreground ones fade where they would cross the bubble. An empty or invalid stage
+    /// falls back to the centre of the frame.
+    pub fn render_layer_on(
+        &self,
+        frame: &Frame,
+        width: u32,
+        height: u32,
+        layer: Layer,
+        stage: Stage,
+    ) -> Option<Pixmap> {
+        self.draw(frame, "", width, height, layer, stage.valid())
+    }
+
+    fn draw(
+        &self,
+        frame: &Frame,
+        message: &str,
+        width: u32,
+        height: u32,
+        layer: Layer,
+        stage: Option<Stage>,
+    ) -> Option<Pixmap> {
         let mut pixmap = Pixmap::new(width, height)?;
         if layer == Layer::Opaque {
             pixmap.fill(color(self.background, 1.0));
@@ -226,7 +255,37 @@ impl Renderer {
         let u = size_unit(w, h);
         let shake = Transform::from_translate(frame.shake.0 * w, frame.shake.1 * h);
         let ink = frame.text_color;
-        let area = Area { w, h, u, shake };
+        // The bubble in pixels, at least STAGE_MIN_HEIGHT tall so a one-line bubble still gets a
+        // readable frame of ink; `hole` is its real rect, kept clear of the hard-edged effects.
+        let stage_px = stage.map(|s| {
+            let height = (s.height * h).max(STAGE_MIN_HEIGHT * h);
+            (
+                s.x * w,
+                (s.y + s.height / 2.0) * h - height / 2.0,
+                s.width * w,
+                height,
+            )
+        });
+        let hole = stage.map(|s| (s.x * w, s.y * h, s.width * w, s.height * h));
+        let focus = stage_px.map_or(Point::from_xy(w / 2.0, h / 2.0), |b| {
+            Point::from_xy(b.0 + b.2 / 2.0, b.1 + b.3 / 2.0)
+        });
+        let area = Area {
+            w,
+            h,
+            u,
+            shake,
+            focus,
+            hole,
+        };
+        // Effects tied to the message move with it: drawn as if centred, then shifted onto the stage.
+        let follow = shake.pre_translate(focus.x - w / 2.0, focus.y - h / 2.0);
+        // The coloured panel behind everything, the bubble cut out of it (ADR-0020).
+        if soft {
+            if let Some(m) = &frame.manga {
+                crate::scatter::draw_backdrop(&mut pixmap, m, (w, h), hole);
+            }
+        }
         // Soft effects first, hard-edged ones over them: the same order whether the frame is drawn
         // whole or as Back then Front.
         for s in &frame.screen {
@@ -291,18 +350,33 @@ impl Renderer {
         }
         let panel_width = (right - left + font_px * 1.1).min(w * 0.94);
         let panel_height = (bottom - top + font_px * 1.1).max(h * 0.19);
-        let bounds = (
+        let bounds = stage_px.unwrap_or((
             (w - panel_width) / 2.0,
             h * 0.5 - panel_height / 2.0,
             panel_width,
             panel_height,
-        );
+        ));
         let panel = layer == Layer::Opaque;
+        let particle = |pixmap: &mut Pixmap, p: &ParticleState| {
+            if p.kind.is_anchored() {
+                draw_particle(pixmap, p, w, h, u, follow);
+            } else if p.depth > 0.68 && hole.is_some_and(|b| covers(b, p.x * w, p.y * h)) {
+                // A foreground particle crossing the bubble would hide the message: it fades there.
+                let faded = ParticleState {
+                    alpha: p.alpha * 0.25,
+                    ..*p
+                };
+                draw_particle(pixmap, &faded, w, h, u, shake);
+            } else {
+                draw_particle(pixmap, p, w, h, u, shake);
+            }
+        };
         for p in frame.particles.iter().filter(|p| p.depth <= 0.68) {
-            draw_particle(&mut pixmap, p, w, h, u, shake);
+            particle(&mut pixmap, p);
         }
         if let Some(m) = &frame.manga {
             crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, false, panel);
+            crate::scatter::draw_scatter(&mut pixmap, m, (w, h), hole.unwrap_or(bounds), shake);
         }
         for g in &frame.glyphs {
             if let Some(p) = placed
@@ -317,12 +391,71 @@ impl Renderer {
             crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, true, panel);
         }
         for p in frame.particles.iter().filter(|p| p.depth > 0.68) {
-            draw_particle(&mut pixmap, p, w, h, u, shake);
+            particle(&mut pixmap, p);
         }
         for o in &frame.onomatopoeias {
-            self.draw_onomatopoeia(&mut pixmap, o, font_px, w, h, shake);
+            match hole {
+                Some(b) => {
+                    let (placed, size) = self.frame_word(o, b, font_px, w, h);
+                    self.draw_onomatopoeia(&mut pixmap, &placed, size, w, h, shake);
+                }
+                None => self.draw_onomatopoeia(&mut pixmap, o, font_px, w, h, follow),
+            }
         }
         Some(pixmap)
+    }
+
+    /// Width of `text` lettered at `size` pixels, its outline included.
+    fn word_width(&self, text: &str, size: f32) -> f32 {
+        text.chars().map(|c| self.advance(c, size).1).sum::<f32>() + 0.5 * size
+    }
+
+    /// Places an onomatopoeia as a giant word framing the bubble `hole` (pixels), like a manga panel
+    /// title: in the free space above the bubble when the theme places it in the upper half, below
+    /// otherwise. A side too short for a word gives its words to the other side, stacked in two rows.
+    /// The word grows to fill its row and most of the screen width, never past its theme scale times
+    /// [`WORD_MAX_SCALE`]. Returns the placed word (its `scale` reduced to the entrance bounce) and its
+    /// settled size in pixels.
+    fn frame_word(
+        &self,
+        o: &OnomatopoeiaState,
+        hole: (f32, f32, f32, f32),
+        font_px: f32,
+        w: f32,
+        h: f32,
+    ) -> (OnomatopoeiaState, f32) {
+        let gap = 0.02 * h;
+        let above = (gap, (hole.1 - gap).max(gap));
+        let below = ((hole.1 + hole.3 + gap).min(h - gap), h - gap);
+        let tall = |r: (f32, f32)| r.1 - r.0 >= WORD_MIN_ROOM * h;
+        let wants_above = o.y < 0.5;
+        let (room, shared) = match (wants_above, tall(above), tall(below)) {
+            (true, true, _) | (false, true, false) => (above, !tall(below)),
+            _ => (below, !tall(above)),
+        };
+        // Two words share a side: the upper-half word takes the row nearer the top.
+        let room = if shared {
+            let mid = (room.0 + room.1) / 2.0;
+            if wants_above {
+                (room.0, mid)
+            } else {
+                (mid, room.1)
+            }
+        } else {
+            room
+        };
+        let base = o.scale / o.entrance.max(1e-3);
+        let size = (font_px * base * WORD_MAX_SCALE)
+            .min(0.62 * (room.1 - room.0))
+            .min(WORD_WIDTH * w / self.word_width(&o.text, 1.0).max(1e-3))
+            .max(1.0);
+        let placed = OnomatopoeiaState {
+            x: 0.5 + 0.3 * (o.x - 0.5),
+            y: ((room.0 + room.1) / 2.0) / h,
+            scale: o.entrance,
+            ..o.clone()
+        };
+        (placed, size)
     }
 
     /// True if the bundled font has a glyph for every character of `text` (spaces and newlines aside).
@@ -515,7 +648,7 @@ impl Renderer {
         font_px: f32,
         w: f32,
         h: f32,
-        shake: Transform,
+        place: Transform,
     ) {
         if o.alpha <= 0.0 || o.scale <= 0.0 {
             return;
@@ -526,30 +659,151 @@ impl Renderer {
         let total: f32 = glyphs.iter().map(|g| g.1).sum();
         // Keep the whole word on screen: clamp its centre by its measured width.
         let half = (total / 2.0 + 0.03 * w).min(w / 2.0);
-        let x_px = (o.x * w).clamp(half, w - half);
-        let at = Transform::from_translate(x_px, o.y * h)
+        // `place` may move the word onto the bubble: clamp where it lands, not where it was laid out.
+        let (dx, dy) = (place.tx, place.ty);
+        let x_px = (o.x * w + dx).clamp(half, w - half) - dx;
+        let y_px = (o.y * h + dy).clamp(size * 0.7, (h - size * 0.5).max(size * 0.7)) - dy;
+        let at = Transform::from_translate(x_px, y_px)
             .pre_rotate(o.rotation.to_degrees())
-            .post_concat(shake);
+            .post_concat(place);
+        // The word is lettered opaque on its own small layer, then faded as a whole: a fading word
+        // does not show its rim through its outline, and the Back/Front split rounds the same way.
+        let (hw, hh) = (total / 2.0 + 0.4 * size, size);
+        let corners = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)].map(|(x, y)| {
+            let mut p = Point::from_xy(x, y);
+            at.map_point(&mut p);
+            p
+        });
+        let x0 = corners
+            .iter()
+            .map(|p| p.x)
+            .fold(f32::MAX, f32::min)
+            .floor()
+            .max(0.0);
+        let y0 = corners
+            .iter()
+            .map(|p| p.y)
+            .fold(f32::MAX, f32::min)
+            .floor()
+            .max(0.0);
+        let x1 = corners
+            .iter()
+            .map(|p| p.x)
+            .fold(f32::MIN, f32::max)
+            .ceil()
+            .min(w);
+        let y1 = corners
+            .iter()
+            .map(|p| p.y)
+            .fold(f32::MIN, f32::max)
+            .ceil()
+            .min(h);
+        if x1 <= x0 || y1 <= y0 {
+            return;
+        }
+        let Some(mut word) = Pixmap::new((x1 - x0) as u32, (y1 - y0) as u32) else {
+            return;
+        };
+        let at = at.post_translate(-x0, -y0);
         let mut x = -total / 2.0;
+        let mut paths = Vec::new();
         for (gid, adv) in glyphs {
             if let Some(path) = self.outline(gid) {
-                let t = at.pre_translate(x, size * 0.35).pre_scale(s, s);
-                let mut halo = Paint::default();
-                halo.set_color(color(Rgb(255, 255, 255), o.alpha));
-                let stroke = Stroke {
-                    width: 0.16 * size / s,
-                    line_cap: LineCap::Round,
-                    ..Stroke::default()
-                };
-                pixmap.stroke_path(&path, &halo, &stroke, t, None);
-                let mut paint = Paint::default();
-                paint.set_color(color(o.color, o.alpha));
-                paint.anti_alias = true;
-                pixmap.fill_path(&path, &paint, FillRule::Winding, t, None);
+                paths.push((path, at.pre_translate(x, size * 0.35).pre_scale(s, s)));
             }
             x += adv;
         }
+        // Manga lettering, each pass over the whole word: a white rim, a black drop shadow, a thick
+        // black outline, then the colour, so a bright word reads on any panel colour.
+        let outline = Stroke {
+            width: 0.20 * size / s,
+            line_cap: LineCap::Round,
+            line_join: tiny_skia::LineJoin::Round,
+            ..Stroke::default()
+        };
+        let rim = Stroke {
+            width: 0.36 * size / s,
+            ..outline.clone()
+        };
+        let white = paint(Rgb(255, 255, 255), 1.0);
+        let black = paint(LETTERING_INK, 1.0);
+        for (path, t) in &paths {
+            word.stroke_path(
+                path,
+                &white,
+                &rim,
+                t.post_translate(size * 0.10, size * 0.10),
+                None,
+            );
+            word.stroke_path(path, &white, &rim, *t, None);
+        }
+        for (path, t) in &paths {
+            let shadow = t.post_translate(size * 0.10, size * 0.10);
+            word.stroke_path(path, &black, &outline, shadow, None);
+            word.fill_path(path, &black, FillRule::Winding, shadow, None);
+        }
+        for (path, t) in &paths {
+            word.stroke_path(path, &black, &outline, *t, None);
+        }
+        // The colour runs from a light tint at the top of the letters to a deeper shade at the bottom.
+        let (mut top, mut bottom) = (
+            Point::from_xy(0.0, -0.55 * size),
+            Point::from_xy(0.0, 0.35 * size),
+        );
+        at.map_point(&mut top);
+        at.map_point(&mut bottom);
+        let fill = LinearGradient::new(
+            top,
+            bottom,
+            vec![
+                GradientStop::new(0.0, color(crate::scatter::lighten(o.color, 0.55), 1.0)),
+                GradientStop::new(0.55, color(o.color, 1.0)),
+                GradientStop::new(1.0, color(shade(o.color, 0.7), 1.0)),
+            ],
+            SpreadMode::Pad,
+            Transform::identity(),
+        )
+        .map_or_else(
+            || paint(o.color, 1.0),
+            |shader| Paint {
+                shader,
+                anti_alias: true,
+                ..Paint::default()
+            },
+        );
+        for (path, t) in &paths {
+            if let Some(path) = path.clone().transform(*t) {
+                word.fill_path(&path, &fill, FillRule::Winding, Transform::identity(), None);
+            }
+        }
+        pixmap.draw_pixmap(
+            x0 as i32,
+            y0 as i32,
+            word.as_ref(),
+            &tiny_skia::PixmapPaint {
+                opacity: o.alpha.clamp(0.0, 1.0),
+                ..tiny_skia::PixmapPaint::default()
+            },
+            Transform::identity(),
+            None,
+        );
     }
+}
+
+/// Share of the screen width a framing onomatopoeia may span.
+const WORD_WIDTH: f32 = 0.9;
+/// A framing onomatopoeia never grows past its theme scale times this.
+const WORD_MAX_SCALE: f32 = 4.0;
+/// The least free height, as a share of the screen, for a side of the bubble to hold its own word.
+const WORD_MIN_ROOM: f32 = 0.16;
+
+/// The outline of the onomatopoeia lettering; its fill must contrast with it (theme tests).
+pub const LETTERING_INK: Rgb = Rgb(18, 18, 26);
+
+/// `rgb` darkened toward black, keeping `keep` of each channel.
+fn shade(rgb: Rgb, keep: f32) -> Rgb {
+    let k = |c: u8| (f32::from(c) * keep).round() as u8;
+    Rgb(k(rgb.0), k(rgb.1), k(rgb.2))
 }
 
 fn color(rgb: Rgb, alpha: f32) -> Color {
@@ -568,22 +822,76 @@ fn paint(rgb: Rgb, alpha: f32) -> Paint<'static> {
     p
 }
 
-/// Where screen effects are drawn: the frame size in pixels, its size unit and the frame shake.
+/// Where screen effects are drawn: the frame size in pixels, its size unit, the frame shake, the
+/// point the effects gather on (the frame centre, or the bubble's) and the bubble rect to keep clear.
 struct Area {
     w: f32,
     h: f32,
     u: f32,
     shake: Transform,
+    focus: Point,
+    hole: Option<(f32, f32, f32, f32)>,
 }
 
 impl Area {
     fn centre(&self) -> Point {
-        Point::from_xy(self.w / 2.0, self.h / 2.0)
+        self.focus
     }
 
-    fn half_diagonal(&self) -> f32 {
-        (self.w * self.w + self.h * self.h).sqrt() / 2.0
+    /// Distance from the focus to the farthest corner: a radial effect of this radius fills the frame.
+    fn reach(&self) -> f32 {
+        let dx = self.focus.x.max(self.w - self.focus.x);
+        let dy = self.focus.y.max(self.h - self.focus.y);
+        (dx * dx + dy * dy).sqrt()
     }
+
+    /// Half the diagonal of the bubble to keep clear, or 0 without one.
+    fn hole_radius(&self) -> f32 {
+        self.hole
+            .map_or(0.0, |b| (b.2 * b.2 + b.3 * b.3).sqrt() / 2.0)
+    }
+}
+
+/// The message bubble's rect, in fractions of the frame (0 to 1, from the top left corner).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stage {
+    /// Left edge.
+    pub x: f32,
+    /// Top edge.
+    pub y: f32,
+    /// Width.
+    pub width: f32,
+    /// Height.
+    pub height: f32,
+}
+
+impl Stage {
+    /// The stage clipped to the frame, or `None` if it is not finite or ends up empty.
+    fn valid(self) -> Option<Self> {
+        let finite = [self.x, self.y, self.width, self.height]
+            .iter()
+            .all(|v| v.is_finite());
+        if !finite {
+            return None;
+        }
+        let (x0, y0) = (self.x.clamp(0.0, 1.0), self.y.clamp(0.0, 1.0));
+        let x1 = (self.x + self.width).clamp(0.0, 1.0);
+        let y1 = (self.y + self.height).clamp(0.0, 1.0);
+        (x1 - x0 > 0.0 && y1 - y0 > 0.0).then_some(Self {
+            x: x0,
+            y: y0,
+            width: x1 - x0,
+            height: y1 - y0,
+        })
+    }
+}
+
+/// Smallest height of the inked frame around a bubble, as a fraction of the frame height.
+const STAGE_MIN_HEIGHT: f32 = 0.14;
+
+/// True if the point lies inside `bounds` (x, y, width, height).
+fn covers(bounds: (f32, f32, f32, f32), x: f32, y: f32) -> bool {
+    x >= bounds.0 && x <= bounds.0 + bounds.2 && y >= bounds.1 && y <= bounds.1 + bounds.3
 }
 
 fn full_rect(w: f32, h: f32) -> Path {
@@ -620,10 +928,21 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
     let whole = full_rect(w, h);
     match s.kind {
         ScreenKind::ImpactFlash => {
+            // The flash darkens the screen around the bubble, never the message itself.
+            let mut flash = PathBuilder::new();
+            flash.push_rect(
+                tiny_skia::Rect::from_xywh(-w, -h, 3.0 * w, 3.0 * h).expect("non-empty"),
+            );
+            if let Some(cut) = area
+                .hole
+                .and_then(|b| tiny_skia::Rect::from_xywh(b.0, b.1, b.2, b.3))
+            {
+                flash.push_rect(cut);
+            }
             pixmap.fill_path(
-                &whole,
+                &flash.finish().unwrap_or_else(|| whole.clone()),
                 &paint(Rgb(0, 0, 0), s.alpha),
-                FillRule::Winding,
+                FillRule::EvenOdd,
                 Transform::identity(),
                 None,
             );
@@ -634,7 +953,7 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
                 GradientStop::new(0.0, color(ink, 0.05 * s.alpha)),
                 GradientStop::new(1.0, color(ink, 0.24 * s.alpha)),
             ];
-            if let Some(p) = radial(centre, area.half_diagonal(), stops) {
+            if let Some(p) = radial(centre, area.reach(), stops) {
                 pixmap.fill_path(&whole, &p, FillRule::Winding, Transform::identity(), None);
             }
         }
@@ -644,7 +963,7 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
                 GradientStop::new(0.4, Color::from_rgba8(0, 0, 0, 0)),
                 GradientStop::new(1.0, color(Rgb(0, 0, 0), 0.7 * s.alpha)),
             ];
-            if let Some(p) = radial(centre, area.half_diagonal() * 1.1, stops) {
+            if let Some(p) = radial(centre, area.reach() * 1.1, stops) {
                 pixmap.fill_path(&whole, &p, FillRule::Winding, Transform::identity(), None);
             }
         }
@@ -676,7 +995,7 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
         ScreenKind::SpeedLines => {
             // Thin wedges converging on the message, fading out before they reach it; angles are fixed
             // so the lines are stable.
-            let (inner, outer) = (u * 0.2, area.half_diagonal() * 1.1);
+            let (inner, outer) = ((u * 0.2).max(area.hole_radius()), area.reach() * 1.1);
             let mut pb = PathBuilder::new();
             for i in 0..64_u32 {
                 let a =
@@ -716,7 +1035,7 @@ fn draw_screen(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
 fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
     let (w, h) = (area.w, area.h);
     let step = 0.026 * area.u;
-    let half_diagonal = area.half_diagonal();
+    let reach = area.reach();
     let mut dots = PathBuilder::new();
     let mut row = 0_u32;
     let mut y = step / 2.0;
@@ -728,10 +1047,10 @@ fn draw_halftone(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
         };
         let mut x = offset;
         while x < w + step {
-            let d = ((x - w / 2.0).powi(2) + (y - h / 2.0).powi(2)).sqrt() / half_diagonal;
+            let d = ((x - area.focus.x).powi(2) + (y - area.focus.y).powi(2)).sqrt() / reach;
             let grow = ((d - 0.35) / 0.65).clamp(0.0, 1.0);
             let r = step * 0.5 * grow * grow * s.strength.clamp(0.0, 1.0);
-            if r > 0.5 {
+            if r > 0.5 && !area.hole.is_some_and(|b| covers(b, x, y)) {
                 dots.push_circle(x, y, r);
             }
             x += step;
@@ -761,8 +1080,8 @@ fn burst_path(area: &Area, base: f32) -> Option<Path> {
         let radius = if spike { base * wobble } else { base * 0.76 };
         let angle = i as f32 / (SPIKES * 2) as f32 * std::f32::consts::TAU;
         let (x, y) = (
-            area.w / 2.0 + radius * 1.1 * angle.cos(),
-            area.h / 2.0 + radius * angle.sin(),
+            area.focus.x + radius * 1.1 * angle.cos(),
+            area.focus.y + radius * angle.sin(),
         );
         if i == 0 {
             pb.move_to(x, y);
@@ -780,7 +1099,11 @@ fn burst_path(area: &Area, base: f32) -> Option<Path> {
 fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
     let entrance = (s.progress / 0.12).clamp(0.0, 1.0);
     let grow = crate::scene::ease_out_back(entrance);
-    let base = 0.5 * area.w.min(area.h * 0.7) * 1.05 * grow;
+    // Around a bubble the burst grows from its edge, so its spikes show past the message.
+    let size = area.hole.map_or(area.w.min(area.h * 0.7), |b| {
+        (b.2 * 0.62).max(b.3 * 1.25).min(area.w)
+    });
+    let base = 0.5 * size * 1.05 * grow;
     if base < 2.0 {
         return;
     }
@@ -793,7 +1116,17 @@ fn draw_burst(pixmap: &mut Pixmap, s: &ScreenState, ink: Rgb, area: &Area) {
         GradientStop::new(1.0, color(tint_of(ink, 0.22), 0.9 * s.alpha)),
     ];
     if let Some(fill) = radial(area.centre(), base * 1.2, stops) {
-        pixmap.fill_path(&path, &fill, FillRule::Winding, area.shake, None);
+        // The bubble's rect is cut out of the fill (even-odd), so the burst never hides the message.
+        let cut = area.hole.and_then(|b| {
+            let mut pb = PathBuilder::new();
+            pb.push_path(&path);
+            pb.push_rect(tiny_skia::Rect::from_xywh(b.0, b.1, b.2, b.3)?);
+            pb.finish()
+        });
+        match cut {
+            Some(cut) => pixmap.fill_path(&cut, &fill, FillRule::EvenOdd, area.shake, None),
+            None => pixmap.fill_path(&path, &fill, FillRule::Winding, area.shake, None),
+        }
     }
     let stroke = |width: f32| Stroke {
         width: width * area.u,
@@ -872,6 +1205,10 @@ fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, u: f32,
     let (x, y, r) = (p.x * w, p.y * h, p.size * u);
     let spin = shake.pre_rotate_at(p.rotation.to_degrees(), x, y);
     let fill = paint(p.color, p.alpha);
+    if p.kind == ParticleKind::Sparks {
+        draw_spark(pixmap, p, x, y, r, spin);
+        return;
+    }
     let path = match p.kind {
         ParticleKind::Confetti => {
             // Paper turning in the air: its apparent height follows the spin.
@@ -894,7 +1231,7 @@ fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, u: f32,
         }
         ParticleKind::Rain => tiny_skia::Rect::from_xywh(x - r * 0.06, y - r, r * 0.12, r * 2.0)
             .map(PathBuilder::from_rect),
-        ParticleKind::Aura | ParticleKind::Embers => {
+        ParticleKind::Aura | ParticleKind::Embers | ParticleKind::Sparks => {
             let mut b = PathBuilder::new();
             b.move_to(x - r * 0.35, y + r);
             b.line_to(x - r * 0.6, y - r * 0.15);
@@ -951,4 +1288,50 @@ fn draw_particle(pixmap: &mut Pixmap, p: &ParticleState, w: f32, h: f32, u: f32,
             );
         }
     }
+}
+
+/// An electric spark: a short zigzag bolt along the particle's heading, glowing in its colour with a
+/// white-hot core.
+fn draw_spark(pixmap: &mut Pixmap, p: &ParticleState, x: f32, y: f32, r: f32, spin: Transform) {
+    const ZIGZAG: [(f32, f32); 5] = [
+        (-1.6, 0.0),
+        (-0.6, 0.55),
+        (0.0, -0.45),
+        (0.7, 0.4),
+        (1.6, -0.1),
+    ];
+    let mut pb = PathBuilder::new();
+    for (i, &(dx, dy)) in ZIGZAG.iter().enumerate() {
+        let (px, py) = (x + dx * r * 1.4, y + dy * r);
+        if i == 0 {
+            pb.move_to(px, py);
+        } else {
+            pb.line_to(px, py);
+        }
+    }
+    let Some(bolt) = pb.finish() else {
+        return;
+    };
+    glow(pixmap, x, y, r * 3.0, p.color, 0.35 * p.alpha, spin);
+    let stroke = |width: f32| Stroke {
+        width: (r * width).max(0.6),
+        line_cap: LineCap::Round,
+        line_join: tiny_skia::LineJoin::Round,
+        ..Stroke::default()
+    };
+    pixmap.stroke_path(
+        &bolt,
+        &paint(p.color, 0.35 * p.alpha),
+        &stroke(0.9),
+        spin,
+        None,
+    );
+    pixmap.stroke_path(&bolt, &paint(p.color, p.alpha), &stroke(0.4), spin, None);
+    pixmap.stroke_path(
+        &bolt,
+        &paint(Rgb(255, 255, 255), 0.9 * p.alpha),
+        &stroke(0.15),
+        spin,
+        None,
+    );
 }

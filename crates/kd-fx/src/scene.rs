@@ -88,6 +88,8 @@ pub struct OnomatopoeiaState {
     pub color: Rgb,
     /// Size relative to the message text, with the entrance bounce applied.
     pub scale: f32,
+    /// The entrance bounce alone (1 once settled), already included in `scale`.
+    pub entrance: f32,
     /// Rotation in radians.
     pub rotation: f32,
     /// Opacity from 0 to 1.
@@ -436,6 +438,18 @@ fn particle(
             0.0,
             1.0,
         ),
+        ParticleKind::Sparks => {
+            // Thrown out of the message on all sides, flickering like an electric discharge.
+            let a = x0 * std::f32::consts::TAU;
+            let reach = 0.18 + 0.22 * p.sqrt() * (0.6 + 0.4 * r(4));
+            (
+                0.5 + reach * a.cos(),
+                0.5 + 0.45 * reach * a.sin(),
+                0.011 * (1.0 - 0.4 * p),
+                a + (r(5) - 0.5) * 1.2,
+                0.55 + 0.45 * (p * 37.0 + y0 * 11.0).sin().abs(),
+            )
+        }
     };
     let depth = r(7);
     let perspective = 0.55 + depth * 1.15;
@@ -467,17 +481,19 @@ fn onomatopoeia(o: &Onomatopoeia, n: usize, t: f32, seed: u64) -> Option<Onomato
         return None;
     }
     let p = (age / ONOMATOPOEIA_ENTRANCE_MS).clamp(0.0, 1.0);
+    let entrance = ease_out_back(p);
     // Placed above the message, alternating sides and heights so several of them do not overlap.
     let side = if n.is_multiple_of(2) { -1.0 } else { 1.0 };
     let jitter = hash01(seed, 200 + n as u64, 0, 0) - 0.5;
     Some(OnomatopoeiaState {
         text: o.text.clone(),
         color: Rgb::from_hex(&o.color),
-        scale: o.scale * ease_out_back(p),
+        scale: o.scale * entrance,
+        entrance,
         rotation: side * (0.12 + 0.1 * jitter),
         alpha: (p * 3.0).min(1.0),
         x: 0.5 + side * 0.1 + 0.04 * jitter,
-        y: if n.is_multiple_of(2) { 0.33 } else { 0.19 } + 0.02 * jitter,
+        y: if n.is_multiple_of(2) { 0.30 } else { 0.72 } + 0.02 * jitter,
     })
 }
 
@@ -767,6 +783,7 @@ mod tests {
             ParticleKind::Petals,
             ParticleKind::Rain,
             ParticleKind::Embers,
+            ParticleKind::Sparks,
         ] {
             let mut level = letter(LetterKind::Rise);
             level.particles = vec![ParticleEmitter {

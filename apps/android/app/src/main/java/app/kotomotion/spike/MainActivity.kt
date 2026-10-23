@@ -56,6 +56,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
@@ -107,7 +109,11 @@ private fun ChatScreen(vm: SpikeViewModel) {
             } else {
                 // The animation plays over the messages only: the title, the input bar and the keyboard
                 // stay visible and usable, whatever the screen size and keyboard height.
-                Box(Modifier.weight(1f).fillMaxWidth().onSizeChanged { vm.setViewport(it.width, it.height) }) {
+                Box(
+                    Modifier.weight(1f).fillMaxWidth()
+                        .onSizeChanged { vm.setViewport(it.width, it.height) }
+                        .onGloballyPositioned { vm.setViewportOrigin(it.positionInRoot()) },
+                ) {
                     MessageList(vm, Modifier.fillMaxSize())
                     if (vm.overlayActive) AnimationOverlay(vm)
                 }

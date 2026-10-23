@@ -24,3 +24,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0017](0017-two-layer-rendering.md) | Render the animation in two layers at the screen's resolution | accepted |
 | [0018](0018-situational-manga-and-persistent-bubbles.md) | Situational manga, persistent bubbles and editable eight-category training data | accepted |
 | [0019](0019-textless-overlay-and-lettered-bubble.md) | Textless overlay, lettered manga bubble, sharp front layer | accepted |
+| [0020](0020-anchored-stage-and-manga-panels.md) | Effects anchored on the bubble, full-screen manga panels | accepted |

@@ -1,9 +1,10 @@
 //! Quality rules every bundled theme must meet: all emotions covered, the bundled font can draw every
-//! onomatopoeia, colours are readable on the light background.
+//! onomatopoeia, colours are readable on the light background and
+//! the bubble, onomatopoeias stand out from their outline.
 #![cfg(feature = "cpu-render")]
 
 use kd_core::{Emotion, Intensity};
-use kd_fx::render::Renderer;
+use kd_fx::render::{Renderer, LETTERING_INK};
 use kd_fx::scene::{Rgb, LIGHT_BACKGROUND};
 use kd_fx::Theme;
 
@@ -58,16 +59,30 @@ fn the_font_draws_every_onomatopoeia() {
 }
 
 #[test]
-fn colours_are_readable_on_the_light_background() {
+fn colours_are_readable() {
     let theme = Theme::from_json(ANIME).unwrap();
     for e in ALL {
         for i in LEVELS {
             let level = theme.level(e, i);
-            // Message text: WCAG AA for normal text. Onomatopoeias are large text: AA large (3:1).
-            let text = contrast(Rgb::from_hex(&level.text_color), LIGHT_BACKGROUND);
+            // Message text: WCAG AA for normal text, on the light background and on the bubble's
+            // backdrop tint (90 % toward white, see manga.rs).
+            let ink = Rgb::from_hex(&level.text_color);
+            let text = contrast(ink, LIGHT_BACKGROUND);
             assert!(text >= 4.5, "{e:?} {i:?}: text contrast {text:.2}");
+            if let Some(b) = level.manga.as_ref().and_then(|m| m.backdrop.as_ref()) {
+                let inner = Rgb::from_hex(&b.inner);
+                let mix = |c: u8| (f64::from(c) + (255.0 - f64::from(c)) * 0.90).round() as u8;
+                let tint = Rgb(mix(inner.0), mix(inner.1), mix(inner.2));
+                let c = contrast(ink, tint);
+                assert!(
+                    c >= 4.5,
+                    "{e:?} {i:?}: text contrast on the bubble tint {c:.2}"
+                );
+            }
+            // Onomatopoeias are large text with a black outline (ADR-0020): the fill must stand
+            // out from the outline, AA large (3:1).
             for o in &level.onomatopoeias {
-                let c = contrast(Rgb::from_hex(&o.color), LIGHT_BACKGROUND);
+                let c = contrast(Rgb::from_hex(&o.color), LETTERING_INK);
                 assert!(c >= 3.0, "{e:?} {i:?}: onomatopoeia contrast {c:.2}");
             }
         }

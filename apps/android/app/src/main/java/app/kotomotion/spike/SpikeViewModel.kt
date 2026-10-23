@@ -15,6 +15,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uniffi.kd_ffi.Animator
 import uniffi.kd_ffi.FrameLayer
+import uniffi.kd_ffi.FrameStage
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import uniffi.kd_ffi.MotionMode
@@ -59,6 +62,9 @@ class ChatMessage(
     settled: Boolean,
 ) {
     var settled by mutableStateOf(settled)
+
+    /** Where the bubble sits in the window, in pixels, once laid out: the animation frames it (ADR-0020). */
+    @Volatile var bounds: Rect? = null
 }
 
 /** The user's intensity setting (docs/roadmap.md): how much motion the animation shows. */
@@ -159,6 +165,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     private var viewportWidth: Int = app.resources.displayMetrics.widthPixels
     private var viewportHeight: Int = app.resources.displayMetrics.heightPixels
+    @Volatile private var viewportOrigin: Offset = Offset.Zero
 
     /** Called with the size in pixels of the area the animation plays over, so frames match it exactly. */
     fun setViewport(widthPx: Int, heightPx: Int) {
@@ -166,6 +173,23 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             viewportWidth = widthPx
             viewportHeight = heightPx
         }
+    }
+
+    /** Called with where the animation area starts in the window, so the effects find the bubble. */
+    fun setViewportOrigin(origin: Offset) {
+        viewportOrigin = origin
+    }
+
+    /** The bubble of [message] as fractions of the animation area, or null while it is not laid out. */
+    private fun stageOf(message: ChatMessage): FrameStage? {
+        val b = message.bounds ?: return null
+        val o = viewportOrigin
+        return FrameStage(
+            (b.left - o.x) / viewportWidth,
+            (b.top - o.y) / viewportHeight,
+            b.width / viewportWidth,
+            b.height / viewportHeight,
+        )
     }
 
     fun chooseDarkChat(value: Boolean) {
@@ -200,8 +224,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Plays the animation of [message] over the conversation (the ink frames the middle of the
-     * screen while the message already sits in its bubble), then fades the overlay
+     * Plays the animation of [message] over the conversation (the coloured panel fills the screen and
+     * the ink frames the message's bubble, which carries the text, ADR-0020), then fades the overlay
      * out. The text is only handed to the renderer: it is never logged or stored, and the overlay does not
      * draw it (ADR-0019). Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the
      * inked lines, particles and onomatopoeias at screen resolution. While frames take too long, only the
@@ -245,8 +269,10 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 while (isActive) {
                     val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
                     val begun = System.nanoTime()
+                    // Read every frame: the bubble may still move while the list settles.
+                    val stage = stageOf(message)
                     fun draw(layer: FrameLayer, w: Int) =
-                        animator.render(emotion, level, mode, text, t.toUInt(), w.toUInt(), height(w).toUInt(), SEED, layer)
+                        animator.render(emotion, level, mode, text, t.toUInt(), w.toUInt(), height(w).toUInt(), SEED, layer, stage)
                     val (back, front) = try {
                         coroutineScope {
                             val back = async(backDispatcher) { draw(FrameLayer.BACK, backWidth) }

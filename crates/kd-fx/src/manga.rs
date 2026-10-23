@@ -142,6 +142,15 @@ fn pale(c: Rgb) -> Rgb {
     Rgb(244 + c.0 / 24, 244 + c.1 / 24, 244 + c.2 / 24)
 }
 
+/// Light panel fill: a tint of the backdrop when the theme has one, so the bubble reads as part
+/// of the coloured panel around it.
+fn panel_fill(style: &MangaStyle, accent: Rgb) -> Rgb {
+    match &style.backdrop {
+        Some(b) => crate::scatter::lighten(Rgb::from_hex(&b.inner), 0.90),
+        None => pale(accent),
+    }
+}
+
 /// Slightly irregular panels, with generous clear centres for text.
 fn panel(c: &InkCanvas<'_>, motif: MangaMotif) -> Option<Path> {
     let mut b = PathBuilder::new();
@@ -389,8 +398,9 @@ pub(crate) fn draw_scene(
     if style.motif == MangaMotif::Orbit {
         orbit(&mut c, accent, p, false, state.strength);
     }
-    if style.motif == MangaMotif::Tension {
-        // Sparse offset silhouettes form a local ink aura, with no opaque screen backdrop.
+    if style.motif == MangaMotif::Tension && style.backdrop.is_none() {
+        // Sparse offset silhouettes form a local ink aura; a full-screen backdrop already carries
+        // the colour, and the aura would cover the bubble.
         for i in (1..=6).rev() {
             let spread = i as f32 * 0.023;
             c.ellipse(0.5, 0.5, 0.50 + spread, 0.45 + spread, accent, 0.035);
@@ -401,7 +411,7 @@ pub(crate) fn draw_scene(
             Transform::from_translate(bounds.2 * 0.015, bounds.3 * 0.025).post_concat(transform);
         c.image
             .fill_path(&body, &c.paint(ink, 0.09), FillRule::Winding, shadow, None);
-        c.fill(&body, pale(accent), 0.97);
+        c.fill(&body, panel_fill(style, accent), 0.97);
         c.stroke(
             &body,
             if matches!(style.motif, MangaMotif::Pressure | MangaMotif::Orbit) {
@@ -446,7 +456,11 @@ pub(crate) fn draw_bubble(image: &mut Pixmap, style: &MangaStyle, ink: Rgb, dark
     if let Some(body) = panel(&c, style.motif) {
         c.fill(
             &body,
-            if dark { Rgb(35, 38, 48) } else { pale(accent) },
+            if dark {
+                Rgb(35, 38, 48)
+            } else {
+                panel_fill(style, accent)
+            },
             1.0,
         );
         c.stroke(&body, border, 0.009, 0.65);
@@ -539,6 +553,20 @@ fn accents(
                     0.003,
                     0.75,
                 );
+            }
+        }
+        MangaMotif::Neon => {
+            // Small electric bolts at opposite corners, accent fill with an ink edge.
+            let r = if compact { 0.05 } else { 0.10 };
+            for (x, y) in [(right, top), (outer, 0.80 + drift)] {
+                let bolt = [
+                    (x - r * 0.2, y - r),
+                    (x + r * 0.35, y - r * 0.15),
+                    (x - r * 0.05, y - r * 0.05),
+                    (x + r * 0.3, y + r),
+                ];
+                c.line(&bolt, accent, 0.012, 0.9 * strength.max(0.4));
+                c.line(&bolt, ink, 0.003, 0.8);
             }
         }
         MangaMotif::Tension => {

@@ -12,6 +12,8 @@ pub mod render;
 
 #[cfg(feature = "cpu-render")]
 mod manga;
+#[cfg(feature = "cpu-render")]
+mod scatter;
 
 use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
@@ -95,6 +97,41 @@ pub struct MangaStyle {
     pub accent_color: String,
     /// Amount of offset lettering and perspective, between zero and one.
     pub depth: f32,
+    /// Colours of the motif's scattered drawings (stars, flames, hearts…), `#RRGGBB`, used in turn;
+    /// empty uses the accent colour.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub palette: Vec<String>,
+    /// Full-screen colour panel behind the effects, around the message (ADR-0020).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backdrop: Option<Backdrop>,
+}
+
+/// A full-screen colour panel: `inner` around the message fading to `outer` at the screen edges. The
+/// message's own rect is always left clear.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Backdrop {
+    /// Colour around the message, `#RRGGBB`.
+    pub inner: String,
+    /// Colour at the screen edges, `#RRGGBB`.
+    pub outer: String,
+    /// Peak opacity, between zero and one.
+    pub opacity: f32,
+    /// Manga speed lines bursting from the message to the screen edges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rays: Option<Rays>,
+}
+
+/// Radial speed lines over the backdrop: thin wedges from around the message out to the screen edges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Rays {
+    /// Number of lines around the message, between 8 and 128.
+    pub count: u32,
+    /// Colour of the lines, `#RRGGBB`.
+    pub color: String,
+    /// Opacity of the lines, between zero and one.
+    pub opacity: f32,
 }
 
 /// Original manga illustration primitives understood by the renderer.
@@ -117,6 +154,8 @@ pub enum MangaMotif {
     Breeze,
     /// Blush, hesitation marks and a sweat drop.
     Blush,
+    /// Electric neon: a glowing tube around the message and crackling lightning arcs.
+    Neon,
 }
 
 /// Letter entrance animation.
@@ -187,6 +226,16 @@ pub enum ParticleKind {
     Rain,
     /// Embers rising from the message.
     Embers,
+    /// Electric sparks crackling out of the message.
+    Sparks,
+}
+
+impl ParticleKind {
+    /// True for particles born at the message (aura, embers, sparks): they follow it wherever the
+    /// shell shows it (ADR-0020). The others fill the whole screen.
+    pub fn is_anchored(self) -> bool {
+        matches!(self, Self::Aura | Self::Embers | Self::Sparks)
+    }
 }
 
 /// A full-screen effect.
@@ -304,6 +353,12 @@ impl Theme {
             for level in &motion.levels {
                 let colors = std::iter::once(&level.text_color)
                     .chain(level.manga.iter().map(|m| &m.accent_color))
+                    .chain(level.manga.iter().flat_map(|m| &m.palette))
+                    .chain(level.manga.iter().flat_map(|m| &m.backdrop).flat_map(|b| {
+                        [&b.inner, &b.outer]
+                            .into_iter()
+                            .chain(b.rays.iter().map(|r| &r.color))
+                    }))
                     .chain(level.particles.iter().flat_map(|p| &p.colors))
                     .chain(level.onomatopoeias.iter().map(|o| &o.color));
                 for color in colors {
@@ -320,6 +375,27 @@ impl Theme {
                     .is_some_and(|m| !(0.0..=1.0).contains(&m.depth))
                 {
                     return Err(fail(format!("{emotion}: manga depth must be in [0, 1]")));
+                }
+                if level
+                    .manga
+                    .iter()
+                    .flat_map(|m| &m.backdrop)
+                    .any(|b| !(0.0..=1.0).contains(&b.opacity))
+                {
+                    return Err(fail(format!(
+                        "{emotion}: backdrop opacity must be in [0, 1]"
+                    )));
+                }
+                if level
+                    .manga
+                    .iter()
+                    .flat_map(|m| &m.backdrop)
+                    .flat_map(|b| &b.rays)
+                    .any(|r| !(8..=128).contains(&r.count) || !(0.0..=1.0).contains(&r.opacity))
+                {
+                    return Err(fail(format!(
+                        "{emotion}: rays need 8 to 128 lines and an opacity in [0, 1]"
+                    )));
                 }
                 if level
                     .particles

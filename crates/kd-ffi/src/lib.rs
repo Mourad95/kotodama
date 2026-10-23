@@ -158,6 +158,20 @@ impl From<FrameLayer> for kd_fx::render::Layer {
     }
 }
 
+/// Where the message bubble sits in a frame, as fractions of the frame's width and height from its
+/// top left (ADR-0020). The overlay layers anchor their effects on it and keep it clear.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct FrameStage {
+    /// Left edge.
+    pub x: f32,
+    /// Top edge.
+    pub y: f32,
+    /// Width.
+    pub width: f32,
+    /// Height.
+    pub height: f32,
+}
+
 /// How the shell letters a message in its bubble (ADR-0019): colours `#RRGGBB` from the theme and the
 /// same slant and extrusion as the renderer's letters, so the rule lives in one place.
 #[derive(Debug, Clone, PartialEq, uniffi::Record)]
@@ -270,7 +284,8 @@ impl Animator {
     /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
     /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
-    /// screen area, whatever their pixel sizes.
+    /// screen area, whatever their pixel sizes. With a `stage`, the overlay layers frame the bubble
+    /// there and fill the rest of the screen (ADR-0020); the opaque layer ignores it.
     /// The text is only drawn: it is never logged, stored or put in an error.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
@@ -284,6 +299,7 @@ impl Animator {
         height: u32,
         seed: u64,
         layer: FrameLayer,
+        stage: Option<FrameStage>,
     ) -> Result<Vec<u8>, EngineError> {
         guarded(|| {
             if width == 0 || height == 0 || width > MAX_FRAME_SIDE || height > MAX_FRAME_SIDE {
@@ -293,10 +309,24 @@ impl Animator {
             let level = animation_level(&self.theme, &emotion_id, writing_level);
             let frame =
                 kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
-            let pixmap = self
-                .renderer
-                .render_layer(&frame, &message, width, height, layer.into())
-                .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
+            let pixmap = match stage.filter(|_| layer != FrameLayer::Opaque) {
+                Some(s) => self.renderer.render_layer_on(
+                    &frame,
+                    width,
+                    height,
+                    layer.into(),
+                    kd_fx::render::Stage {
+                        x: s.x,
+                        y: s.y,
+                        width: s.width,
+                        height: s.height,
+                    },
+                ),
+                None => self
+                    .renderer
+                    .render_layer(&frame, &message, width, height, layer.into()),
+            }
+            .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
             Ok(pixmap.take())
         })
     }
@@ -425,7 +455,7 @@ mod tests {
         assert_ne!(light, dark);
         assert_eq!(light[3], 0);
         let look = animator.bubble_look("colere".into(), 3);
-        assert_eq!(look.accent, "#D74C4C");
+        assert_eq!(look.accent, "#D7263D");
         assert!(look.slant > 0.0 && look.slant <= 0.16);
         assert!((3..=5).contains(&look.extrusion_steps));
         assert_eq!(
@@ -455,6 +485,7 @@ mod tests {
                 h,
                 1,
                 FrameLayer::Opaque,
+                None,
             )
             .unwrap()
         };
@@ -504,6 +535,7 @@ mod tests {
                 h,
                 1,
                 FrameLayer::Over,
+                None,
             )
             .unwrap()
         };
@@ -515,6 +547,58 @@ mod tests {
         assert!(over("Bravo", 900).chunks(4).any(|px| px[3] > 0));
         assert_eq!(over("Bravo", 900), over("Salut", 900));
         assert_eq!(a.bubble_look("joie".into(), 3).ink, "#7A3E00");
+    }
+
+    #[test]
+    fn overlay_frames_anchor_on_the_stage() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let (w, h) = (90, 160);
+        let stage = FrameStage {
+            x: 0.2,
+            y: 0.6,
+            width: 0.7,
+            height: 0.12,
+        };
+        let over = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                w,
+                h,
+                1,
+                FrameLayer::Over,
+                stage,
+            )
+            .unwrap()
+        };
+        let anchored = over(Some(stage));
+        let alpha = |x: u32, y: u32| anchored[((y * w + x) * 4 + 3) as usize];
+        assert!(alpha(1, 1) > 0, "the backdrop fills the screen");
+        assert!(
+            alpha(w / 2 + 5, (0.66 * h as f32) as u32) < 64,
+            "the bubble stays clear"
+        );
+        assert_ne!(anchored, over(None));
+        // The opaque export ignores the stage.
+        let opaque = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                w,
+                h,
+                1,
+                FrameLayer::Opaque,
+                stage,
+            )
+            .unwrap()
+        };
+        assert_eq!(opaque(Some(stage)), opaque(None));
     }
 
     #[test]
@@ -535,7 +619,8 @@ mod tests {
                     w,
                     h,
                     1,
-                    FrameLayer::Opaque
+                    FrameLayer::Opaque,
+                    None,
                 )
                 .is_err());
         }
@@ -550,7 +635,8 @@ mod tests {
                 90,
                 160,
                 1,
-                FrameLayer::Opaque
+                FrameLayer::Opaque,
+                None,
             )
             .is_ok());
         assert!(a
@@ -563,7 +649,8 @@ mod tests {
                 90,
                 160,
                 1,
-                FrameLayer::Opaque
+                FrameLayer::Opaque,
+                None,
             )
             .is_ok());
     }

@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use kd_core::{Emotion, Intensity};
-use kd_fx::render::{Layer, Renderer};
+use kd_fx::render::{Layer, Renderer, Stage};
 use kd_fx::scene::{sample, Motion};
 use kd_fx::Theme;
 use tiny_skia::Pixmap;
@@ -229,8 +229,10 @@ fn back_and_front_layers_add_up_to_the_overlay() {
             .map(|(a, b)| a.abs_diff(*b))
             .max()
             .unwrap();
+        // Translucent ink drawn over the translucent backdrop rounds to 8 bits at each pass, so the
+        // split and the whole frame may drift by a few levels.
         assert!(
-            worst <= 4,
+            worst <= 8,
             "{emotion:?} t={t}: layers differ from the overlay by {worst}"
         );
         assert_ne!(
@@ -345,6 +347,47 @@ fn manga_situations_and_settled_bubbles() {
                 ),
                 &renderer.render_bubble(level, 320, 140, dark).unwrap(),
             );
+        }
+    }
+}
+
+/// A bubble low on the screen, as in a chat (fractions of the frame).
+const STAGE: Stage = Stage {
+    x: 0.30,
+    y: 0.58,
+    width: 0.62,
+    height: 0.10,
+};
+
+#[test]
+fn effects_frame_the_bubble_and_fill_the_screen() {
+    // ADR-0020: the coloured panel and its motifs cover the screen, the bubble stays clear.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let (w, h) = (SIZE.0 as f32, SIZE.1 as f32);
+    for emotion in Emotion::ALL {
+        let level = theme.level(emotion, Intensity::Full);
+        // Past the impact flash and once every word has landed.
+        let frame = sample(level, MESSAGE.chars().count(), 1300, SEED, Motion::Full);
+        let image = renderer
+            .render_layer_on(&frame, SIZE.0, SIZE.1, Layer::Over, STAGE)
+            .unwrap();
+        let alpha = |x: f32, y: f32| {
+            image
+                .pixel((x * w) as u32, (y * h) as u32)
+                .map_or(0, |p| p.alpha())
+        };
+        check(&format!("{}-stage", emotion.id()), &image);
+        // The bubble's middle: at most a faded particle crossing it.
+        let inside = (0..5)
+            .flat_map(|i| (0..3).map(move |j| (0.36 + i as f32 * 0.12, 0.60 + j as f32 * 0.03)))
+            .map(|(x, y)| u32::from(alpha(x, y)))
+            .sum::<u32>()
+            / 15;
+        assert!(inside < 40, "{emotion:?}: the bubble is covered ({inside})");
+        // The far corners carry the backdrop.
+        for (x, y) in [(0.03, 0.03), (0.97, 0.03), (0.03, 0.97)] {
+            assert!(alpha(x, y) > 80, "{emotion:?}: no backdrop at ({x}, {y})");
         }
     }
 }

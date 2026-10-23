@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "anime",
   "name": "Anime",
-  "version": "0.4.0",
+  "version": "0.6.0",
   "emotions": {
     "joie": {
       "levels": [
@@ -11,7 +11,7 @@
           "text_color": "#7A3E00",
           "letters": {"kind": "pop", "duration_ms": 280, "stagger_ms": 25},
           "particles": [{"kind": "confetti", "count": 10, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1200}],
-          "manga": {"motif": "radiance", "accent_color": "#E7A433", "depth": 0.1},
+          "manga": {"motif": "radiance", "accent_color": "#F59F00", "depth": 0.1, "palette": ["#FFFFFF", "#FF8FB1", "#FF6B00", "#FFD43B"], "backdrop": {"inner": "#FFF3A0", "outer": "#FFB703", "opacity": 0.5, "rays": {"count": 48, "color": "#FFFFFF", "opacity": 0.34}}},
           "screen": []
         },
         {
@@ -20,8 +20,8 @@
           "letters": {"kind": "pop", "duration_ms": 300, "stagger_ms": 30},
           "particles": [{"kind": "confetti", "count": 24, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1200}, {"kind": "stars", "count": 8, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "わーい", "color": "#7A3E00", "scale": 0.45, "at_ms": 250}],
-          "manga": {"motif": "radiance", "accent_color": "#E7A433", "depth": 0.2}
+          "onomatopoeias": [{"text": "ギャハハ!", "color": "#FF9F1C", "scale": 0.9, "at_ms": 250}],
+          "manga": {"motif": "radiance", "accent_color": "#F59F00", "depth": 0.2, "palette": ["#FFFFFF", "#FF8FB1", "#FF6B00", "#FFD43B"], "backdrop": {"inner": "#FFF3A0", "outer": "#FFB703", "opacity": 0.7, "rays": {"count": 48, "color": "#FFFFFF", "opacity": 0.48}}}
         },
         {
           "level": 3,
@@ -29,8 +29,8 @@
           "letters": {"kind": "pop", "duration_ms": 320, "stagger_ms": 30},
           "particles": [{"kind": "confetti", "count": 40, "colors": ["#F59F00", "#E8590C", "#2F9E44", "#1C7ED6"], "lifetime_ms": 1200}, {"kind": "stars", "count": 16, "colors": ["#F59F00", "#FFD43B"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "わーい", "color": "#7A3E00", "scale": 0.5, "at_ms": 150}, {"text": "キラキラ", "color": "#C2410C", "scale": 0.4, "at_ms": 650}],
-          "manga": {"motif": "radiance", "accent_color": "#E7A433", "depth": 0.3}
+          "onomatopoeias": [{"text": "ギャハハ!", "color": "#FF9F1C", "scale": 1.0, "at_ms": 150}, {"text": "キラキラ", "color": "#FF5FA2", "scale": 0.8, "at_ms": 650}],
+          "manga": {"motif": "radiance", "accent_color": "#F59F00", "depth": 0.3, "palette": ["#FFFFFF", "#FF8FB1", "#FF6B00", "#FFD43B"], "backdrop": {"inner": "#FFF3A0", "outer": "#FFB703", "opacity": 0.88, "rays": {"count": 48, "color": "#FFFFFF", "opacity": 0.6}}}
         }
       ]
     },
@@ -41,7 +41,7 @@
           "text_color": "#8F1D1D",
           "letters": {"kind": "charge", "duration_ms": 320, "stagger_ms": 35},
           "particles": [{"kind": "embers", "count": 8, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1200}],
-          "manga": {"motif": "pressure", "accent_color": "#D74C4C", "depth": 0.217},
+          "manga": {"motif": "pressure", "accent_color": "#D7263D", "depth": 0.217, "palette": ["#FF922B", "#FFD43B", "#FF4D4D"], "backdrop": {"inner": "#C92A2A", "outer": "#2B0606", "opacity": 0.5, "rays": {"count": 40, "color": "#1A0202", "opacity": 0.23}}},
           "screen": []
         },
         {
@@ -50,8 +50,8 @@
           "letters": {"kind": "impact", "duration_ms": 260, "stagger_ms": 35},
           "particles": [{"kind": "embers", "count": 20, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "ムカッ", "color": "#8F1D1D", "scale": 0.5, "at_ms": 300}],
-          "manga": {"motif": "pressure", "accent_color": "#D74C4C", "depth": 0.433}
+          "onomatopoeias": [{"text": "ムカッ", "color": "#FF3B30", "scale": 0.95, "at_ms": 300}],
+          "manga": {"motif": "pressure", "accent_color": "#D7263D", "depth": 0.433, "palette": ["#FF922B", "#FFD43B", "#FF4D4D"], "backdrop": {"inner": "#C92A2A", "outer": "#2B0606", "opacity": 0.7, "rays": {"count": 40, "color": "#1A0202", "opacity": 0.32}}}
         },
         {
           "level": 3,
@@ -59,8 +59,8 @@
           "letters": {"kind": "impact", "duration_ms": 240, "stagger_ms": 35},
           "particles": [{"kind": "embers", "count": 36, "colors": ["#E8590C", "#F03E3E", "#FA5252"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "プンプン", "color": "#8F1D1D", "scale": 0.45, "at_ms": 250}, {"text": "ドン!", "color": "#8F1D1D", "scale": 0.6, "at_ms": 950}],
-          "manga": {"motif": "pressure", "accent_color": "#D74C4C", "depth": 0.65}
+          "onomatopoeias": [{"text": "ゴゴゴゴ", "color": "#E8202A", "scale": 1.0, "at_ms": 250}, {"text": "ムカッ", "color": "#FF3B30", "scale": 0.9, "at_ms": 950}],
+          "manga": {"motif": "pressure", "accent_color": "#D7263D", "depth": 0.65, "palette": ["#FF922B", "#FFD43B", "#FF4D4D"], "backdrop": {"inner": "#C92A2A", "outer": "#2B0606", "opacity": 0.88, "rays": {"count": 40, "color": "#1A0202", "opacity": 0.4}}}
         }
       ]
     },
@@ -70,27 +70,28 @@
           "level": 1,
           "text_color": "#0C447C",
           "letters": {"kind": "rise", "duration_ms": 400, "stagger_ms": 30},
-          "particles": [{"kind": "aura", "count": 12, "colors": ["#378ADD", "#85B7EB"], "lifetime_ms": 600}],
-          "manga": {"motif": "orbit", "accent_color": "#36BBDD", "depth": 0.283},
-          "screen": []
+          "particles": [{"kind": "sparks", "count": 12, "colors": ["#1F6FFF", "#FF3DF2", "#FFC400"], "lifetime_ms": 600}],
+          "manga": {"motif": "neon", "accent_color": "#1F6FFF", "depth": 0.35, "palette": ["#1F6FFF", "#FF3DF2", "#FFC400", "#12121A"], "backdrop": {"inner": "#FFFFFF", "outer": "#18A8E8", "opacity": 0.5, "rays": {"count": 64, "color": "#1F5FD1", "opacity": 0.34}}},
+          "screen": [],
+          "onomatopoeias": [{"text": "ビリビリ", "color": "#2F7BFF", "scale": 0.8, "at_ms": 300}]
         },
         {
           "level": 2,
           "text_color": "#0C447C",
           "letters": {"kind": "charge", "duration_ms": 350, "stagger_ms": 40},
-          "particles": [{"kind": "aura", "count": 24, "colors": ["#378ADD", "#85B7EB", "#FAC775"], "lifetime_ms": 700}],
+          "particles": [{"kind": "sparks", "count": 24, "colors": ["#1F6FFF", "#FF3DF2", "#FFC400"], "lifetime_ms": 700}],
           "screen": [{"kind": "speed_lines", "duration_ms": 1200, "strength": 0.3}],
-          "onomatopoeias": [{"text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 0.45}],
-          "manga": {"motif": "orbit", "accent_color": "#36BBDD", "depth": 0.567}
+          "onomatopoeias": [{"text": "ドーン", "color": "#9AA3AE", "scale": 1.0, "at_ms": 250}],
+          "manga": {"motif": "neon", "accent_color": "#1F6FFF", "depth": 0.6, "palette": ["#1F6FFF", "#FF3DF2", "#FFC400", "#12121A"], "backdrop": {"inner": "#FFFFFF", "outer": "#18A8E8", "opacity": 0.7, "rays": {"count": 64, "color": "#1F5FD1", "opacity": 0.48}}}
         },
         {
           "level": 3,
           "text_color": "#0C447C",
           "letters": {"kind": "charge", "duration_ms": 300, "stagger_ms": 40},
-          "particles": [{"kind": "aura", "count": 40, "colors": ["#378ADD", "#85B7EB", "#FAC775"], "lifetime_ms": 800}],
+          "particles": [{"kind": "sparks", "count": 40, "colors": ["#1F6FFF", "#FF3DF2", "#FFC400"], "lifetime_ms": 800}],
           "screen": [{"kind": "speed_lines", "duration_ms": 1000, "strength": 0.35}, { "kind": "impact_flash", "at_ms": 1000, "duration_ms": 120, "strength": 0.8 }, {"kind": "shockwave", "at_ms": 1050, "duration_ms": 900, "strength": 0.6}, { "kind": "shake", "at_ms": 1050, "duration_ms": 400, "strength": 0.5 }],
-          "onomatopoeias": [{"text": "ゴゴゴ", "at_ms": 300, "color": "#0C447C", "scale": 0.45}, {"text": "ドン!", "at_ms": 1050, "color": "#0C447C", "scale": 0.6}],
-          "manga": {"motif": "orbit", "accent_color": "#36BBDD", "depth": 0.85}
+          "onomatopoeias": [{"text": "ドーン", "color": "#9AA3AE", "scale": 1.0, "at_ms": 300}, {"text": "バァァーン!!", "color": "#2F7BFF", "scale": 1.1, "at_ms": 1050}],
+          "manga": {"motif": "neon", "accent_color": "#1F6FFF", "depth": 0.85, "palette": ["#1F6FFF", "#FF3DF2", "#FFC400", "#12121A"], "backdrop": {"inner": "#FFFFFF", "outer": "#18A8E8", "opacity": 0.88, "rays": {"count": 64, "color": "#1F5FD1", "opacity": 0.6}}}
         }
       ]
     },
@@ -101,7 +102,7 @@
           "text_color": "#3B2A63",
           "letters": {"kind": "type", "duration_ms": 70, "stagger_ms": 45},
           "particles": [{"kind": "stars", "count": 6, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1200}],
-          "manga": {"motif": "tension", "accent_color": "#8164AF", "depth": 0.04},
+          "manga": {"motif": "tension", "accent_color": "#9775FA", "depth": 0.04, "palette": ["#B197FC", "#FFFFFF", "#63E6BE"], "backdrop": {"inner": "#7B4FD6", "outer": "#1E0B3D", "opacity": 0.5, "rays": {"count": 36, "color": "#12062A", "opacity": 0.23}}},
           "screen": []
         },
         {
@@ -110,8 +111,8 @@
           "letters": {"kind": "type", "duration_ms": 70, "stagger_ms": 45},
           "particles": [{"kind": "stars", "count": 12, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "ドキドキ", "color": "#3B2A63", "scale": 0.45, "at_ms": 400}],
-          "manga": {"motif": "tension", "accent_color": "#8164AF", "depth": 0.08}
+          "onomatopoeias": [{"text": "ザワ…!?", "color": "#B78CFF", "scale": 0.9, "at_ms": 300}],
+          "manga": {"motif": "tension", "accent_color": "#9775FA", "depth": 0.08, "palette": ["#B197FC", "#FFFFFF", "#63E6BE"], "backdrop": {"inner": "#7B4FD6", "outer": "#1E0B3D", "opacity": 0.7, "rays": {"count": 36, "color": "#12062A", "opacity": 0.32}}}
         },
         {
           "level": 3,
@@ -119,8 +120,8 @@
           "letters": {"kind": "type", "duration_ms": 70, "stagger_ms": 50},
           "particles": [{"kind": "stars", "count": 20, "colors": ["#7048E8", "#9775FA", "#B197FC"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "ドキドキ", "color": "#3B2A63", "scale": 0.5, "at_ms": 400}, {"text": "ゴクリ", "color": "#3B2A63", "scale": 0.5, "at_ms": 1200}],
-          "manga": {"motif": "tension", "accent_color": "#8164AF", "depth": 0.12}
+          "onomatopoeias": [{"text": "ザワ…!?", "color": "#B78CFF", "scale": 0.95, "at_ms": 250}, {"text": "ドキドキ…", "color": "#9B6BFF", "scale": 0.85, "at_ms": 900}],
+          "manga": {"motif": "tension", "accent_color": "#9775FA", "depth": 0.12, "palette": ["#B197FC", "#FFFFFF", "#63E6BE"], "backdrop": {"inner": "#7B4FD6", "outer": "#1E0B3D", "opacity": 0.88, "rays": {"count": 36, "color": "#12062A", "opacity": 0.4}}}
         }
       ]
     },
@@ -131,7 +132,7 @@
           "text_color": "#1F3A5F",
           "letters": {"kind": "drip", "duration_ms": 600, "stagger_ms": 50},
           "particles": [{"kind": "rain", "count": 10, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1200}],
-          "manga": {"motif": "rainfall", "accent_color": "#829DBC", "depth": 0.027},
+          "manga": {"motif": "rainfall", "accent_color": "#4C8BE0", "depth": 0.027, "palette": ["#A5D8FF", "#FFFFFF", "#74C0FC"], "backdrop": {"inner": "#5C9BE6", "outer": "#123266", "opacity": 0.5}},
           "screen": []
         },
         {
@@ -140,8 +141,8 @@
           "letters": {"kind": "drip", "duration_ms": 650, "stagger_ms": 55},
           "particles": [{"kind": "rain", "count": 24, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "しくしく", "color": "#1F3A5F", "scale": 0.45, "at_ms": 500}],
-          "manga": {"motif": "rainfall", "accent_color": "#829DBC", "depth": 0.053}
+          "onomatopoeias": [{"text": "ズーン…", "color": "#4DA3FF", "scale": 0.95, "at_ms": 350}],
+          "manga": {"motif": "rainfall", "accent_color": "#4C8BE0", "depth": 0.053, "palette": ["#A5D8FF", "#FFFFFF", "#74C0FC"], "backdrop": {"inner": "#5C9BE6", "outer": "#123266", "opacity": 0.7}}
         },
         {
           "level": 3,
@@ -149,8 +150,8 @@
           "letters": {"kind": "drip", "duration_ms": 700, "stagger_ms": 60},
           "particles": [{"kind": "rain", "count": 40, "colors": ["#6C8EBF", "#9DB4D6"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "しくしく", "color": "#1F3A5F", "scale": 0.45, "at_ms": 500}, {"text": "ズーン", "color": "#1F3A5F", "scale": 0.5, "at_ms": 1300}],
-          "manga": {"motif": "rainfall", "accent_color": "#829DBC", "depth": 0.08}
+          "onomatopoeias": [{"text": "ズーン…", "color": "#4DA3FF", "scale": 1.0, "at_ms": 300}, {"text": "シクシク", "color": "#7CC4FF", "scale": 0.8, "at_ms": 1000}],
+          "manga": {"motif": "rainfall", "accent_color": "#4C8BE0", "depth": 0.08, "palette": ["#A5D8FF", "#FFFFFF", "#74C0FC"], "backdrop": {"inner": "#5C9BE6", "outer": "#123266", "opacity": 0.88}}
         }
       ]
     },
@@ -161,7 +162,7 @@
           "text_color": "#A3204A",
           "letters": {"kind": "bloom", "duration_ms": 450, "stagger_ms": 40},
           "particles": [{"kind": "petals", "count": 4, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1200}],
-          "manga": {"motif": "blossom", "accent_color": "#DF8BA8", "depth": 0.053},
+          "manga": {"motif": "blossom", "accent_color": "#FF4D8D", "depth": 0.053, "palette": ["#FF1F6B", "#FFFFFF", "#FFD6E8", "#FF6FA5"], "backdrop": {"inner": "#FFC2DD", "outer": "#F0559A", "opacity": 0.5, "rays": {"count": 40, "color": "#FFFFFF", "opacity": 0.23}}},
           "screen": []
         },
         {
@@ -170,8 +171,8 @@
           "letters": {"kind": "bloom", "duration_ms": 500, "stagger_ms": 40},
           "particles": [{"kind": "petals", "count": 10, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "ドキドキ", "color": "#A3204A", "scale": 0.45, "at_ms": 400}],
-          "manga": {"motif": "blossom", "accent_color": "#DF8BA8", "depth": 0.107}
+          "onomatopoeias": [{"text": "ドキドキ!", "color": "#FF2E6E", "scale": 0.9, "at_ms": 300}],
+          "manga": {"motif": "blossom", "accent_color": "#FF4D8D", "depth": 0.107, "palette": ["#FF1F6B", "#FFFFFF", "#FFD6E8", "#FF6FA5"], "backdrop": {"inner": "#FFC2DD", "outer": "#F0559A", "opacity": 0.7, "rays": {"count": 40, "color": "#FFFFFF", "opacity": 0.32}}}
         },
         {
           "level": 3,
@@ -179,8 +180,8 @@
           "letters": {"kind": "bloom", "duration_ms": 520, "stagger_ms": 45},
           "particles": [{"kind": "petals", "count": 18, "colors": ["#E64980", "#F783AC", "#FFA8A8"], "lifetime_ms": 1200}, {"kind": "petals", "count": 14, "colors": ["#FFA8A8", "#FCC2D7"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [{"text": "キュン", "color": "#A3204A", "scale": 0.5, "at_ms": 400}, {"text": "ドキドキ", "color": "#A3204A", "scale": 0.45, "at_ms": 1100}],
-          "manga": {"motif": "blossom", "accent_color": "#DF8BA8", "depth": 0.16}
+          "onomatopoeias": [{"text": "ドキドキ!", "color": "#FF2E6E", "scale": 0.95, "at_ms": 250}, {"text": "ラーブ!", "color": "#FF2E6E", "scale": 1.0, "at_ms": 900}],
+          "manga": {"motif": "blossom", "accent_color": "#FF4D8D", "depth": 0.16, "palette": ["#FF1F6B", "#FFFFFF", "#FFD6E8", "#FF6FA5"], "backdrop": {"inner": "#FFC2DD", "outer": "#F0559A", "opacity": 0.88, "rays": {"count": 40, "color": "#FFFFFF", "opacity": 0.4}}}
         }
       ]
     },
@@ -190,24 +191,25 @@
           "level": 1,
           "text_color": "#085041",
           "letters": {"kind": "rise", "duration_ms": 500, "stagger_ms": 25},
-          "manga": {"motif": "breeze", "accent_color": "#6DAA9A", "depth": 0.017},
+          "manga": {"motif": "breeze", "accent_color": "#20C997", "depth": 0.017, "palette": ["#FFFFFF", "#FFB3C7", "#63E6BE", "#96F2D7"], "backdrop": {"inner": "#D3F9E8", "outer": "#5FD3AE", "opacity": 0.5}},
           "screen": []
         },
         {
           "level": 2,
           "text_color": "#085041",
           "letters": {"kind": "rise", "duration_ms": 500, "stagger_ms": 25},
-          "manga": {"motif": "breeze", "accent_color": "#6DAA9A", "depth": 0.033},
+          "manga": {"motif": "breeze", "accent_color": "#20C997", "depth": 0.033, "palette": ["#FFFFFF", "#FFB3C7", "#63E6BE", "#96F2D7"], "backdrop": {"inner": "#D3F9E8", "outer": "#5FD3AE", "opacity": 0.7}},
           "screen": [],
-          "particles": [{"kind": "petals", "count": 6, "colors": ["#8EB6A3", "#B0CDB8"], "lifetime_ms": 1100}]
+          "particles": [{"kind": "petals", "count": 6, "colors": ["#8EB6A3", "#B0CDB8"], "lifetime_ms": 1100}],
+          "onomatopoeias": [{"text": "ほっ…", "color": "#2BC48F", "scale": 0.85, "at_ms": 400}]
         },
         {
           "level": 3,
           "text_color": "#085041",
           "letters": {"kind": "rise", "duration_ms": 500, "stagger_ms": 25},
           "screen": [],
-          "onomatopoeias": [{"text": "ふわ", "at_ms": 200, "color": "#085041", "scale": 0.4}],
-          "manga": {"motif": "breeze", "accent_color": "#6DAA9A", "depth": 0.05},
+          "onomatopoeias": [{"text": "ほっ…", "color": "#2BC48F", "scale": 0.9, "at_ms": 350}, {"text": "シーン", "color": "#2BC48F", "scale": 0.8, "at_ms": 1000}],
+          "manga": {"motif": "breeze", "accent_color": "#20C997", "depth": 0.05, "palette": ["#FFFFFF", "#FFB3C7", "#63E6BE", "#96F2D7"], "backdrop": {"inner": "#D3F9E8", "outer": "#5FD3AE", "opacity": 0.88}},
           "particles": [{"kind": "petals", "count": 9, "colors": ["#8EB6A3", "#B0CDB8"], "lifetime_ms": 1100}]
         }
       ]
@@ -218,28 +220,28 @@
           "level": 1,
           "text_color": "#784259",
           "letters": {"kind": "shy", "duration_ms": 650, "stagger_ms": 25},
-          "particles": [],
+          "particles": [{"kind": "petals", "count": 4, "colors": ["#FFB3D9", "#FFE14D"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [],
-          "manga": {"motif": "blush", "accent_color": "#D7889D", "depth": 0.08}
+          "onomatopoeias": [{"text": "もじもじ", "color": "#FF7EC4", "scale": 0.8, "at_ms": 300}],
+          "manga": {"motif": "blush", "accent_color": "#C77DFF", "depth": 0.3, "palette": ["#FFE14D", "#FFFFFF", "#FFB3D9"], "backdrop": {"inner": "#9B5DE5", "outer": "#4A1E8C", "opacity": 0.5}}
         },
         {
           "level": 2,
           "text_color": "#784259",
           "letters": {"kind": "shy", "duration_ms": 650, "stagger_ms": 25},
-          "particles": [],
+          "particles": [{"kind": "petals", "count": 8, "colors": ["#FFB3D9", "#FFE14D"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [],
-          "manga": {"motif": "blush", "accent_color": "#D7889D", "depth": 0.08}
+          "onomatopoeias": [{"text": "ハズーン", "color": "#C6E84A", "scale": 1.0, "at_ms": 250}],
+          "manga": {"motif": "blush", "accent_color": "#C77DFF", "depth": 0.55, "palette": ["#FFE14D", "#FFFFFF", "#FFB3D9"], "backdrop": {"inner": "#9B5DE5", "outer": "#4A1E8C", "opacity": 0.7}}
         },
         {
           "level": 3,
           "text_color": "#784259",
           "letters": {"kind": "shy", "duration_ms": 650, "stagger_ms": 25},
-          "particles": [],
+          "particles": [{"kind": "petals", "count": 12, "colors": ["#FFB3D9", "#FFE14D"], "lifetime_ms": 1200}],
           "screen": [],
-          "onomatopoeias": [],
-          "manga": {"motif": "blush", "accent_color": "#D7889D", "depth": 0.08}
+          "onomatopoeias": [{"text": "ハズーン", "color": "#C6E84A", "scale": 1.05, "at_ms": 200}, {"text": "もじもじ", "color": "#FF7EC4", "scale": 0.85, "at_ms": 900}],
+          "manga": {"motif": "blush", "accent_color": "#C77DFF", "depth": 0.8, "palette": ["#FFE14D", "#FFFFFF", "#FFB3D9"], "backdrop": {"inner": "#9B5DE5", "outer": "#4A1E8C", "opacity": 0.88}}
         }
       ]
     }

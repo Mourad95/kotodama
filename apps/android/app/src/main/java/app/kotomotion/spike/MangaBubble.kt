@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -77,6 +79,7 @@ internal fun MangaBubble(vm: SpikeViewModel, message: ChatMessage) {
     Box(
         Modifier.widthIn(min = 120.dp, max = 300.dp)
             .onSizeChanged { bounds = it }
+            .onGloballyPositioned { message.bounds = it.boundsInRoot() }
             .clickable(enabled = message.settled, onClickLabel = replayLabel) { vm.replay(message) },
     ) {
         val image = illustration

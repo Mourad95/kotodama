@@ -34,9 +34,30 @@
       "additionalProperties": false,
       "required": ["motif", "accent_color", "depth"],
       "properties": {
-        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush"] },
+        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush", "neon"] },
         "accent_color": { "$ref": "#/$defs/color" },
-        "depth": { "type": "number", "minimum": 0, "maximum": 1 }
+        "depth": { "type": "number", "minimum": 0, "maximum": 1 },
+        "palette": { "type": "array", "items": { "$ref": "#/$defs/color" } },
+        "backdrop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inner", "outer", "opacity"],
+          "properties": {
+            "inner": { "$ref": "#/$defs/color" },
+            "outer": { "$ref": "#/$defs/color" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "rays": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count", "color", "opacity"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 8, "maximum": 128 },
+                "color": { "$ref": "#/$defs/color" },
+                "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
       }
     },
     "motion": {
@@ -81,7 +102,7 @@
             "additionalProperties": false,
             "required": ["kind", "count", "colors", "lifetime_ms"],
             "properties": {
-              "kind": { "enum": ["confetti", "stars", "aura", "hearts", "petals", "rain", "embers"] },
+              "kind": { "enum": ["confetti", "stars", "aura", "hearts", "petals", "rain", "embers", "sparks"] },
               "count": { "type": "integer", "minimum": 0 },
               "colors": { "type": "array", "items": { "$ref": "#/$defs/color" }, "minItems": 1 },
               "lifetime_ms": { "type": "integer", "minimum": 1 }
