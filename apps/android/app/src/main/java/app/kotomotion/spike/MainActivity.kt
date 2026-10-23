@@ -5,7 +5,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -115,6 +123,8 @@ private fun SpikeScreen(vm: SpikeViewModel) {
             }
         }
 
+        AnimationPanel(vm)
+
         if (vm.benchmarkRunning) Text(stringResource(R.string.benchmark_running))
         if (vm.benchmarkMissing) Text(stringResource(R.string.no_bench_messages))
         vm.benchmarkError?.let { Text(stringResource(R.string.analysis_error, it)) }
@@ -122,6 +132,55 @@ private fun SpikeScreen(vm: SpikeViewModel) {
             Text(stringResource(R.string.benchmark_result, b.stats.n, b.warmUp, b.stats.p50, b.stats.p95, b.stats.max))
             val m = b.memory
             Text(stringResource(R.string.memory_line, mb(m.nativeHeap), mb(m.javaHeap), mb(m.peakRss), mb(m.rss)))
+        }
+    }
+}
+
+@Composable
+private fun AnimationPanel(vm: SpikeViewModel) {
+    if (vm.animator == null) {
+        Text(stringResource(R.string.animation_unavailable), color = MaterialTheme.colorScheme.error)
+        return
+    }
+    Text(stringResource(R.string.intensity_label), style = MaterialTheme.typography.titleSmall)
+    val labels = listOf(
+        Intensity.FULL to R.string.intensity_full,
+        Intensity.GENTLE to R.string.intensity_gentle,
+        Intensity.MINIMAL to R.string.intensity_minimal,
+    )
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        labels.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = vm.intensity == value,
+                onClick = { vm.chooseIntensity(value) },
+                shape = SegmentedButtonDefaults.itemShape(index, labels.size),
+                enabled = !vm.systemReducedMotion,
+            ) { Text(stringResource(label)) }
+        }
+    }
+    if (vm.systemReducedMotion) Text(stringResource(R.string.reduced_motion_forced), style = MaterialTheme.typography.bodySmall)
+
+    Text(stringResource(R.string.writing_level_label, vm.writingLevel), style = MaterialTheme.typography.titleSmall)
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+        (1..3).forEach { level ->
+            SegmentedButton(
+                selected = vm.writingLevel == level,
+                onClick = { vm.chooseWritingLevel(level) },
+                shape = SegmentedButtonDefaults.itemShape(level - 1, 3),
+            ) { Text(level.toString()) }
+        }
+    }
+    OutlinedButton(onClick = vm::replay, enabled = vm.hasPlayed) { Text(stringResource(R.string.replay_button)) }
+
+    if (vm.hasPlayed) {
+        // Reading frameTick in the draw scope redraws the canvas for every new frame.
+        Canvas(Modifier.fillMaxWidth(0.7f).aspectRatio(9f / 16f)) {
+            vm.frameTick
+            val image = vm.frame
+            drawImage(image, dstSize = IntSize(size.width.toInt(), size.height.toInt()))
+        }
+        vm.renderStats?.let {
+            Text(stringResource(R.string.render_stats, it.avgMs, it.maxMs, it.frames), style = MaterialTheme.typography.bodySmall)
         }
     }
 }

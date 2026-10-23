@@ -22,4 +22,13 @@
     <string name="memory_line">Mémoire : tas natif %1$d Mo, tas Java %2$d Mo, pic VmHWM %3$d Mo (VmRSS %4$d Mo)</string>
     <string name="analysis_error">Échec de l\'analyse : %1$s</string>
     <string name="no_bench_messages">bench_messages.txt introuvable ou vide.</string>
+    <string name="animation_unavailable">Thème d\'animation introuvable.</string>
+    <string name="intensity_label">Intensité des effets</string>
+    <string name="intensity_full">Complet</string>
+    <string name="intensity_gentle">Doux</string>
+    <string name="intensity_minimal">Minimal</string>
+    <string name="reduced_motion_forced">Le système demande de réduire les animations : mode minimal imposé.</string>
+    <string name="writing_level_label">Qualité d\'écriture : niveau %1$d (3 = sans faute)</string>
+    <string name="replay_button">Rejouer</string>
+    <string name="render_stats">Rendu : %1$.1f ms en moyenne, %2$.1f ms au pire (%3$d images). Budget 60 fps : 16,7 ms.</string>
 </resources>

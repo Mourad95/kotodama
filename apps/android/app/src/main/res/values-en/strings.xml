@@ -21,4 +21,13 @@
     <string name="memory_line">Memory: native heap %1$d MB, Java heap %2$d MB, peak VmHWM %3$d MB (VmRSS %4$d MB)</string>
     <string name="analysis_error">Analysis failed: %1$s</string>
     <string name="no_bench_messages">bench_messages.txt missing or empty.</string>
+    <string name="animation_unavailable">Animation theme not found.</string>
+    <string name="intensity_label">Effect intensity</string>
+    <string name="intensity_full">Full</string>
+    <string name="intensity_gentle">Gentle</string>
+    <string name="intensity_minimal">Minimal</string>
+    <string name="reduced_motion_forced">The system asks to reduce animations: minimal mode is forced.</string>
+    <string name="writing_level_label">Writing quality: level %1$d (3 = no mistake)</string>
+    <string name="replay_button">Replay</string>
+    <string name="render_stats">Rendering: %1$.1f ms on average, %2$.1f ms worst (%3$d frames). 60 fps budget: 16.7 ms.</string>
 </resources>

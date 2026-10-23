@@ -132,6 +132,44 @@ const GENTLE_KEEP_PER_FIVE: u32 = 2;
 /// How long the message fades in when motion is reduced, in milliseconds.
 const REDUCED_FADE_MS: f32 = 300.0;
 
+/// How long the animation of `level` lasts for a message of `glyph_count` letters, in milliseconds:
+/// after this instant nothing moves any more and the frame is the settled message. The whole
+/// timeline is covered: letters (with their stagger), screen effects, particles and onomatopoeias.
+pub fn duration_ms(level: &Level, glyph_count: usize, motion: Motion) -> u32 {
+    if motion == Motion::Reduced {
+        return REDUCED_FADE_MS as u32;
+    }
+    let letters = if glyph_count == 0 {
+        0
+    } else {
+        (glyph_count as u64 - 1) * u64::from(level.letters.stagger_ms)
+            + u64::from(level.letters.duration_ms)
+    };
+    let screen = level
+        .screen
+        .iter()
+        .map(|e| u64::from(e.at_ms) + u64::from(e.duration_ms))
+        .max()
+        .unwrap_or(0);
+    let particles = level
+        .particles
+        .iter()
+        .map(|p| (EMIT_WINDOW_LIFETIMES as u64 + 1) * u64::from(p.lifetime_ms))
+        .max()
+        .unwrap_or(0);
+    let onomatopoeias = level
+        .onomatopoeias
+        .iter()
+        .map(|o| u64::from(o.at_ms) + ONOMATOPOEIA_ENTRANCE_MS as u64)
+        .max()
+        .unwrap_or(0);
+    letters
+        .max(screen)
+        .max(particles)
+        .max(onomatopoeias)
+        .min(u64::from(u32::MAX)) as u32
+}
+
 /// Samples `level` at `t_ms` after the start of the message, for a message of `glyph_count`
 /// letters. The same arguments always give the same frame.
 pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: Motion) -> Frame {
@@ -266,7 +304,7 @@ fn glyph(level: &Level, index: usize, t: f32, seed: u64) -> GlyphState {
         LetterKind::Charge => {
             let flicker = 0.5 + 0.5 * (t * 0.045 + index as f32 * 1.7).sin();
             g.scale = 0.9 + 0.1 * eased;
-            g.glow = (1.0 - p) * (0.4 + 0.6 * flicker) + 0.15 * p * flicker;
+            g.glow = (1.0 - p) * (0.4 + 0.6 * flicker);
         }
         LetterKind::Type => g.alpha = if p > 0.0 { 1.0 } else { 0.0 },
         LetterKind::Drip => g.dy = -(1.0 - eased) * 1.2,
@@ -545,6 +583,35 @@ mod tests {
             sample(&level, 3, 300, 3, Motion::Reduced).glyphs[0].alpha,
             1.0
         );
+    }
+
+    #[test]
+    fn nothing_moves_after_the_duration() {
+        let level = anime(Intensity::Full);
+        for motion in [Motion::Full, Motion::Gentle, Motion::Reduced] {
+            let end = duration_ms(&level, 20, motion);
+            assert!(end > 0 && end < 10_000, "{motion:?}: {end} ms");
+            let (a, b) = (
+                sample(&level, 20, end, 5, motion),
+                sample(&level, 20, end + 777, 5, motion),
+            );
+            assert_eq!(a, b, "{motion:?}: frame still changes at the end");
+            assert!(
+                a.particles.is_empty()
+                    && a.screen.is_empty()
+                    && a.onomatopoeias.len() <= level.onomatopoeias.len()
+            );
+            let before = sample(&level, 20, end.saturating_sub(300), 5, motion);
+            assert!(
+                motion == Motion::Reduced || before != a,
+                "{motion:?}: nothing happens before the end"
+            );
+        }
+        assert!(
+            duration_ms(&level, 200, Motion::Full) > duration_ms(&level, 5, Motion::Full)
+                || level.letters.stagger_ms == 0
+        );
+        assert_eq!(duration_ms(&level, 0, Motion::Reduced), 300);
     }
 
     #[test]
