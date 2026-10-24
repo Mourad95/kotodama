@@ -15,8 +15,8 @@ allow = [
     "BSL-1.0",
     "Zlib",
     "CC0-1.0",
-    # Weak, file-level copyleft, accepted only because the uniffi crates use it
-    # (docs/legal.md L10). Any other copyleft licence needs an ADR.
+    # Weak, file-level copyleft, accepted for the uniffi crates (docs/legal.md L10) and the
+    # spellbook Hunspell reader (ADR-0025), used unmodified. Any other copyleft licence needs an ADR.
     "MPL-2.0",
 ]
 

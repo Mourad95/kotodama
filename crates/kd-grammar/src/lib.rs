@@ -1,11 +1,15 @@
 //! Grammar and spelling checks (ADR-0006).
 //!
 //! One provider per language behind the [`GrammarChecker`] trait: an in-house checker for French
-//! (ADR-0009) and Harper for English arrive in milestone M4. The scoring that
-//! turns issues into animation intensity lives in `kd-core`.
+//! (ADR-0009), starting with its spelling half [`FrenchSpeller`] (ADR-0025), and Harper for English
+//! in milestone M4. The scoring that turns issues into animation intensity lives in `kd-core`.
 
 use kd_core::{Intensity, Language};
 use serde::{Deserialize, Serialize};
+
+mod speller;
+
+pub use speller::{FrenchSpeller, SpellerError, SPELLING_RULE};
 
 /// One spelling or grammar issue in a message.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

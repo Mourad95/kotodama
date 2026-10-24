@@ -9,6 +9,8 @@ publish.workspace = true
 [features]
 # CPU reference renderer (ADR-0015): golden frames in CI and, later, GIF/WebP export.
 cpu-render = ["dep:tiny-skia", "dep:skrifa"]
+# Animated GIF export of stickers, to share them (ADR-0025).
+gif-export = ["cpu-render", "dep:gif"]
 
 [dependencies]
 kd-core.workspace = true
@@ -17,6 +19,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 tiny-skia = { version = "0.12", optional = true }
 skrifa = { version = "0.49", optional = true }
+gif = { version = "0.14", optional = true, default-features = false, features = ["color_quant", "std"] }
 
 [[example]]
 name = "render_frames"

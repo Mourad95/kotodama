@@ -10,6 +10,9 @@ pub mod scene;
 #[cfg(feature = "cpu-render")]
 pub mod render;
 
+#[cfg(feature = "gif-export")]
+pub mod export;
+
 #[cfg(feature = "cpu-render")]
 mod manga;
 #[cfg(feature = "cpu-render")]

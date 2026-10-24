@@ -12,7 +12,7 @@ crate-type = ["lib", "staticlib", "cdylib"]
 [dependencies]
 kd-core.workspace = true
 kd-emotion.workspace = true
-kd-fx = { workspace = true, features = ["cpu-render"] }
+kd-fx = { workspace = true, features = ["cpu-render", "gif-export"] }
 kd-grammar.workspace = true
 thiserror.workspace = true
 uniffi.workspace = true

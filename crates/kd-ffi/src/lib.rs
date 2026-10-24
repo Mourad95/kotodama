@@ -4,7 +4,8 @@
 //! plain data types. Everything behind it can change without touching Swift or Kotlin.
 //!
 //! Exposed so far: version, intensity and theme validation (M0), the emotion engine handle
-//! [`EmotionEngine`] (M2) and the animation player [`Animator`] (M3). Grammar and rendering arrive with their milestones.
+//! [`EmotionEngine`] (M2), the animation player [`Animator`] (M3) with its GIF export, and the
+//! French spell checker [`Speller`] (ADR-0025). Grammar rules arrive with M4.
 //!
 //! Privacy (ADR-0007, rules L1/L18): message text is only ever passed to the engine; it is never
 //! logged, stored, or put in an error message.
@@ -53,6 +54,9 @@ pub enum EngineError {
     /// A theme could not be loaded or an animation could not be drawn.
     #[error("animation unavailable: {0}")]
     Animation(String),
+    /// The spelling dictionary could not be loaded.
+    #[error("speller unavailable: {0}")]
+    Speller(String),
     /// An internal error (a panic was caught at the boundary).
     #[error("internal error")]
     Internal,
@@ -349,6 +353,102 @@ impl Animator {
     }
 }
 
+/// Largest exported GIF, per side, in pixels.
+const MAX_GIF_SIDE: u32 = 720;
+
+#[uniffi::export]
+impl Animator {
+    /// Encodes the sticker of `message` (as [`FrameLayer::Sticker`] draws it) as a looping
+    /// `side` x `side` GIF to share through the system share sheet (ADR-0025): the animation once,
+    /// then the settled scene held for 2.5 s. [`MotionMode::Minimal`] gives a still GIF. Slow
+    /// (about a second): call it from a background thread. The text is only drawn.
+    pub fn export_gif(
+        &self,
+        emotion_id: String,
+        writing_level: u8,
+        mode: MotionMode,
+        message: String,
+        side: u32,
+        seed: u64,
+    ) -> Result<Vec<u8>, EngineError> {
+        guarded(|| {
+            if side == 0 || side > MAX_GIF_SIDE {
+                return Err(EngineError::Animation("unsupported GIF size".into()));
+            }
+            let message: String = message.chars().take(MAX_ANIMATED_CHARS).collect();
+            let level = animation_level(&self.theme, &emotion_id, writing_level);
+            kd_fx::export::sticker_gif(&self.renderer, &level, &message, side, seed, mode.into())
+                .map_err(|e| EngineError::Animation(e.to_string()))
+        })
+    }
+}
+
+/// A word the speller does not know, located in UTF-16 code units (the unit of Kotlin and Swift
+/// string indices) so the shell can underline it.
+#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub struct SpellingIssue {
+    /// Start of the word.
+    pub start: u32,
+    /// End of the word (exclusive).
+    pub end: u32,
+    /// The word as written.
+    pub word: String,
+}
+
+/// French spell checker (ADR-0025): the Hunspell dictionary and the slang allow-list. Build it once
+/// from the three files' contents, from a background thread (it takes tens of milliseconds).
+#[derive(uniffi::Object)]
+pub struct Speller {
+    inner: kd_grammar::FrenchSpeller,
+}
+
+#[uniffi::export]
+impl Speller {
+    /// Loads the speller from the contents of `fr.aff`, `fr.dic` and `allowlist.txt`.
+    #[uniffi::constructor]
+    pub fn new(
+        affixes: String,
+        words: String,
+        allowlist: String,
+    ) -> Result<Arc<Self>, EngineError> {
+        install_panic_hook();
+        guarded(|| {
+            let inner = kd_grammar::FrenchSpeller::new(&affixes, &words, &allowlist)
+                .map_err(|e| EngineError::Speller(e.to_string()))?;
+            Ok(Arc::new(Self { inner }))
+        })
+    }
+
+    /// The misspelled words of `text`, in order. Fast (microseconds per word): fine on every edit,
+    /// off the main thread. Their count gives the writing level through [`intensity_level`].
+    pub fn check(&self, text: String) -> Vec<SpellingIssue> {
+        use kd_grammar::GrammarChecker;
+        guarded(|| {
+            Ok(self
+                .inner
+                .check(&text)
+                .into_iter()
+                .map(|issue| SpellingIssue {
+                    start: utf16_offset(&text, issue.start),
+                    end: utf16_offset(&text, issue.end),
+                    word: text[issue.start..issue.end].to_string(),
+                })
+                .collect())
+        })
+        .unwrap_or_default()
+    }
+
+    /// Corrections for one word, best first (at most four, maybe none). Slow (tens of
+    /// milliseconds): call it when the user taps the word, off the main thread.
+    pub fn suggest(&self, word: String) -> Vec<String> {
+        guarded(|| Ok(self.inner.suggest(&word))).unwrap_or_default()
+    }
+}
+
+fn utf16_offset(text: &str, byte: usize) -> u32 {
+    text[..byte].encode_utf16().count() as u32
+}
+
 static PANIC_HOOK: Once = Once::new();
 
 /// Replaces, once per process, the default panic hook (which prints the panic message, and that
@@ -539,6 +639,52 @@ mod tests {
             draw("energie", MotionMode::Full, end + 5000)
         );
         assert!(a.duration_ms("energie".into(), 3, MotionMode::Minimal, 7) < end);
+    }
+
+    #[test]
+    fn exports_a_looping_gif_of_the_sticker() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let gif = a
+            .export_gif(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "trop bien".into(),
+                64,
+                1,
+            )
+            .unwrap();
+        assert_eq!(&gif[..6], b"GIF89a");
+        assert!(a
+            .export_gif("joie".into(), 3, MotionMode::Full, "x".into(), 0, 1)
+            .is_err());
+        assert!(a
+            .export_gif("joie".into(), 3, MotionMode::Full, "x".into(), 4096, 1)
+            .is_err());
+    }
+
+    #[test]
+    fn speller_reports_words_in_utf16_offsets() {
+        let speller = Speller::new(
+            include_str!("../../../grammar/fr/hunspell/fr.aff").into(),
+            include_str!("../../../grammar/fr/hunspell/fr.dic").into(),
+            include_str!("../../../grammar/fr/allowlist.txt").into(),
+        )
+        .unwrap();
+        // "😂" is two UTF-16 units and four bytes.
+        let issues = speller.check("😂 ça va mdr, à demin".into());
+        assert_eq!(
+            issues,
+            [SpellingIssue {
+                start: 16,
+                end: 21,
+                word: "demin".into()
+            }]
+        );
+        assert!(speller
+            .suggest("demin".into())
+            .contains(&"demain".to_string()));
+        assert!(Speller::new(String::new(), String::new(), String::new()).is_err());
     }
 
     #[test]
