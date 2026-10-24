@@ -37,11 +37,11 @@ readelf_tool="$(ls "$ANDROID_NDK_HOME"/toolchains/llvm/prebuilt/*/bin/llvm-reade
 [[ -x "$readelf_tool" ]] || { echo "llvm-readelf not found under $ANDROID_NDK_HOME/toolchains/llvm/prebuilt/*/bin (incomplete NDK install?)" >&2; exit 1; }
 
 # Google Play requires 16 KB page size support for apps targeting Android 15+.
-export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384"
+android_rustflags="${RUSTFLAGS:-} -C link-arg=-Wl,-z,max-page-size=16384"
 
 cd "$root"
 rm -rf "$app/jniLibs"
-cargo ndk -t arm64-v8a -t x86_64 --platform 26 -o "$app/jniLibs" \
+RUSTFLAGS="$android_rustflags" cargo ndk -t arm64-v8a -t x86_64 --platform 26 -o "$app/jniLibs" \
   build -p kd-ffi --lib $profile_flag
 
 # Bindings are generated from the UNSTRIPPED library (UniFFI reads its metadata symbols).

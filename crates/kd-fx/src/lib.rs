@@ -10,6 +10,11 @@ pub mod scene;
 #[cfg(feature = "cpu-render")]
 pub mod render;
 
+#[cfg(feature = "cpu-render")]
+mod manga;
+#[cfg(feature = "cpu-render")]
+mod scatter;
+
 use kd_core::{Emotion, Intensity};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -77,6 +82,80 @@ pub struct Level {
     /// Onomatopoeias drawn around the message.
     #[serde(default)]
     pub onomatopoeias: Vec<Onomatopoeia>,
+    /// Optional ink illustration, shared by the animated overlay and the settled bubble.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub manga: Option<MangaStyle>,
+}
+
+/// Data-driven illustration language; motifs describe drawing primitives, not theme identifiers.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MangaStyle {
+    /// Ink composition around the message.
+    pub motif: MangaMotif,
+    /// Highlight colour, distinct from the darker readable text colour.
+    pub accent_color: String,
+    /// Amount of offset lettering and perspective, between zero and one.
+    pub depth: f32,
+    /// Colours of the motif's scattered drawings (stars, flames, hearts…), `#RRGGBB`, used in turn;
+    /// empty uses the accent colour.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub palette: Vec<String>,
+    /// Full-screen colour panel behind the effects, around the message (ADR-0020).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub backdrop: Option<Backdrop>,
+}
+
+/// A full-screen colour panel: `inner` around the message fading to `outer` at the screen edges. The
+/// message's own rect is always left clear.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Backdrop {
+    /// Colour around the message, `#RRGGBB`.
+    pub inner: String,
+    /// Colour at the screen edges, `#RRGGBB`.
+    pub outer: String,
+    /// Peak opacity, between zero and one.
+    pub opacity: f32,
+    /// Manga speed lines bursting from the message to the screen edges.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rays: Option<Rays>,
+}
+
+/// Radial speed lines over the backdrop: thin wedges from around the message out to the screen edges.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Rays {
+    /// Number of lines around the message, between 8 and 128.
+    pub count: u32,
+    /// Colour of the lines, `#RRGGBB`.
+    pub color: String,
+    /// Opacity of the lines, between zero and one.
+    pub opacity: f32,
+}
+
+/// Original manga illustration primitives understood by the renderer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MangaMotif {
+    /// Warm rays and four-point glints.
+    Radiance,
+    /// Jagged ink pressure and an anger mark.
+    Pressure,
+    /// Perspective energy ribbon and angular shards.
+    Orbit,
+    /// Converging hatching and a dark local aura.
+    Tension,
+    /// Descending gloom hatching and ink drops.
+    Rainfall,
+    /// Soft floral contours and blush hatching.
+    Blossom,
+    /// Sparse flowing curves and leaves.
+    Breeze,
+    /// Blush, hesitation marks and a sweat drop.
+    Blush,
+    /// Electric neon: a glowing tube around the message and crackling lightning arcs.
+    Neon,
 }
 
 /// Letter entrance animation.
@@ -111,6 +190,8 @@ pub enum LetterKind {
     Bloom,
     /// Faulty word glitch (used for words with issues).
     Glitch,
+    /// Hesitate, tilt inward and gently shrink into place.
+    Shy,
 }
 
 /// A particle emitter.
@@ -145,6 +226,16 @@ pub enum ParticleKind {
     Rain,
     /// Embers rising from the message.
     Embers,
+    /// Electric sparks crackling out of the message.
+    Sparks,
+}
+
+impl ParticleKind {
+    /// True for particles born at the message (aura, embers, sparks): they follow it wherever the
+    /// shell shows it (ADR-0020). The others fill the whole screen.
+    pub fn is_anchored(self) -> bool {
+        matches!(self, Self::Aura | Self::Embers | Self::Sparks)
+    }
 }
 
 /// A full-screen effect.
@@ -183,6 +274,28 @@ pub enum ScreenKind {
     /// Manga explosion: a pale spiky shape with an ink outline drawn behind the message.
     Burst,
 }
+
+impl ScreenKind {
+    /// True for an effect without hard edges (flash, tint, spotlight): it survives being drawn small and
+    /// scaled up, so it goes in the back layer (ADR-0019). Lines, dots, rings and the burst outline
+    /// stay sharp in the front layer.
+    pub fn is_soft(self) -> bool {
+        matches!(self, Self::ImpactFlash | Self::Tint | Self::Spotlight)
+    }
+}
+
+/// Slant of manga lettering at extrusion `depth` (0 to 1), as a horizontal skew to the right.
+pub fn letter_slant(depth: f32) -> f32 {
+    0.16 * depth
+}
+
+/// Number of offset copies drawn to extrude manga lettering at `depth` (0 to 1).
+pub fn extrusion_steps(depth: f32) -> u32 {
+    (depth.clamp(0.0, 1.0) * 5.0).ceil() as u32
+}
+
+/// Offset of each extrusion copy, down and to the right, as fractions of the font size.
+pub const EXTRUSION_STEP: (f32, f32) = (0.014 * 0.65, 0.014);
 
 /// Onomatopoeia text drawn on screen.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -239,6 +352,13 @@ impl Theme {
             }
             for level in &motion.levels {
                 let colors = std::iter::once(&level.text_color)
+                    .chain(level.manga.iter().map(|m| &m.accent_color))
+                    .chain(level.manga.iter().flat_map(|m| &m.palette))
+                    .chain(level.manga.iter().flat_map(|m| &m.backdrop).flat_map(|b| {
+                        [&b.inner, &b.outer]
+                            .into_iter()
+                            .chain(b.rays.iter().map(|r| &r.color))
+                    }))
                     .chain(level.particles.iter().flat_map(|p| &p.colors))
                     .chain(level.onomatopoeias.iter().map(|o| &o.color));
                 for color in colors {
@@ -248,6 +368,43 @@ impl Theme {
                 }
                 if level.letters.duration_ms == 0 {
                     return Err(fail(format!("{emotion}: letter duration must be > 0")));
+                }
+                if level
+                    .manga
+                    .as_ref()
+                    .is_some_and(|m| !(0.0..=1.0).contains(&m.depth))
+                {
+                    return Err(fail(format!("{emotion}: manga depth must be in [0, 1]")));
+                }
+                if level
+                    .manga
+                    .iter()
+                    .flat_map(|m| &m.backdrop)
+                    .any(|b| !(0.0..=1.0).contains(&b.opacity))
+                {
+                    return Err(fail(format!(
+                        "{emotion}: backdrop opacity must be in [0, 1]"
+                    )));
+                }
+                if level
+                    .manga
+                    .iter()
+                    .flat_map(|m| &m.backdrop)
+                    .flat_map(|b| &b.rays)
+                    .any(|r| !(8..=128).contains(&r.count) || !(0.0..=1.0).contains(&r.opacity))
+                {
+                    return Err(fail(format!(
+                        "{emotion}: rays need 8 to 128 lines and an opacity in [0, 1]"
+                    )));
+                }
+                if level
+                    .particles
+                    .iter()
+                    .any(|p| p.colors.is_empty() || p.lifetime_ms == 0)
+                {
+                    return Err(fail(format!(
+                        "{emotion}: emitters need colours and a positive lifetime"
+                    )));
                 }
                 if level
                     .screen
@@ -334,6 +491,16 @@ mod tests {
     use super::*;
 
     const ANIME: &str = include_str!("../../../themes/anime/theme.json");
+
+    #[test]
+    fn lettering_grows_with_depth_and_is_flat_at_zero() {
+        assert_eq!(letter_slant(0.0), 0.0);
+        assert_eq!(extrusion_steps(0.0), 0);
+        assert_eq!(extrusion_steps(0.5), 3);
+        assert_eq!(extrusion_steps(1.0), 5);
+        assert_eq!(extrusion_steps(7.0), 5, "depth is clamped");
+        assert!(letter_slant(1.0) > letter_slant(0.5));
+    }
 
     #[test]
     fn anime_theme_is_valid() {

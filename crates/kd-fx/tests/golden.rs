@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 
 use kd_core::{Emotion, Intensity};
-use kd_fx::render::{Layer, Renderer};
+use kd_fx::render::{Layer, Renderer, Stage};
 use kd_fx::scene::{sample, Motion};
 use kd_fx::Theme;
 use tiny_skia::Pixmap;
@@ -144,41 +144,64 @@ fn explicit_line_breaks_keep_letters_aligned_with_the_frame() {
 }
 
 #[test]
-fn overlay_keeps_the_conversation_visible_and_the_message_readable() {
+fn overlay_keeps_the_conversation_visible_and_leaves_the_message_to_the_bubble() {
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
-    let frame = sample(
-        theme.level(Emotion::Calm, Intensity::Low),
-        MESSAGE.chars().count(),
-        3000,
-        SEED,
-        Motion::Full,
-    );
-    let img = Renderer::new()
-        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+    let level = theme.level(Emotion::Energy, Intensity::Full);
+    let renderer = Renderer::new();
+    // Once the full-screen effects have faded, nothing is drawn at the corners: the conversation
+    // shows through.
+    let settled = sample(level, MESSAGE.chars().count(), 4000, SEED, Motion::Full);
+    let img = renderer
+        .render_over(&settled, MESSAGE, SIZE.0, SIZE.1)
         .unwrap();
-    // Nothing is drawn at the corners: the conversation shows through.
     assert_eq!(img.pixel(0, 0).unwrap().alpha(), 0);
     assert_eq!(img.pixel(SIZE.0 - 1, SIZE.1 - 1).unwrap().alpha(), 0);
-    // The letters (ink) and their white halo are drawn, so the message reads on a dark backdrop too.
-    let opaque = img.data().chunks(4).filter(|p| p[3] == 255).count();
-    assert!(opaque > 1500, "only {opaque} opaque pixels");
-    let white = img
+    let frame = sample(level, MESSAGE.chars().count(), 1060, SEED, Motion::Full);
+    let img = renderer
+        .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+        .unwrap();
+    // The effects play, but the message is not drawn (ADR-0019): the shell shows it in its bubble.
+    assert!(
+        img.data().chunks(4).any(|p| p[3] == 255),
+        "the effects are drawn"
+    );
+    let other = renderer
+        .render_over(&frame, "Autre texte, mêmes effets", SIZE.0, SIZE.1)
+        .unwrap();
+    assert_eq!(img.data(), other.data());
+}
+
+#[test]
+fn bubbles_carry_the_level_onomatopoeias() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let level = theme.level(Emotion::Anger, Intensity::Full);
+    assert!(!level.onomatopoeias.is_empty());
+    let mut silent = level.clone();
+    silent.onomatopoeias.clear();
+    let with = renderer.render_bubble(level, 320, 140, false).unwrap();
+    let without = renderer.render_bubble(&silent, 320, 140, false).unwrap();
+    let changed = with
         .data()
         .chunks(4)
-        .filter(|p| p[3] > 200 && p[0] > 240 && p[1] > 240 && p[2] > 240)
+        .zip(without.data().chunks(4))
+        .filter(|(a, b)| a != b)
         .count();
-    assert!(white > 50, "no white halo around the letters ({white})");
+    assert!(changed > 400, "only {changed} pixels stamped");
 }
 
 #[test]
 fn back_and_front_layers_add_up_to_the_overlay() {
     // Drawn at the same size, the front layer composited over the back layer is the overlay frame
-    // (ADR-0017), up to 8-bit rounding: the split loses nothing and draws nothing twice.
+    // (ADR-0017, ADR-0019), up to 8-bit rounding: the split loses nothing and draws nothing twice.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
-    for t in [300, 1060, 1500] {
+    for (emotion, t) in Emotion::ALL
+        .into_iter()
+        .flat_map(|e| [300, 1060, 1500].map(|t| (e, t)))
+    {
         let frame = sample(
-            theme.level(Emotion::Energy, Intensity::Full),
+            theme.level(emotion, Intensity::Full),
             MESSAGE.chars().count(),
             t,
             SEED,
@@ -206,9 +229,11 @@ fn back_and_front_layers_add_up_to_the_overlay() {
             .map(|(a, b)| a.abs_diff(*b))
             .max()
             .unwrap();
+        // Translucent ink drawn over the translucent backdrop rounds to 8 bits at each pass, so the
+        // split and the whole frame may drift by a few levels.
         assert!(
-            worst <= 4,
-            "t={t}: layers differ from the overlay by {worst}"
+            worst <= 8,
+            "{emotion:?} t={t}: layers differ from the overlay by {worst}"
         );
         assert_ne!(
             back.data(),
@@ -246,15 +271,7 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
     // far from the median). Checked on the settled frame and while the animation runs.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
-    let emotions = [
-        Emotion::Joy,
-        Emotion::Anger,
-        Emotion::Energy,
-        Emotion::Suspense,
-        Emotion::Sadness,
-        Emotion::Love,
-        Emotion::Calm,
-    ];
+    let emotions = Emotion::ALL;
     for emotion in emotions {
         for level in [Intensity::Low, Intensity::Medium, Intensity::Full] {
             for t in (0..=3200_u32).step_by(100) {
@@ -282,6 +299,95 @@ fn the_message_stays_readable_for_every_emotion_and_level() {
                     "{emotion:?} {level:?} t={t}: message contrast {ratio:.2}"
                 );
             }
+        }
+    }
+}
+
+#[test]
+fn the_message_stays_readable_during_an_impact_flash_over_a_manga_scene() {
+    // The letters keep their ink over a manga scene instead of turning white during a flash
+    // (ADR-0018): the flash must not hide them. Energy at full intensity flashes at 1000 ms.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let level = theme.level(Emotion::Energy, Intensity::Full);
+    assert!(level.manga.is_some());
+    let renderer = Renderer::new();
+    for t in (1000..=1120_u32).step_by(20) {
+        let frame = sample(level, MESSAGE.chars().count(), t, SEED, Motion::Full);
+        let img = renderer.render(&frame, MESSAGE, SIZE.0, SIZE.1).unwrap();
+        let mut lum: Vec<f64> = (2 * SIZE.1 / 5..3 * SIZE.1 / 5)
+            .flat_map(|y| (0..SIZE.0).map(move |x| (x, y)))
+            .map(|(x, y)| luminance(img.pixel(x, y).unwrap()))
+            .collect();
+        lum.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let n = lum.len();
+        let ratio = (lum[n - 1 - n / 20] + 0.05) / (lum[n / 20] + 0.05);
+        assert!(ratio >= 3.0, "t={t}: message contrast {ratio:.2}");
+    }
+}
+
+#[test]
+fn manga_situations_and_settled_bubbles() {
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    for emotion in Emotion::ALL {
+        let level = theme.level(emotion, Intensity::Full);
+        let frame = sample(level, MESSAGE.chars().count(), 1600, SEED, Motion::Full);
+        check(
+            &format!("{}-manga", emotion.id()),
+            &renderer
+                .render_over(&frame, MESSAGE, SIZE.0, SIZE.1)
+                .unwrap(),
+        );
+        for dark in [false, true] {
+            check(
+                &format!(
+                    "{}-bubble-{}",
+                    emotion.id(),
+                    if dark { "dark" } else { "light" }
+                ),
+                &renderer.render_bubble(level, 320, 140, dark).unwrap(),
+            );
+        }
+    }
+}
+
+/// A bubble low on the screen, as in a chat (fractions of the frame).
+const STAGE: Stage = Stage {
+    x: 0.30,
+    y: 0.58,
+    width: 0.62,
+    height: 0.10,
+};
+
+#[test]
+fn effects_frame_the_bubble_and_fill_the_screen() {
+    // ADR-0020: the coloured panel and its motifs cover the screen, the bubble stays clear.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    let (w, h) = (SIZE.0 as f32, SIZE.1 as f32);
+    for emotion in Emotion::ALL {
+        let level = theme.level(emotion, Intensity::Full);
+        // Past the impact flash and once every word has landed.
+        let frame = sample(level, MESSAGE.chars().count(), 1300, SEED, Motion::Full);
+        let image = renderer
+            .render_layer_on(&frame, SIZE.0, SIZE.1, Layer::Over, STAGE)
+            .unwrap();
+        let alpha = |x: f32, y: f32| {
+            image
+                .pixel((x * w) as u32, (y * h) as u32)
+                .map_or(0, |p| p.alpha())
+        };
+        check(&format!("{}-stage", emotion.id()), &image);
+        // The bubble's middle: at most a faded particle crossing it.
+        let inside = (0..5)
+            .flat_map(|i| (0..3).map(move |j| (0.36 + i as f32 * 0.12, 0.60 + j as f32 * 0.03)))
+            .map(|(x, y)| u32::from(alpha(x, y)))
+            .sum::<u32>()
+            / 15;
+        assert!(inside < 40, "{emotion:?}: the bubble is covered ({inside})");
+        // The far corners carry the backdrop.
+        for (x, y) in [(0.03, 0.03), (0.97, 0.03), (0.03, 0.97)] {
+            assert!(alpha(x, y) > 80, "{emotion:?}: no backdrop at ({x}, {y})");
         }
     }
 }

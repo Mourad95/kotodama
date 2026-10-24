@@ -46,4 +46,12 @@
     <string name="back_to_chat">Conversation</string>
     <string name="dark_chat_label">Dark conversation (readability test)</string>
     <string name="bundle_missing_short">Model missing: everything is animated as "calme".</string>
+    <string name="emotion_joy">Joy</string>
+    <string name="emotion_anger">Anger</string>
+    <string name="emotion_energy">Energy</string>
+    <string name="emotion_suspense">Suspense</string>
+    <string name="emotion_sadness">Sadness</string>
+    <string name="emotion_love">Love</string>
+    <string name="emotion_embarrassment">Embarrassment</string>
+    <string name="emotion_calm">Calm</string>
 </resources>

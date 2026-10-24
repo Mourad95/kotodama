@@ -15,6 +15,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import uniffi.kd_ffi.Animator
 import uniffi.kd_ffi.FrameLayer
+import uniffi.kd_ffi.FrameStage
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import uniffi.kd_ffi.MotionMode
@@ -46,7 +49,8 @@ data class AnalysisUi(val result: EmotionResult?, val latencyMs: Double, val err
 
 /**
  * One message of the conversation shown in the app. The conversation lives in memory only and is never
- * stored (docs/legal.md L18). [settled] turns true when its animation is over and the bubble shows.
+ * stored (docs/legal.md L18). [settled] turns true when its bubble shows: as soon as its animation starts,
+ * since the animation itself no longer draws the message (ADR-0019).
  */
 class ChatMessage(
     val id: Int,
@@ -58,6 +62,9 @@ class ChatMessage(
     settled: Boolean,
 ) {
     var settled by mutableStateOf(settled)
+
+    /** Where the bubble sits in the window, in pixels, once laid out: the animation frames it (ADR-0020). */
+    @Volatile var bounds: Rect? = null
 }
 
 /** The user's intensity setting (docs/roadmap.md): how much motion the animation shows. */
@@ -82,7 +89,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     @Volatile
     private var engine: EmotionEngine? = null
 
-    val bundleDir: File = File(app.getExternalFilesDir(null) ?: app.filesDir, "bundle")
+    var bundleDir: File by mutableStateOf(File(app.filesDir, "models"))
+        private set
 
     var text by mutableStateOf("")
     var engineState: EngineState by mutableStateOf(EngineState.Loading)
@@ -157,6 +165,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     private var viewportWidth: Int = app.resources.displayMetrics.widthPixels
     private var viewportHeight: Int = app.resources.displayMetrics.heightPixels
+    @Volatile private var viewportOrigin: Offset = Offset.Zero
 
     /** Called with the size in pixels of the area the animation plays over, so frames match it exactly. */
     fun setViewport(widthPx: Int, heightPx: Int) {
@@ -164,6 +173,23 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             viewportWidth = widthPx
             viewportHeight = heightPx
         }
+    }
+
+    /** Called with where the animation area starts in the window, so the effects find the bubble. */
+    fun setViewportOrigin(origin: Offset) {
+        viewportOrigin = origin
+    }
+
+    /** The bubble of [message] as fractions of the animation area, or null while it is not laid out. */
+    private fun stageOf(message: ChatMessage): FrameStage? {
+        val b = message.bounds ?: return null
+        val o = viewportOrigin
+        return FrameStage(
+            (b.left - o.x) / viewportWidth,
+            (b.top - o.y) / viewportHeight,
+            b.width / viewportWidth,
+            b.height / viewportHeight,
+        )
     }
 
     fun chooseDarkChat(value: Boolean) {
@@ -198,11 +224,12 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Plays the animation of [message] over the conversation, then fades the overlay out and lets the
-     * message settle in its bubble. The text is only handed to the renderer: it is never logged or stored.
-     * Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the letters and
-     * particles near screen resolution. Both sizes follow the animation area; they are lowered, one quality
-     * step at a time, while frames take too long.
+     * Plays the animation of [message] over the conversation (the coloured panel fills the screen and
+     * the ink frames the message's bubble, which carries the text, ADR-0020), then fades the overlay
+     * out. The text is only handed to the renderer: it is never logged or stored, and the overlay does not
+     * draw it (ADR-0019). Each frame is drawn as two layers at once (ADR-0017): the soft effects small, the
+     * inked lines, particles and onomatopoeias at screen resolution. While frames take too long, only the
+     * soft layer is drawn smaller, one quality step at a time: the inked layer never loses sharpness.
      */
     private fun play(message: ChatMessage) {
         val animator = animator ?: run { message.settled = true; return }
@@ -210,6 +237,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         animJob = viewModelScope.launch {
             overlayActive = true
             overlayAlpha = 1f
+            // The overlay plays the effects around the bubble, which carries the message from the start.
+            message.settled = true
             try {
                 val emotion = message.emotion
                 val text = message.text
@@ -240,8 +269,10 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 while (isActive) {
                     val t = (SystemClock.elapsedRealtime() - start).coerceAtMost(duration)
                     val begun = System.nanoTime()
+                    // Read every frame: the bubble may still move while the list settles.
+                    val stage = stageOf(message)
                     fun draw(layer: FrameLayer, w: Int) =
-                        animator.render(emotion, level, mode, text, t.toUInt(), w.toUInt(), height(w).toUInt(), SEED, layer)
+                        animator.render(emotion, level, mode, text, t.toUInt(), w.toUInt(), height(w).toUInt(), SEED, layer, stage)
                     val (back, front) = try {
                         coroutineScope {
                             val back = async(backDispatcher) { draw(FrameLayer.BACK, backWidth) }
@@ -259,7 +290,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                     hasPlayed = true
                     renderStats = RenderStats(frames, total / frames, worst, frontWidth, backWidth)
                     if (frames % ADAPT_EVERY == 0) {
-                        // Too slow: draw both layers smaller (they are stretched to the animation area).
+                        // Too slow: draw the soft layer smaller (it is stretched to the animation area).
                         if (recent / ADAPT_EVERY > SLOW_FRAME_MS && step < QUALITY_STEPS.lastIndex) {
                             step++
                             allocate()
@@ -291,25 +322,22 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         // Private storage: only the app can write the receipt that lets later opens skip the checksums.
         val receipt = File(app.filesDir, "bundle.receipt")
         viewModelScope.launch(engineDispatcher) {
-            val state = if (!File(bundleDir, "manifest.json").isFile) {
-                EngineState.Fallback(null)
-            } else {
-                val before = memorySnapshot()
-                val t0 = System.nanoTime()
-                try {
-                    val opened = EmotionEngine.open(bundleDir.absolutePath, ortPath, receipt.absolutePath)
-                    engine = opened
-                    val timings = opened.openTimings()
-                    EngineState.Ready(
-                        (System.nanoTime() - t0) / 1_000_000,
-                        timings.verifyMs.toLong(), timings.loadMs.toLong(), before, memorySnapshot(),
-                    )
-                } catch (e: Exception) {
-                    // Only the exception class: its message could in theory echo input.
-                    EngineState.Fallback(e.javaClass.simpleName)
-                } catch (e: UnsatisfiedLinkError) {
-                    EngineState.Fallback(e.javaClass.simpleName)
-                }
+            val before = memorySnapshot()
+            val t0 = System.nanoTime()
+            val state = try {
+                val prepared = BundledModel.prepare(File(app.filesDir, "models")) { path -> app.assets.open(path) }
+                bundleDir = prepared
+                val opened = EmotionEngine.open(prepared.absolutePath, ortPath, receipt.absolutePath)
+                engine = opened
+                val timings = opened.openTimings()
+                EngineState.Ready(
+                    (System.nanoTime() - t0) / 1_000_000,
+                    timings.verifyMs.toLong(), timings.loadMs.toLong(), before, memorySnapshot(),
+                )
+            } catch (e: Exception) {
+                EngineState.Fallback(e.javaClass.simpleName)
+            } catch (e: UnsatisfiedLinkError) {
+                EngineState.Fallback(e.javaClass.simpleName)
             }
             engineState = state
         }
@@ -331,7 +359,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, writingLevel)
                 else -> app.getString(R.string.caption_fallback, writingLevel)
             }
-            val accent = animator?.accentColor(emotion)?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
+            val accent = animator?.bubbleLook(emotion, writingLevel.toUByte())?.ink?.let { runCatching { Color(android.graphics.Color.parseColor(it)) }.getOrNull() }
                 ?: Color(0xFF444444)
             val message = ChatMessage(nextId++, input, true, emotion, accent, writingLevel, false)
             messages.add(message)
@@ -396,9 +424,10 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         const val WARM_UP = 5
         /**
          * Drawing sizes of the front and back layers as fractions of the animation area's width, from the
-         * sharpest to the cheapest (ADR-0017).
+         * sharpest to the cheapest (ADR-0017). The front layer holds every hard edge, so it always stays at
+         * screen resolution (ADR-0019); only the soft back layer shrinks.
          */
-        val QUALITY_STEPS = listOf(1f to 0.4f, 0.8f to 0.33f, 0.65f to 0.25f)
+        val QUALITY_STEPS = listOf(1f to 0.5f, 1f to 0.4f, 1f to 0.33f)
         /** Largest frame side the engine draws. */
         const val MAX_SIDE = 2048
         const val ADAPT_EVERY = 12

@@ -53,8 +53,7 @@ text ──► kd-grammar.check(text, lang) ──► issues (spans, suggestions
 
 ## Emotion engine (ADR-0003, ADR-0004)
 
-"Typed choice": the engine is given the 7 emotions, each described by a description and examples
-(`prototypes.json`), and returns a choice, a probability per emotion and a confidence in [0, 1].
+"Typed choice": the engine is trained on labelled examples (eight categories in Dataset emotions, seven in legacy prototype bundles), and returns a choice, a probability per emotion and a confidence in [0, 1].
 
 The **model bundle** produced by `tools/model-export/` contains:
 
@@ -62,11 +61,12 @@ The **model bundle** produced by `tools/model-export/` contains:
 |---|---|
 | `model_q4.onnx` | EmbeddingGemma, vocabulary pruned to FR+EN, full sentence-embedding graph (transformer + pooling + dense + normalize), 4-bit weights |
 | `tokenizer.json` | pruned tokenizer, Hugging Face `tokenizers` format |
-| `emotion_head.json` | few-shot linear head trained on the prototypes: labels, weights, bias |
+| `emotion_head.json` | few-shot linear head trained on Dataset emotions (or explicit legacy prototypes): labels, weights, bias |
 | `parity.json` | reference messages with expected probabilities, for the Rust parity test |
 | `manifest.json` | versions, source model, checksums, quality metrics |
 
-Changing prototypes = re-running the export of the head only (seconds), not the model.
+Enriching Dataset emotions means rerunning the head export, reusing the existing embedding graph.
+The editable workbook is the default training source (ADR-0018); see `data/emotions/README.md`.
 
 ## Effects engine (ADR-0005)
 

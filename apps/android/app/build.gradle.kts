@@ -1,3 +1,6 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -18,10 +21,18 @@ android {
         applicationId = "app.kotomotion.spike"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0-beta"
+        versionCode = 3
+        versionName = "0.3.0-beta"
         // The Rust core is built for these two ABIs only (build-core.sh).
         ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
+    }
+
+    // A shared debug key keeps installs updatable across machines; without it, the default debug key is used.
+    val sharedDebugKey = rootProject.file(".signing/debug.keystore")
+    if (sharedDebugKey.exists()) {
+        signingConfigs.getByName("debug") {
+            storeFile = sharedDebugKey
+        }
     }
 
     buildTypes {
@@ -47,7 +58,9 @@ android {
         getByName("main").java.srcDir("src/main/generated")
         // bench_messages.txt generated from the dev set (never from test_v2).
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/bench-assets"))
-        // theme.json copied from themes/anime (the one source of truth for the animation).
+        // Verified model bundle embedded in the APK; no runtime network or manual adb copy.
+        getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/model-assets"))
+        // theme.json copied from themes/anime (the one source of truth for the animation), and the lettering font.
         getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/theme-assets"))
     }
 
@@ -60,6 +73,8 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
     implementation(platform("androidx.compose:compose-bom:2025.12.01"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.material3:material3")
@@ -84,6 +99,47 @@ val buildCore = tasks.register<Exec>("buildCore") {
     inputs.file(repoRoot.resolve("apps/android/build-core.sh"))
     outputs.dir(mainSrc.resolve("jniLibs"))
     outputs.dir(mainSrc.resolve("generated"))
+}
+
+// --- Packaged model --------------------------------------------------------------------------
+// Generated weights stay out of git. A missing/corrupt model is a build failure, never a silent
+// model-free APK. Override the default bundle/ with -PmodelBundleDir=/absolute/path/to/bundle.
+val modelBundleSource = providers.gradleProperty("modelBundleDir").orNull?.let { file(it) }
+    ?: repoRoot.resolve("bundle")
+val packagedModelFiles = setOf("manifest.json", "model_q4.onnx", "model_q4.onnx_data", "tokenizer.json", "emotion_head.json", "parity.json")
+val copyModelBundle = tasks.register<Sync>("copyModelBundle") {
+    group = "build"
+    description = "Verifies the model checksums and embeds the bundle in the APK assets."
+    from(modelBundleSource) { into("model"); include(packagedModelFiles) }
+    into(layout.buildDirectory.dir("generated/model-assets"))
+    doFirst {
+        val manifestFile = modelBundleSource.resolve("manifest.json")
+        check(manifestFile.isFile) { "Model bundle missing: export bundle/ or set -PmodelBundleDir=/path/to/bundle" }
+        val manifest = JsonSlurper().parse(manifestFile) as Map<*, *>
+        check(manifest["licence"] == "Apache-2.0") { "The bundled model must carry its approved Apache-2.0 licence" }
+        val checksums = manifest["files"] as? Map<*, *> ?: error("Model manifest has no file checksums")
+        check(checksums.keys.containsAll(listOf("model_q4.onnx", "tokenizer.json", "emotion_head.json"))) { "Incomplete model bundle" }
+        checksums.forEach { (key, value) ->
+            val name = key as? String ?: error("Invalid model filename")
+            check(name in packagedModelFiles && name != "manifest.json") { "Unsupported model file" }
+            val expected = value as? String ?: error("Invalid model checksum")
+            check(Regex("[a-f0-9]{64}").matches(expected)) { "Invalid SHA-256 for model file" }
+            val source = modelBundleSource.resolve(name)
+            check(source.isFile) { "Missing model file: $name" }
+            val hash = MessageDigest.getInstance("SHA-256")
+            source.inputStream().buffered().use { input ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    hash.update(buffer, 0, count)
+                }
+            }
+            val actual = hash.digest().joinToString("") { "%02x".format(it.toInt() and 0xff) }
+            check(actual == expected) { "Model checksum mismatch: $name" }
+        }
+        logger.lifecycle("copyModelBundle: ${checksums.size} model files verified")
+    }
 }
 
 // --- Benchmark messages ----------------------------------------------------------------------
@@ -111,8 +167,13 @@ val benchMessages = tasks.register("generateBenchMessages") {
 // --- Theme ------------------------------------------------------------------------------------
 val copyTheme = tasks.register<Copy>("copyTheme") {
     group = "build"
-    description = "Copies themes/anime/theme.json into the app assets."
+    description = "Copies themes/anime/theme.json and the bubble lettering font (with its licence) into the app assets."
     from(repoRoot.resolve("themes/anime/theme.json"))
+    // The font the engine draws with also letters the bubbles; its OFL text ships with it (docs/legal.md L11).
+    from(repoRoot.resolve("crates/kd-fx/assets/fonts")) {
+        include("NotoSansJP-Bold-subset.ttf", "OFL.txt")
+        into("fonts")
+    }
     into(layout.buildDirectory.dir("generated/theme-assets"))
 }
 
@@ -179,6 +240,6 @@ val verifyPrivacy = tasks.register("verifyPrivacy") {
     }
 }
 
-tasks.named("preBuild") { dependsOn(buildCore, benchMessages, copyTheme) }
+tasks.named("preBuild") { dependsOn(buildCore, benchMessages, copyTheme, copyModelBundle) }
 tasks.named("check") { dependsOn(verifyPrivacy) }
 tasks.matching { it.name == "assembleDebug" || it.name == "assembleRelease" }.configureEach { finalizedBy(verifyPrivacy) }

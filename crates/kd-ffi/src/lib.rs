@@ -137,12 +137,13 @@ impl From<MotionMode> for kd_fx::scene::Motion {
 pub enum FrameLayer {
     /// Everything, on a light opaque background (export).
     Opaque,
-    /// Everything, on a transparent background, to play over a conversation.
+    /// Every effect, on a transparent background, to play over a conversation. The message itself is
+    /// not drawn: the shell shows it in its bubble (ADR-0019).
     Over,
-    /// Only the soft screen effects, transparent: draw it small and scale it up.
+    /// Only the soft screen effects (flash, tint, spotlight), transparent: draw it small and scale it up.
     Back,
-    /// Only the particles, the message and the onomatopoeias, transparent: draw it at screen
-    /// resolution, over [`FrameLayer::Back`].
+    /// The hard-edged screen effects, the particles, the manga ink and the onomatopoeias, transparent:
+    /// draw it at screen resolution, over [`FrameLayer::Back`].
     Front,
 }
 
@@ -155,6 +156,38 @@ impl From<FrameLayer> for kd_fx::render::Layer {
             FrameLayer::Front => Self::Front,
         }
     }
+}
+
+/// Where the message bubble sits in a frame, as fractions of the frame's width and height from its
+/// top left (ADR-0020). The overlay layers anchor their effects on it and keep it clear.
+#[derive(Debug, Clone, Copy, PartialEq, uniffi::Record)]
+pub struct FrameStage {
+    /// Left edge.
+    pub x: f32,
+    /// Top edge.
+    pub y: f32,
+    /// Width.
+    pub width: f32,
+    /// Height.
+    pub height: f32,
+}
+
+/// How the shell letters a message in its bubble (ADR-0019): colours `#RRGGBB` from the theme and the
+/// same slant and extrusion as the renderer's letters, so the rule lives in one place.
+#[derive(Debug, Clone, PartialEq, uniffi::Record)]
+pub struct BubbleLook {
+    /// Colour of the letters.
+    pub ink: String,
+    /// Colour of the letters' extruded side.
+    pub accent: String,
+    /// Horizontal skew of the letters to the right (0 is upright).
+    pub slant: f32,
+    /// Number of offset copies that extrude the letters (0 is flat).
+    pub extrusion_steps: u32,
+    /// Offset of each copy to the right, as a fraction of the font size.
+    pub extrusion_dx: f32,
+    /// Offset of each copy downwards, as a fraction of the font size.
+    pub extrusion_dy: f32,
 }
 
 /// Largest frame an [`Animator`] draws, per side, in pixels.
@@ -210,15 +243,49 @@ impl Animator {
         kd_fx::scene::duration_ms(&level, message_length as usize, mode.into())
     }
 
-    /// Colour of the message text of an emotion (`#RRGGBB`): the shell tints the message bubble with it.
-    pub fn accent_color(&self, emotion_id: String) -> String {
-        animation_level(&self.theme, &emotion_id, 3).text_color
+    /// How to letter a message of this emotion and writing level in its bubble.
+    pub fn bubble_look(&self, emotion_id: String, writing_level: u8) -> BubbleLook {
+        let level = animation_level(&self.theme, &emotion_id, writing_level);
+        let (accent, depth) = level.manga.as_ref().map_or_else(
+            || (level.text_color.clone(), 0.0),
+            |m| (m.accent_color.clone(), m.depth.clamp(0.0, 1.0)),
+        );
+        let (extrusion_dx, extrusion_dy) = kd_fx::EXTRUSION_STEP;
+        BubbleLook {
+            ink: level.text_color,
+            accent,
+            slant: kd_fx::letter_slant(depth),
+            extrusion_steps: kd_fx::extrusion_steps(depth),
+            extrusion_dx,
+            extrusion_dy,
+        }
+    }
+
+    /// Draws a permanent manga bubble decoration in premultiplied RGBA: the inked panel and the
+    /// level's onomatopoeias.
+    /// The shell lays out native, accessible text above it; no message text crosses this call.
+    pub fn render_bubble(
+        &self,
+        emotion_id: String,
+        writing_level: u8,
+        width: u32,
+        height: u32,
+        dark: bool,
+    ) -> Result<Vec<u8>, EngineError> {
+        guarded(|| {
+            let level = animation_level(&self.theme, &emotion_id, writing_level);
+            self.renderer
+                .render_bubble(&level, width, height, dark)
+                .map(|image| image.take())
+                .ok_or_else(|| EngineError::Animation("unsupported bubble size".into()))
+        })
     }
 
     /// Draws the animation of `message` at `t_ms` after its start, as `width` x `height` pixels in
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
     /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
-    /// screen area, whatever their pixel sizes.
+    /// screen area, whatever their pixel sizes. With a `stage`, the overlay layers frame the bubble
+    /// there and fill the rest of the screen (ADR-0020); the opaque layer ignores it.
     /// The text is only drawn: it is never logged, stored or put in an error.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
@@ -232,6 +299,7 @@ impl Animator {
         height: u32,
         seed: u64,
         layer: FrameLayer,
+        stage: Option<FrameStage>,
     ) -> Result<Vec<u8>, EngineError> {
         guarded(|| {
             if width == 0 || height == 0 || width > MAX_FRAME_SIDE || height > MAX_FRAME_SIDE {
@@ -241,10 +309,24 @@ impl Animator {
             let level = animation_level(&self.theme, &emotion_id, writing_level);
             let frame =
                 kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
-            let pixmap = self
-                .renderer
-                .render_layer(&frame, &message, width, height, layer.into())
-                .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
+            let pixmap = match stage.filter(|_| layer != FrameLayer::Opaque) {
+                Some(s) => self.renderer.render_layer_on(
+                    &frame,
+                    width,
+                    height,
+                    layer.into(),
+                    kd_fx::render::Stage {
+                        x: s.x,
+                        y: s.y,
+                        width: s.width,
+                        height: s.height,
+                    },
+                ),
+                None => self
+                    .renderer
+                    .render_layer(&frame, &message, width, height, layer.into()),
+            }
+            .ok_or_else(|| EngineError::Animation("cannot allocate the frame".into()))?;
             Ok(pixmap.take())
         })
     }
@@ -361,6 +443,34 @@ mod tests {
     const ANIME: &str = include_str!("../../../themes/anime/theme.json");
 
     #[test]
+    fn bubble_decoration_is_separate_from_text_and_rejects_invalid_sizes() {
+        let animator = Animator::new(ANIME.into()).unwrap();
+        let light = animator
+            .render_bubble("genance".into(), 3, 180, 80, false)
+            .unwrap();
+        let dark = animator
+            .render_bubble("genance".into(), 3, 180, 80, true)
+            .unwrap();
+        assert_eq!(light.len(), 180 * 80 * 4);
+        assert_ne!(light, dark);
+        assert_eq!(light[3], 0);
+        let look = animator.bubble_look("colere".into(), 3);
+        assert_eq!(look.accent, "#D7263D");
+        assert!(look.slant > 0.0 && look.slant <= 0.16);
+        assert!((3..=5).contains(&look.extrusion_steps));
+        assert_eq!(
+            animator.bubble_look("inconnue".into(), 3),
+            animator.bubble_look("calme".into(), 3)
+        );
+        assert!(animator
+            .render_bubble("genance".into(), 3, 0, 80, false)
+            .is_err());
+        assert!(animator
+            .render_bubble("genance".into(), 3, 4096, 80, false)
+            .is_err());
+    }
+
+    #[test]
     fn animator_draws_frames_and_reports_durations() {
         let a = Animator::new(ANIME.into()).unwrap();
         let (w, h) = (90, 160);
@@ -375,6 +485,7 @@ mod tests {
                 h,
                 1,
                 FrameLayer::Opaque,
+                None,
             )
             .unwrap()
         };
@@ -413,31 +524,116 @@ mod tests {
     fn overlay_frames_are_transparent_where_nothing_is_drawn() {
         let a = Animator::new(ANIME.into()).unwrap();
         let (w, h) = (90, 160);
-        let settled = a
-            .render(
+        let over = |message: &str, t| {
+            a.render(
                 "joie".into(),
                 3,
-                MotionMode::Minimal,
-                "Bravo".into(),
-                5000,
+                MotionMode::Full,
+                message.into(),
+                t,
                 w,
                 h,
                 1,
                 FrameLayer::Over,
+                None,
             )
-            .unwrap();
+            .unwrap()
+        };
+        let settled = over("Bravo", 5000);
         let alpha = |x: u32, y: u32| settled[((y * w + x) * 4 + 3) as usize];
         assert_eq!(alpha(0, 0), 0, "the corner is transparent");
         assert_eq!(alpha(w - 1, h - 1), 0);
+        // The message is left to the bubble (ADR-0019): its text changes nothing in the overlay.
+        assert!(over("Bravo", 900).chunks(4).any(|px| px[3] > 0));
+        assert_eq!(over("Bravo", 900), over("Salut", 900));
+        assert_eq!(a.bubble_look("joie".into(), 3).ink, "#7A3E00");
+    }
+
+    #[test]
+    fn overlay_frames_anchor_on_the_stage() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let (w, h) = (90, 160);
+        let stage = FrameStage {
+            x: 0.2,
+            y: 0.6,
+            width: 0.7,
+            height: 0.12,
+        };
+        let over = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                w,
+                h,
+                1,
+                FrameLayer::Over,
+                stage,
+            )
+            .unwrap()
+        };
+        let anchored = over(Some(stage));
+        let alpha = |x: u32, y: u32| anchored[((y * w + x) * 4 + 3) as usize];
+        assert!(alpha(1, 1) > 0, "the backdrop fills the screen");
         assert!(
-            settled.chunks(4).any(|px| px[3] == 255),
-            "the message itself is drawn"
+            alpha(w / 2 + 5, (0.66 * h as f32) as u32) < 64,
+            "the bubble stays clear"
         );
-        assert_eq!(a.accent_color("joie".into()), "#7A3E00");
-        assert_eq!(
-            a.accent_color("inconnue".into()),
-            a.accent_color("calme".into())
-        );
+        assert_ne!(anchored, over(None));
+        // The opaque export ignores the stage.
+        let opaque = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                w,
+                h,
+                1,
+                FrameLayer::Opaque,
+                stage,
+            )
+            .unwrap()
+        };
+        assert_eq!(opaque(Some(stage)), opaque(None));
+    }
+
+    #[test]
+    fn a_broken_stage_falls_back_to_the_centred_panel() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let over = |stage| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                "Bravo".into(),
+                900,
+                90,
+                160,
+                1,
+                FrameLayer::Over,
+                stage,
+            )
+            .unwrap()
+        };
+        let centred = over(None);
+        for (x, y, width, height) in [
+            (f32::NAN, 0.6, 0.7, 0.12),
+            (0.2, f32::INFINITY, 0.7, 0.12),
+            (0.2, 0.6, -0.7, 0.12),
+            (0.2, 0.6, 0.7, 0.0),
+        ] {
+            let stage = FrameStage {
+                x,
+                y,
+                width,
+                height,
+            };
+            assert_eq!(over(Some(stage)), centred, "{stage:?}");
+        }
     }
 
     #[test]
@@ -458,7 +654,8 @@ mod tests {
                     w,
                     h,
                     1,
-                    FrameLayer::Opaque
+                    FrameLayer::Opaque,
+                    None,
                 )
                 .is_err());
         }
@@ -473,7 +670,8 @@ mod tests {
                 90,
                 160,
                 1,
-                FrameLayer::Opaque
+                FrameLayer::Opaque,
+                None,
             )
             .is_ok());
         assert!(a
@@ -486,7 +684,8 @@ mod tests {
                 90,
                 160,
                 1,
-                FrameLayer::Opaque
+                FrameLayer::Opaque,
+                None,
             )
             .is_ok());
     }

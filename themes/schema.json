@@ -22,12 +22,44 @@
         "suspense": { "$ref": "#/$defs/motion" },
         "tristesse": { "$ref": "#/$defs/motion" },
         "amour": { "$ref": "#/$defs/motion" },
-        "calme": { "$ref": "#/$defs/motion" }
+        "calme": { "$ref": "#/$defs/motion" },
+        "genance": { "$ref": "#/$defs/motion" }
       }
     }
   },
   "$defs": {
     "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+    "manga": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["motif", "accent_color", "depth"],
+      "properties": {
+        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush", "neon"] },
+        "accent_color": { "$ref": "#/$defs/color" },
+        "depth": { "type": "number", "minimum": 0, "maximum": 1 },
+        "palette": { "type": "array", "items": { "$ref": "#/$defs/color" } },
+        "backdrop": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["inner", "outer", "opacity"],
+          "properties": {
+            "inner": { "$ref": "#/$defs/color" },
+            "outer": { "$ref": "#/$defs/color" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "rays": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["count", "color", "opacity"],
+              "properties": {
+                "count": { "type": "integer", "minimum": 8, "maximum": 128 },
+                "color": { "$ref": "#/$defs/color" },
+                "opacity": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
     "motion": {
       "type": "object",
       "additionalProperties": false,
@@ -52,12 +84,13 @@
       "properties": {
         "level": { "enum": [1, 2, 3] },
         "text_color": { "$ref": "#/$defs/color" },
+        "manga": { "$ref": "#/$defs/manga" },
         "letters": {
           "type": "object",
           "additionalProperties": false,
           "required": ["kind", "duration_ms", "stagger_ms"],
           "properties": {
-            "kind": { "enum": ["rise", "pop", "impact", "charge", "type", "drip", "bloom", "glitch"] },
+            "kind": { "enum": ["rise", "pop", "impact", "charge", "type", "drip", "bloom", "glitch", "shy"] },
             "duration_ms": { "type": "integer", "minimum": 1 },
             "stagger_ms": { "type": "integer", "minimum": 0 }
           }
@@ -69,7 +102,7 @@
             "additionalProperties": false,
             "required": ["kind", "count", "colors", "lifetime_ms"],
             "properties": {
-              "kind": { "enum": ["confetti", "stars", "aura", "hearts", "petals", "rain", "embers"] },
+              "kind": { "enum": ["confetti", "stars", "aura", "hearts", "petals", "rain", "embers", "sparks"] },
               "count": { "type": "integer", "minimum": 0 },
               "colors": { "type": "array", "items": { "$ref": "#/$defs/color" }, "minItems": 1 },
               "lifetime_ms": { "type": "integer", "minimum": 1 }

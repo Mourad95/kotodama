@@ -134,17 +134,13 @@ The current engine (EmbeddingGemma, pruned FR+EN, Q4, few-shot head) reaches 86.
 
 ## Decisions for later (not implemented yet)
 
-- **Ephemeral animation (owner, 2026-10-23).** The animation should play for a limited time, around
-  4 to 5 seconds, then end. Not built: today a theme's timeline is whatever its effects declare
-  (about 2 s for the anime energy level 3). To settle when it is implemented: what stays on screen
-  afterwards (the message alone?), whether the user can replay it, and a hard cap on a level's total
-  duration enforced when a theme loads, like the photosensitivity limits (L26).
-- **Intensity setting (owner, 2026-10-23).** A user-facing control with three positions: full,
-  gentle, minimal. The sampler already has `Motion::{Full, Gentle, Reduced}`; the control belongs to
-  the shells (M5) and the OS reduced-motion setting must force minimal.
+- **Ephemeral animation (owner, 2026-10-23).** Implemented in the sampler with a 4.5 s hard cap,
+  compressed letter stagger for long messages, and a final overlay fade. Static manga styling
+  remains inside the bubble (ADR-0018). Tapping a sent bubble replays its animation.
+- **Intensity setting (owner, 2026-10-23).** Full, gentle and minimal are exposed in the Android
+  settings. The shell forces minimal when it observes the system animator duration scale at zero.
 - **Visual style (owner, 2026-10-23).** Sober, with the message always easy to read, manga look inspired by
-  the owner's mockups (a coloured comedy burst and a black-and-white impact burst). The current look of the
-  CPU renderer is a placeholder to be reworked against them.
+  the owner's mockups (a coloured comedy burst and a black-and-white impact burst). Implemented by ADR-0018 with emotion-specific manga motifs and persistent bubble ink; device review remains.
 - **Emoji stickers (owner, 2026-10-23, postponed).** Native emojis redrawn in manga style, animated, chosen
   from a dedicated picker; the animation plays, then the emoji stays still. Artwork idea: a hand-made set of
   about 30 plus an automatic manga filter over an open-licence base (Noto Emoji, Apache-2.0; check LICENSE
@@ -154,3 +150,13 @@ The current engine (EmbeddingGemma, pruned FR+EN, Q4, few-shot head) reaches 86.
   screen and transparent over the conversation, then the message returns to its bubble, still. The product is a
   keyboard for messaging apps such as WhatsApp and the native messages app: there the animation is inserted
   as an animated WebP (M6/M7), since a keyboard cannot draw over another app.
+
+## Implementation update — 2026-10-23
+
+Situational manga motifs, deterministic depth layers and static themed conversation bubbles are
+implemented in the shared CPU renderer and Android shell (ADR-0018). The anime theme includes
+`genance`; existing seven-label heads remain compatible. The editable **Dataset emotions**
+(`data/emotions/dataset_emotions.xlsx`) is the default source for the next head export.
+These changes do not close M3: GPU rendering, physical-device frame budgets and eight-category
+model evaluation are still required. Historical milestone statuses and benchmark results above
+have not been reinterpreted as new measurements.

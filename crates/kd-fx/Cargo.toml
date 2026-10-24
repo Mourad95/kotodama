@@ -26,5 +26,9 @@ required-features = ["cpu-render"]
 name = "bench_render"
 required-features = ["cpu-render"]
 
+[[example]]
+name = "manga_preview"
+required-features = ["cpu-render"]
+
 [lints]
 workspace = true
