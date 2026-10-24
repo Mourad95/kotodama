@@ -2,7 +2,7 @@
   "schema_version": 1,
   "id": "anime",
   "name": "Anime",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "emotions": {
     "joie": {
       "levels": [
@@ -242,6 +242,33 @@
           "screen": [],
           "onomatopoeias": [{"text": "ハズーン", "color": "#C6E84A", "scale": 1.05, "at_ms": 200}, {"text": "もじもじ", "color": "#FF7EC4", "scale": 0.85, "at_ms": 900}],
           "manga": {"motif": "blush", "accent_color": "#C77DFF", "depth": 0.8, "palette": ["#FFE14D", "#FFFFFF", "#FFB3D9"], "backdrop": {"inner": "#9B5DE5", "outer": "#4A1E8C", "opacity": 0.88}}
+        }
+      ]
+    },
+    "neutre": {
+      "levels": [
+        {
+          "level": 1,
+          "text_color": "#343A40",
+          "letters": {"kind": "rise", "duration_ms": 400, "stagger_ms": 15},
+          "manga": {"motif": "breeze", "accent_color": "#868E96", "depth": 0.0, "palette": ["#ADB5BD", "#CED4DA"]},
+          "screen": []
+        },
+        {
+          "level": 2,
+          "text_color": "#343A40",
+          "letters": {"kind": "rise", "duration_ms": 400, "stagger_ms": 15},
+          "particles": [{"kind": "stars", "count": 2, "colors": ["#ADB5BD", "#CED4DA"], "lifetime_ms": 800}],
+          "manga": {"motif": "breeze", "accent_color": "#868E96", "depth": 0.008, "palette": ["#ADB5BD", "#CED4DA"]},
+          "screen": []
+        },
+        {
+          "level": 3,
+          "text_color": "#343A40",
+          "letters": {"kind": "rise", "duration_ms": 400, "stagger_ms": 15},
+          "particles": [{"kind": "stars", "count": 3, "colors": ["#ADB5BD", "#CED4DA"], "lifetime_ms": 800}],
+          "manga": {"motif": "breeze", "accent_color": "#868E96", "depth": 0.015, "palette": ["#ADB5BD", "#CED4DA"]},
+          "screen": []
         }
       ]
     }

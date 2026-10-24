@@ -43,7 +43,7 @@ pub struct Manifest {
     pub schema: u32,
     /// Text prepended to every message before tokenization.
     pub prompt: String,
-    /// Confidence threshold below which `calme` is used (ADR-0008).
+    /// Confidence threshold below which `neutre` is used (ADR-0008, ADR-0021).
     pub threshold: f32,
     /// Embedding size produced by the model.
     pub embedding_dim: usize,

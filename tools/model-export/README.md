@@ -30,7 +30,7 @@ python tools/model-export/export_mobile.py --prototypes research/emotion-benchma
 python -m pytest tools/model-export                         # pure-logic tests, no model needed
 ```
 
-The default dataset has eight labels, including `genance`. Append examples to its category
+The default dataset has nine labels, including `genance` and `neutre` (ADR-0021). Append examples to its category
 sheets, then rerun the exporter: no prototype regeneration is needed. Import instructions:
 [`Dataset emotions`](../../data/emotions/README.md). The source filename, SHA-256 and training
 count are stored in the manifest. The existing ONNX graph and tokenizer are reused; they must

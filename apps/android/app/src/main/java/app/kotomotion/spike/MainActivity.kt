@@ -269,7 +269,7 @@ private fun SettingsPanel(vm: SpikeViewModel, modifier: Modifier) {
 @Composable
 private fun EmotionChooser(vm: SpikeViewModel) {
     Text(stringResource(R.string.emotion_label), style = MaterialTheme.typography.titleSmall)
-    val emotions = listOf("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance")
+    val emotions = listOf("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance", "neutre")
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         FilterChip(
             selected = vm.forcedEmotion == null,

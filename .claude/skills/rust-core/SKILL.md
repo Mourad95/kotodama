@@ -24,7 +24,7 @@ Tests use tiny fakes (a keyword embedder), not mocks of the thing under test.
   (`DimensionMismatch { expected, got }`). No `anyhow` in library crates; allowed in binaries/tools.
 - No `unwrap`/`expect`/indexing panics on external input (files, models, text). `expect` only for an
   invariant already validated, with the invariant in the message (see `Theme::level`).
-- A failure in analysis must degrade gracefully in the shell: fall back to `calme`, never crash a
+- A failure in analysis must degrade gracefully in the shell: fall back to `neutre`, never crash a
   keyboard.
 
 ## Data files

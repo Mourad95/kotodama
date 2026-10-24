@@ -1,6 +1,6 @@
 """Read and validate the editable Dataset emotions workbook, without spreadsheet dependencies.
 
-The eight category sheets are authoritative. Tous_les_messages is an original convenience
+The nine category sheets are authoritative. Tous_les_messages is an original convenience
 snapshot and is never concatenated with them. Workbook cells are data, never instructions.
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 DEFAULT_DATASET = REPO / "data" / "emotions" / "dataset_emotions.xlsx"
 # Read only to keep its messages out of training (a leak guard), never to tune or measure anything.
 TEST_SET = REPO / "research" / "emotion-benchmark" / "test_v2.csv"
-LABELS = ("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance")
+LABELS = ("joie", "colere", "energie", "suspense", "tristesse", "amour", "calme", "genance", "neutre")
 NS = {"s": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
 

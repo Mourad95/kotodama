@@ -72,7 +72,7 @@ pub struct EmotionProbability {
 pub struct EmotionResult {
     /// Most probable emotion id.
     pub choice: String,
-    /// Emotion id to animate: `choice`, or `calme` below the confidence threshold (ADR-0008).
+    /// Emotion id to animate: `choice`, or `neutre` below the confidence threshold (ADR-0008, ADR-0021).
     pub effective: String,
     /// Confidence in [0, 1]: 1 when all probability mass is on one emotion.
     pub confidence: f32,
@@ -204,7 +204,7 @@ pub struct Animator {
 }
 
 fn animation_level(theme: &kd_fx::Theme, emotion_id: &str, writing_level: u8) -> kd_fx::Level {
-    let emotion = kd_core::Emotion::from_id(emotion_id).unwrap_or(kd_core::Emotion::Calm);
+    let emotion = kd_core::Emotion::from_id(emotion_id).unwrap_or(kd_core::Emotion::Neutral);
     let intensity = match writing_level {
         0 | 1 => kd_core::Intensity::Low,
         2 => kd_core::Intensity::Medium,
@@ -230,7 +230,7 @@ impl Animator {
     }
 
     /// Duration of the animation in milliseconds: after it, the frame no longer changes.
-    /// `emotion_id` is an id such as `joie` (unknown ids play `calme`); `writing_level` is 1 to 3
+    /// `emotion_id` is an id such as `joie` (unknown ids play `neutre`); `writing_level` is 1 to 3
     /// (3 when the message has no mistake). Only the length of the message is used, not its text.
     pub fn duration_ms(
         &self,
@@ -460,7 +460,7 @@ mod tests {
         assert!((3..=5).contains(&look.extrusion_steps));
         assert_eq!(
             animator.bubble_look("inconnue".into(), 3),
-            animator.bubble_look("calme".into(), 3)
+            animator.bubble_look("neutre".into(), 3)
         );
         assert!(animator
             .render_bubble("genance".into(), 3, 0, 80, false)
@@ -505,9 +505,13 @@ mod tests {
             draw("energie", MotionMode::Full, 1100),
             "deterministic"
         );
-        // Unknown emotions play `calme`.
+        // Unknown emotions play `neutre`, which differs from `calme`.
         assert_eq!(
             draw("inconnue", MotionMode::Full, 500),
+            draw("neutre", MotionMode::Full, 500)
+        );
+        assert_ne!(
+            draw("neutre", MotionMode::Full, 500),
             draw("calme", MotionMode::Full, 500)
         );
         // The frame stops changing at the announced duration.
@@ -714,7 +718,7 @@ mod tests {
 
     fn engine() -> Engine<Fake> {
         let head = EmotionHead::from_json(
-            r#"{"labels":["joie","calme"],"weights":[[8,0],[0,8]],"bias":[0,0]}"#,
+            r#"{"labels":["joie","neutre"],"weights":[[8,0],[0,8]],"bias":[0,0]}"#,
         )
         .unwrap();
         Engine::new(Fake, head)
@@ -733,7 +737,7 @@ mod tests {
     }
 
     #[test]
-    fn low_confidence_falls_back_to_calm() {
+    fn low_confidence_falls_back_to_neutral() {
         let scores =
             EmotionScores::from_probabilities(vec![(Emotion::Joy, 0.5), (Emotion::Calm, 0.5)])
                 .unwrap();
@@ -742,7 +746,7 @@ mod tests {
             scores,
         };
         let r = EmotionResult::from(&analysis);
-        assert_eq!(r.effective, "calme");
+        assert_eq!(r.effective, "neutre");
     }
 
     #[test]

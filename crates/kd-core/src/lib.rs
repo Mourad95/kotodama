@@ -6,7 +6,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// The seven emotions the app animates.
+/// The nine emotions the app animates (ADR-0021).
 ///
 /// Data files (prototypes, themes, benchmark) use the historical French identifiers returned by
 /// [`Emotion::id`]; code uses this English enum (see ADR-0001).
@@ -31,17 +31,20 @@ pub enum Emotion {
     /// Love, affection, warm thanks.
     #[serde(rename = "amour")]
     Love,
-    /// Neutral or practical message. Also the fallback when the engine is unsure.
+    /// Peace, rest, serenity: a relaxed, unhurried message.
     #[serde(rename = "calme")]
     Calm,
     /// Embarrassment and awkwardness. Available for explicit selection; legacy heads have no label for it.
     #[serde(rename = "genance")]
     Embarrassment,
+    /// Neutral or practical message. Also the fallback when the engine is unsure (ADR-0021).
+    #[serde(rename = "neutre")]
+    Neutral,
 }
 
 impl Emotion {
     /// All emotions, in the canonical order used by models and data files.
-    pub const ALL: [Emotion; 8] = [
+    pub const ALL: [Emotion; 9] = [
         Emotion::Joy,
         Emotion::Anger,
         Emotion::Energy,
@@ -50,6 +53,7 @@ impl Emotion {
         Emotion::Love,
         Emotion::Calm,
         Emotion::Embarrassment,
+        Emotion::Neutral,
     ];
 
     /// Identifier used in data files (`joie`, `colere`, …).
@@ -63,6 +67,7 @@ impl Emotion {
             Emotion::Love => "amour",
             Emotion::Calm => "calme",
             Emotion::Embarrassment => "genance",
+            Emotion::Neutral => "neutre",
         }
     }
 
@@ -106,10 +111,11 @@ impl EmotionScores {
         })
     }
 
-    /// The emotion to animate: the choice, or [`Emotion::Calm`] below `threshold` (ADR-0008).
+    /// The emotion to animate: the choice, or [`Emotion::Neutral`] below `threshold` (ADR-0008,
+    /// ADR-0021).
     pub fn effective(&self, threshold: f32) -> Emotion {
         if self.confidence < threshold {
-            Emotion::Calm
+            Emotion::Neutral
         } else {
             self.choice
         }
@@ -219,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn scores_fall_back_to_calm_when_unsure() {
+    fn scores_fall_back_to_neutral_when_unsure() {
         let unsure = EmotionScores::from_probabilities(
             Emotion::ALL
                 .iter()
@@ -227,7 +233,7 @@ mod tests {
                 .collect(),
         )
         .unwrap();
-        assert_eq!(unsure.effective(0.2), Emotion::Calm);
+        assert_eq!(unsure.effective(0.2), Emotion::Neutral);
 
         let sure = EmotionScores::from_probabilities(vec![
             (Emotion::Joy, 0.97),
@@ -237,6 +243,15 @@ mod tests {
         .unwrap();
         assert_eq!(sure.choice, Emotion::Joy);
         assert_eq!(sure.effective(0.2), Emotion::Joy);
+
+        // A confident calm message stays calm: calm is an emotion, not the fallback.
+        let calm = EmotionScores::from_probabilities(vec![
+            (Emotion::Calm, 0.97),
+            (Emotion::Neutral, 0.02),
+            (Emotion::Joy, 0.01),
+        ])
+        .unwrap();
+        assert_eq!(calm.effective(0.2), Emotion::Calm);
     }
 
     #[test]

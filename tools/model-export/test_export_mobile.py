@@ -48,7 +48,7 @@ def test_manifest_contract(tmp_path):
     assert m["prototypes"] == {"name": "p.json", "sha256": em.sha256(proto)}
 
 
-def test_export_uses_editable_eight_category_dataset_by_default(tmp_path, monkeypatch):
+def test_export_uses_editable_nine_category_dataset_by_default(tmp_path, monkeypatch):
     """Run the actual export with a tiny deterministic embedder instead of model weights."""
     import hashlib
     from types import SimpleNamespace

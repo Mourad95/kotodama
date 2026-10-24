@@ -51,7 +51,7 @@ pub struct Theme {
     pub name: String,
     /// Theme version, bumped on every content change.
     pub version: String,
-    /// Motion per emotion. `calme` is mandatory: it is the fallback for any missing emotion.
+    /// Motion per emotion. `neutre` is mandatory: it is the fallback for any missing emotion.
     pub emotions: BTreeMap<Emotion, EmotionMotion>,
 }
 
@@ -321,13 +321,13 @@ impl Theme {
         Ok(theme)
     }
 
-    /// Motion for an emotion at an intensity, falling back to `calme` if the emotion is absent.
+    /// Motion for an emotion at an intensity, falling back to `neutre` if the emotion is absent.
     pub fn level(&self, emotion: Emotion, intensity: Intensity) -> &Level {
         let motion = self
             .emotions
             .get(&emotion)
-            .or_else(|| self.emotions.get(&Emotion::Calm))
-            .expect("validated themes always define calme");
+            .or_else(|| self.emotions.get(&Emotion::Neutral))
+            .expect("validated themes always define neutre");
         &motion.levels[usize::from(intensity.level() - 1)]
     }
 
@@ -342,8 +342,8 @@ impl Theme {
                 self.schema_version
             )));
         }
-        if !self.emotions.contains_key(&Emotion::Calm) {
-            return Err(fail("`calme` must be defined (fallback emotion)".into()));
+        if !self.emotions.contains_key(&Emotion::Neutral) {
+            return Err(fail("`neutre` must be defined (fallback emotion)".into()));
         }
         for (emotion, motion) in &self.emotions {
             let numbers: Vec<u8> = motion.levels.iter().map(|l| l.level).collect();
@@ -515,12 +515,12 @@ mod tests {
     }
 
     #[test]
-    fn missing_emotion_falls_back_to_calm() {
+    fn missing_emotion_falls_back_to_neutral() {
         let mut theme = Theme::from_json(ANIME).unwrap();
         theme.emotions.remove(&Emotion::Sadness);
-        let calm = theme.level(Emotion::Calm, Intensity::Low);
+        let neutral = theme.level(Emotion::Neutral, Intensity::Low);
         let missing = theme.level(Emotion::Sadness, Intensity::Low);
-        assert_eq!(calm, missing);
+        assert_eq!(neutral, missing);
     }
 
     #[test]
@@ -574,9 +574,9 @@ mod tests {
 
     #[test]
     fn invalid_themes_are_rejected() {
-        let no_calm = ANIME.replace("\"calme\"", "\"amour\"");
+        let no_neutral = ANIME.replace("\"neutre\"", "\"amour\"");
         assert!(matches!(
-            Theme::from_json(&no_calm),
+            Theme::from_json(&no_neutral),
             Err(ThemeError::Invalid { .. })
         ));
 

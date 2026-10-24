@@ -39,7 +39,7 @@ renderer (ADR-0005); the renderer never contains theme-specific code.
 - **Golden frames:** render fixed (theme, emotion, intensity, t, seed) tuples and compare to
   reference images with a small tolerance. Run on a software adapter in CI so results do not depend
   on a GPU; update goldens only on purpose, in their own commit.
-- Schema tests: a valid theme passes, wrong level order / missing `calme` / bad colour / unknown
+- Schema tests: a valid theme passes, wrong level order / missing `neutre` / bad colour / unknown
   field are rejected (see `kd-fx` tests).
 - Property: no effect exceeds its declared duration; all colours are `#RRGGBB`.
 

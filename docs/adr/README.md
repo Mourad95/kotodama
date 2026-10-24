@@ -12,7 +12,7 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0005](0005-themes-as-data.md) | Themes are data interpreted by one renderer | accepted |
 | [0006](0006-grammar-providers.md) | One grammar provider per language | accepted |
 | [0007](0007-on-device-only.md) | All analysis on device, no message leaves the phone | accepted |
-| [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | accepted |
+| [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | amended by 0021 |
 | [0009](0009-own-french-checker.md) | French checker built in-house (Grammalecte is GPL-3) | accepted |
 | [0010](0010-open-licence-models-only.md) | Shipped models must carry an OSI-approved licence | accepted |
 | [0011](0011-embeddinggemma-2-pruned-q4.md) | Ship EmbeddingGemma 2, pruned and Q4 | accepted |
@@ -25,3 +25,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0018](0018-situational-manga-and-persistent-bubbles.md) | Situational manga, persistent bubbles and editable eight-category training data | accepted |
 | [0019](0019-textless-overlay-and-lettered-bubble.md) | Textless overlay, lettered manga bubble, sharp front layer | accepted |
 | [0020](0020-anchored-stage-and-manga-panels.md) | Effects anchored on the bubble, full-screen manga panels | accepted |
+| [0021](0021-neutral-and-calm.md) | Separate `neutre` (fallback, tiny animation) from `calme` | accepted |

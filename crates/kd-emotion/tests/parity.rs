@@ -9,6 +9,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
+use kd_core::Emotion;
 use kd_emotion::Bundle;
 use serde::Deserialize;
 
@@ -54,14 +55,20 @@ fn probabilities_match_the_python_reference() {
         let scores = engine.analyze(&m.text).unwrap().scores;
         assert_eq!(scores.probabilities.len(), m.probabilities.len());
         for (emotion, p) in &scores.probabilities {
-            let expected = m.probabilities[emotion.id()];
+            // Heads trained before ADR-0021 label neutral messages `calme`.
+            let legacy = !m.probabilities.contains_key(Emotion::Neutral.id());
+            let id = match emotion {
+                Emotion::Neutral if legacy => Emotion::Calm.id(),
+                e => e.id(),
+            };
+            let expected = m.probabilities[id];
             let diff = (p - expected).abs();
             worst = worst.max(diff);
             assert!(
                 diff < 1e-3,
                 "{:?}: {} is {p}, expected {expected}",
                 m.text,
-                emotion.id()
+                id
             );
         }
     }

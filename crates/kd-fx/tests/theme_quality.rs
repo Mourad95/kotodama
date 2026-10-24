@@ -9,7 +9,7 @@ use kd_fx::scene::{Rgb, LIGHT_BACKGROUND};
 use kd_fx::Theme;
 
 const ANIME: &str = include_str!("../../../themes/anime/theme.json");
-const ALL: [Emotion; 8] = Emotion::ALL;
+const ALL: [Emotion; 9] = Emotion::ALL;
 const LEVELS: [Intensity; 3] = [Intensity::Low, Intensity::Medium, Intensity::Full];
 
 /// WCAG relative luminance.
@@ -36,7 +36,7 @@ fn every_emotion_has_its_own_motion() {
     for e in ALL {
         assert!(
             theme.emotions.contains_key(&e),
-            "{e:?} falls back to calme: add it to the theme"
+            "{e:?} falls back to neutre: add it to the theme"
         );
     }
 }

@@ -49,11 +49,11 @@ text ──► kd-grammar.check(text, lang) ──► issues (spans, suggestions
 ```
 
 - Analysis runs on a **typing pause** (debounce ~300 ms), not on each keystroke.
-- If `scores.confidence < threshold` (0.2, see ADR-0008), the app uses `calme`.
+- If `scores.confidence < threshold` (0.2, see ADR-0008), the app uses `neutre` (ADR-0021).
 
 ## Emotion engine (ADR-0003, ADR-0004)
 
-"Typed choice": the engine is trained on labelled examples (eight categories in Dataset emotions, seven in legacy prototype bundles), and returns a choice, a probability per emotion and a confidence in [0, 1].
+"Typed choice": the engine is trained on labelled examples (nine categories in Dataset emotions, ADR-0021; seven or eight in legacy bundles, whose `calme` is read as `neutre`), and returns a choice, a probability per emotion and a confidence in [0, 1].
 
 The **model bundle** produced by `tools/model-export/` contains:
 

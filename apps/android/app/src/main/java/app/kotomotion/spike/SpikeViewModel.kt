@@ -40,7 +40,7 @@ import java.io.File
 sealed interface EngineState {
     data object Loading : EngineState
     data class Ready(val coldStartMs: Long, val verifyMs: Long, val loadMs: Long, val before: MemorySnapshot, val memory: MemorySnapshot) : EngineState
-    /** No usable model: every message is treated as "calme". */
+    /** No usable model: every message is treated as "neutre". */
     data class Fallback(val reason: String?) : EngineState
 }
 
@@ -151,7 +151,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     /** The conversation, in memory only. */
     val messages = mutableStateListOf(
-        ChatMessage(0, "Salut ! Écris-moi un message et regarde-le s'animer.", false, "calme", Color(0xFF085041), 3, true),
+        ChatMessage(0, "Salut ! Écris-moi un message et regarde-le s'animer.", false, "neutre", Color(0xFF343A40), 3, true),
     )
     private var nextId = 1
     /** Dark conversation background, to check the message stays readable over it. */
@@ -352,7 +352,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             val forced = forcedEmotion
             val done = if (forced == null) withContext(engineDispatcher) { analyseOnce(input) } else AnalysisUi(null, 0.0)
             analysis = done
-            val emotion = forced ?: done.result?.effective ?: "calme"
+            val emotion = forced ?: done.result?.effective ?: "neutre"
             val app = getApplication<Application>()
             caption = when {
                 forced != null -> app.getString(R.string.caption_forced, forced, writingLevel)

@@ -41,7 +41,7 @@ requirements change; **check current documentation before relying on any detail 
 
 ## Model delivery
 The bundle is ~116 MB: ship it as an install-time asset pack or a verified download of a signed,
-checksummed bundle. Verify the SHA-256 from `manifest.json` before loading; fall back to `calme`
+checksummed bundle. Verify the SHA-256 from `manifest.json` before loading; fall back to `neutre`
 when the model is unavailable.
 
 ## Accessibility and localisation

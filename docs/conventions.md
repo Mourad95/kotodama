@@ -41,7 +41,7 @@ is always an `issue`.
 | conversions | `as_*` cheap, `to_*` costly, `into_*` consuming | `to_vec` |
 | booleans | `is_`, `has_`, `can_`, `should_` | `is_hex_color` |
 | units in names | suffix the unit | `duration_ms`, `size_mb`, `at_ms` |
-| tests | describe behaviour | `missing_emotion_falls_back_to_calm` |
+| tests | describe behaviour | `missing_emotion_falls_back_to_neutral` |
 
 Avoid abbreviations except universal ones (`id`, `ms`, `url`, `json`). `fx` and `ffi` are accepted
 because they are crate names.
@@ -62,7 +62,7 @@ type hints everywhere. Script names are verbs: `prune_vocab.py`, `quantize_onnx.
 - JSON keys: `snake_case`. Enum values in data: `snake_case` (`speed_lines`, `impact_flash`).
 - Theme ids and bundle names: lowercase `kebab-case` (`anime`, `minimal`).
 - Emotion ids: the French identifiers `joie`, `colere`, `energie`, `suspense`, `tristesse`, `amour`,
-  `calme`, `genance`. They are data keys, not words to use in prose or in code identifiers (use the English enum).
+  `calme`, `genance`, `neutre`. They are data keys, not words to use in prose or in code identifiers (use the English enum).
 - Versions: semver for themes and bundles (`0.1.0`); integers for `schema_version`.
 
 ## Files and folders

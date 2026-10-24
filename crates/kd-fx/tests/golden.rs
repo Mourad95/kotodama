@@ -362,6 +362,7 @@ const STAGE: Stage = Stage {
 #[test]
 fn effects_frame_the_bubble_and_fill_the_screen() {
     // ADR-0020: the coloured panel and its motifs cover the screen, the bubble stays clear.
+    // ADR-0021: a level without a backdrop (`neutre`) only frames the bubble.
     let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
     let renderer = Renderer::new();
     let (w, h) = (SIZE.0 as f32, SIZE.1 as f32);
@@ -385,7 +386,15 @@ fn effects_frame_the_bubble_and_fill_the_screen() {
             .sum::<u32>()
             / 15;
         assert!(inside < 40, "{emotion:?}: the bubble is covered ({inside})");
-        // The far corners carry the backdrop.
+        // The far corners carry the backdrop, when the level has one (`neutre` stays in the bubble).
+        if level
+            .manga
+            .as_ref()
+            .and_then(|m| m.backdrop.as_ref())
+            .is_none()
+        {
+            continue;
+        }
         for (x, y) in [(0.03, 0.03), (0.97, 0.03), (0.03, 0.97)] {
             assert!(alpha(x, y) > 80, "{emotion:?}: no backdrop at ({x}, {y})");
         }

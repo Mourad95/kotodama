@@ -88,7 +88,7 @@ adb push bundle/ /sdcard/Android/data/app.kotomotion.spike/files/bundle
 
 (`bundle/` is the output of `tools/model-export`: `manifest.json`, `model_q4.onnx`, `tokenizer.json`,
 `emotion_head.json`, `parity.json`.) If `manifest.json` is missing or the bundle fails to load, the
-screen says so and the app falls back to "calme" (no crash). Restart the app after pushing.
+screen says so and the app falls back to "neutre" (no crash). Restart the app after pushing.
 `/data/local/tmp` is not readable by apps, hence the app-specific external directory.
 ONNX Runtime comes from `com.microsoft.onnxruntime:onnxruntime-android`; `useLegacyPackaging` makes
 `nativeLibraryDir/libonnxruntime.so` a real file whose path is given to `EmotionEngine.open`.

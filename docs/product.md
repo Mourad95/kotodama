@@ -14,8 +14,8 @@ power) and *motion*: the better the words, the more power the message has.
 ## The core loop
 
 1. The user types a message (in a keyboard, or in the app).
-2. On device, the **emotion engine** picks one of 8 supported emotions: `joie`, `colere`, `energie`,
-   `suspense`, `tristesse`, `amour`, `calme`, `genance` (`calme` is also the fallback when the engine is unsure).
+2. On device, the **emotion engine** picks one of 9 supported emotions: `joie`, `colere`, `energie`,
+   `suspense`, `tristesse`, `amour`, `calme`, `genance`, `neutre` (`neutre` is also the fallback when the engine is unsure, ADR-0021).
 3. On device, the **grammar checker** finds spelling and grammar issues.
 4. The number of issues gives an **intensity** (3 levels): no error → full animation, one error →
    medium, two or more → low (faulty words glitch).
@@ -59,8 +59,9 @@ leaving the host app.
 Authoritative definitions and examples live in `research/emotion-benchmark/prototypes.json`.
 Short version: `joie` happiness/pride, `colere` anger/blame, `energie` motivation/hype,
 `suspense` curiosity/secret/rumour, `tristesse` sadness/failure, `amour` affection/warm thanks,
-`calme` neutral/practical/unsure. `genance` covers embarrassment and awkwardness (ADR-0018).
-The legacy prototypes describe seven labels; Dataset emotions adds the eighth. Existing model
+`calme` peace/rest/serenity, `neutre` neutral/practical/unsure (ADR-0021; the legacy prototypes'
+`calme` is today's `neutre`). `genance` covers embarrassment and awkwardness (ADR-0018).
+The legacy prototypes describe seven labels; Dataset emotions adds `genance`, `neutre` and a real `calme`. Existing model
 bundles keep their original categories until a new head is trained and installed.
 
 ## Themes
@@ -85,7 +86,7 @@ screen effects (speed lines, impact flash, shockwave, shake…), onomatopoeia an
 - **Readable first:** animation never hides the text; the message stays legible at every intensity.
 - **Fast:** analysis ≤ ~50 ms per message on a mid-range phone; animation starts without visible lag.
 - **Small:** model bundle ≤ 150 MB (≤ iOS keyboard limits via distillation later).
-- **Honest:** low-confidence emotion falls back to `calme` rather than a wrong animation (ADR-0008).
+- **Honest:** low-confidence emotion falls back to `neutre`, a tiny animation, rather than a wrong one (ADR-0008, ADR-0021).
 - **Private by construction:** see `docs/legal.md`, which is binding.
 - **Maintainable:** behaviour is data; one Rust core; thin native shells; every architecture
   decision has an ADR.

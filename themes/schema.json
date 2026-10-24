@@ -14,7 +14,7 @@
     "emotions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["calme"],
+      "required": ["neutre"],
       "properties": {
         "joie": { "$ref": "#/$defs/motion" },
         "colere": { "$ref": "#/$defs/motion" },
@@ -23,7 +23,8 @@
         "tristesse": { "$ref": "#/$defs/motion" },
         "amour": { "$ref": "#/$defs/motion" },
         "calme": { "$ref": "#/$defs/motion" },
-        "genance": { "$ref": "#/$defs/motion" }
+        "genance": { "$ref": "#/$defs/motion" },
+        "neutre": { "$ref": "#/$defs/motion" }
       }
     }
   },

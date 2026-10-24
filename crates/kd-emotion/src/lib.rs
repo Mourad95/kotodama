@@ -66,6 +66,7 @@ struct HeadFile {
 /// Linear few-shot head: `softmax(W · embedding + b)`.
 #[derive(Debug, Clone)]
 pub struct EmotionHead {
+    ids: Vec<String>,
     labels: Vec<Emotion>,
     weights: Vec<Vec<f32>>,
     bias: Vec<f32>,
@@ -76,12 +77,15 @@ impl EmotionHead {
     pub fn from_json(json: &str) -> Result<Self, EmotionError> {
         let file: HeadFile =
             serde_json::from_str(json).map_err(|e| EmotionError::InvalidHead(e.to_string()))?;
+        // Heads trained before ADR-0021 have no `neutre`: their `calme` holds neutral messages.
+        let legacy = !file.labels.iter().any(|l| l == Emotion::Neutral.id());
         let labels = file
             .labels
             .iter()
-            .map(|l| {
-                Emotion::from_id(l)
-                    .ok_or_else(|| EmotionError::InvalidHead(format!("unknown label `{l}`")))
+            .map(|l| match Emotion::from_id(l) {
+                Some(Emotion::Calm) if legacy => Ok(Emotion::Neutral),
+                Some(e) => Ok(e),
+                None => Err(EmotionError::InvalidHead(format!("unknown label `{l}`"))),
             })
             .collect::<Result<Vec<_>, _>>()?;
         for (i, label) in labels.iter().enumerate() {
@@ -107,6 +111,7 @@ impl EmotionHead {
             ));
         }
         Ok(Self {
+            ids: file.labels,
             labels,
             weights: file.weights,
             bias: file.bias,
@@ -118,9 +123,9 @@ impl EmotionHead {
         self.weights[0].len()
     }
 
-    /// Emotion ids in head order.
+    /// Label ids in head order, as written in the head file.
     pub fn label_ids(&self) -> Vec<String> {
-        self.labels.iter().map(|l| l.id().to_owned()).collect()
+        self.ids.clone()
     }
 
     /// Scores one embedding.
@@ -209,7 +214,7 @@ mod tests {
     }
 
     const HEAD: &str = r#"{
-        "labels": ["joie", "colere", "calme"],
+        "labels": ["joie", "colere", "neutre"],
         "weights": [[8.0, 0.0, 0.0], [0.0, 8.0, 0.0], [0.0, 0.0, 0.1]],
         "bias": [0.0, 0.0, 0.0]
     }"#;
@@ -227,16 +232,41 @@ mod tests {
         let anger = engine.analyze("j'en ai marre").unwrap();
         assert_eq!(anger.effective, Emotion::Anger);
 
-        // Nearly uniform probabilities → falls back to calm.
+        // Nearly uniform probabilities → falls back to neutral.
         let unsure = engine.analyze("ok").unwrap();
         assert!(unsure.scores.confidence < 0.2);
-        assert_eq!(unsure.effective, Emotion::Calm);
+        assert_eq!(unsure.effective, Emotion::Neutral);
     }
 
     #[test]
-    fn eight_label_heads_can_select_embarrassment() {
+    fn legacy_heads_read_calme_as_neutral() {
+        let legacy = HEAD.replace("neutre", "calme");
+        let head = EmotionHead::from_json(&legacy).unwrap();
+        assert_eq!(head.label_ids(), ["joie", "colere", "calme"]);
+        let engine = EmotionEngine::new(KeywordEmbedder, head);
+        let scores = engine.analyze("ok").unwrap().scores;
+        assert!(scores
+            .probabilities
+            .iter()
+            .any(|(e, _)| *e == Emotion::Neutral));
+        assert!(scores
+            .probabilities
+            .iter()
+            .all(|(e, _)| *e != Emotion::Calm));
+
+        // With `neutre` present, `calme` is the calm emotion.
+        let both = r#"{"labels":["calme","neutre"],"weights":[[1],[0]],"bias":[0,0]}"#;
+        let scores = EmotionHead::from_json(both).unwrap().score(&[9.0]).unwrap();
+        assert_eq!(scores.choice, Emotion::Calm);
+    }
+
+    #[test]
+    fn full_heads_can_select_embarrassment() {
         let mut bias = vec![0.0; Emotion::ALL.len()];
-        bias[Emotion::ALL.len() - 1] = 9.0;
+        let at = Emotion::ALL
+            .iter()
+            .position(|e| *e == Emotion::Embarrassment);
+        bias[at.unwrap()] = 9.0;
         let json = serde_json::json!({
             "labels": Emotion::ALL.map(Emotion::id),
             "weights": vec![vec![0.0; 3]; Emotion::ALL.len()],
@@ -248,7 +278,7 @@ mod tests {
         );
         let result = engine.analyze("A test message").unwrap();
         assert_eq!(result.effective, Emotion::Embarrassment);
-        assert_eq!(result.scores.probabilities.len(), 8);
+        assert_eq!(result.scores.probabilities.len(), Emotion::ALL.len());
     }
 
     #[test]

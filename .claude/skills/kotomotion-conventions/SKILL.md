@@ -11,7 +11,7 @@ The full rules are in `docs/conventions.md`. Read it when naming something new. 
 - Everything is **English**: identifiers, comments, docs, ADRs, commits, branches, issues, log and
   error messages, file names, localisation keys.
 - Exceptions: user-facing strings in the localisation catalogs (French first), the French emotion
-  ids in data files (`joie`, `colere`, `energie`, `suspense`, `tristesse`, `amour`, `calme`), and
+  ids in data files (`joie`, `colere`, `energie`, `suspense`, `tristesse`, `amour`, `calme`, `genance`, `neutre`), and
   archived research reports.
 
 ## One vocabulary

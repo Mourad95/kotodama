@@ -39,7 +39,7 @@ quantization → train the head → write `parity.json` → write `manifest.json
   on quantized graphs and CPU was forced: do not assume acceleration works.
 - Load the session off the UI thread, once, and reuse it. Measure cold start and warm latency
   separately; keep thread counts conservative (battery, heat).
-- If the model fails to load or run, the shell shows `calme` and keeps working.
+- If the model fails to load or run, the shell shows `neutre` and keeps working.
 
 ## Parity and evaluation
 - Rust output must match the Python reference within 1e-3 on `parity.json` (CI test).
@@ -48,7 +48,7 @@ quantization → train the head → write `parity.json` → write `manifest.json
   evaluated on a new `test_v3`. Verify `md5sum -c MD5SUMS` before and after any run.
 - Report sample size and uncertainty (about ±5 points global on 301 messages, ±10 on the 70 with
   errors). Do not claim differences smaller than that.
-- Confidence = 1 − normalised entropy; below 0.2 the animation uses `calme` (ADR-0008). Changing the
+- Confidence = 1 − normalised entropy; below 0.2 the animation uses `neutre` (ADR-0008, ADR-0021). Changing the
   threshold is tuned on dev data and recorded in the manifest.
 
 ## What only a real phone can prove
