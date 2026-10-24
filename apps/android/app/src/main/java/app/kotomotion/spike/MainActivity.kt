@@ -3,15 +3,10 @@ package app.kotomotion.spike
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -52,21 +47,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /**
- * Beta of KotoMotion: a small conversation. Sending a message plays its animation over the whole
- * screen, transparent, then the message settles in its bubble (docs/adr/0016). The conversation is
- * in memory only. Settings and measurements are behind the gear.
+ * Beta of KotoMotion: a small conversation shown as a chat app would show it. A sent message appears
+ * as a sticker that plays its animation once, then stays on its last frame (docs/adr/0023). The
+ * conversation is in memory only. Settings and measurements are behind the gear.
  */
 class MainActivity : ComponentActivity() {
     private val viewModel: SpikeViewModel by viewModels()
@@ -107,16 +96,7 @@ private fun ChatScreen(vm: SpikeViewModel) {
             if (settingsOpen) {
                 SettingsPanel(vm, Modifier.weight(1f))
             } else {
-                // The animation plays over the messages only: the title, the input bar and the keyboard
-                // stay visible and usable, whatever the screen size and keyboard height.
-                Box(
-                    Modifier.weight(1f).fillMaxWidth()
-                        .onSizeChanged { vm.setViewport(it.width, it.height) }
-                        .onGloballyPositioned { vm.setViewportOrigin(it.positionInRoot()) },
-                ) {
-                    MessageList(vm, Modifier.fillMaxSize())
-                    if (vm.overlayActive) AnimationOverlay(vm)
-                }
+                MessageList(vm, Modifier.weight(1f).fillMaxWidth())
                 if (vm.caption.isNotEmpty()) {
                     Text(
                         vm.caption,
@@ -162,36 +142,31 @@ private fun MessageList(vm: SpikeViewModel, modifier: Modifier) {
 
 @Composable
 private fun Bubble(vm: SpikeViewModel, message: ChatMessage) {
-    val shown by animateFloatAsState(if (message.settled) 1f else 0f, label = "bubble")
     val dark = vm.darkChat
-    val container = when {
-        message.mine -> message.accent.copy(alpha = if (dark) 0.35f else 0.16f)
-        dark -> Color(0xFF2A2A2E)
-        else -> Color.White
-    }
-    val content = when {
-        dark -> Color.White
-        message.mine -> message.accent
-        else -> Color(0xFF222222)
-    }
     Row(
-        Modifier.fillMaxWidth().alpha(shown),
+        Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.mine) Arrangement.End else Arrangement.Start,
     ) {
-        Column(horizontalAlignment = if (message.mine) Alignment.End else Alignment.Start) {
-            if (message.mine) {
-                MangaBubble(vm, message)
-            } else {
-                Surface(shape = RoundedCornerShape(18.dp), color = container, modifier = Modifier.widthIn(max = 300.dp)) {
-                    Text(message.text, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = content)
-                }
-            }
-            if (message.mine) {
+        if (message.mine) {
+            Column(horizontalAlignment = Alignment.End) {
+                StickerCard(vm, message)
                 Text(
                     message.emotion,
                     style = MaterialTheme.typography.labelSmall,
                     color = if (dark) Color(0x99FFFFFF) else Color(0x80000000),
                     modifier = Modifier.padding(horizontal = 6.dp),
+                )
+            }
+        } else {
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = if (dark) Color(0xFF2A2A2E) else Color.White,
+                modifier = Modifier.widthIn(max = 300.dp),
+            ) {
+                Text(
+                    message.text,
+                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    color = if (dark) Color.White else Color(0xFF222222),
                 )
             }
         }
@@ -214,31 +189,9 @@ private fun InputBar(vm: SpikeViewModel) {
         )
         Button(
             onClick = vm::send,
-            enabled = vm.text.isNotBlank() && !vm.overlayActive &&
+            enabled = vm.text.isNotBlank() &&
                 (vm.engineState !is EngineState.Loading || vm.forcedEmotion != null),
         ) { Text(stringResource(R.string.send_button)) }
-    }
-}
-
-/** The animation over the conversation. Tap or back to skip it. */
-@Composable
-private fun AnimationOverlay(vm: SpikeViewModel) {
-    BackHandler { vm.skipAnimation() }
-    Canvas(
-        Modifier.fillMaxSize().clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-        ) { vm.skipAnimation() },
-    ) {
-        // Reading frameTick in the draw scope redraws the canvas for every new frame.
-        vm.frameTick
-        if (vm.hasPlayed) {
-            val dst = IntSize(size.width.toInt(), size.height.toInt())
-            // The soft effects are drawn small and smoothed up; the inked lines, particles and onomatopoeias
-            // are drawn at screen resolution, so they stay sharp (ADR-0017, ADR-0019).
-            drawImage(vm.backFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.High)
-            drawImage(vm.frontFrame, dstSize = dst, alpha = vm.overlayAlpha, filterQuality = FilterQuality.High)
-        }
     }
 }
 
@@ -370,7 +323,7 @@ private fun MeasuresPanel(vm: SpikeViewModel, debuggable: Boolean, textColor: Co
         }
         vm.renderStats?.let {
             Text(
-                stringResource(R.string.render_stats, it.avgMs, it.maxMs, it.frames, it.frontWidth, it.backWidth),
+                stringResource(R.string.render_stats, it.avgMs, it.maxMs, it.frames, it.side),
                 style = MaterialTheme.typography.bodySmall,
                 color = textColor,
             )
