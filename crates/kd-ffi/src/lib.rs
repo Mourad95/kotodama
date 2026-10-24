@@ -137,6 +137,10 @@ impl From<MotionMode> for kd_fx::scene::Motion {
 pub enum FrameLayer {
     /// Everything, on a light opaque background (export).
     Opaque,
+    /// Everything, opaque, as the sticker a friend receives (ADR-0023): like [`FrameLayer::Opaque`],
+    /// but the manga panel stays at the end, so the last frame is the whole settled scene. With
+    /// reduced motion every instant is that scene, still. Draw it square.
+    Sticker,
     /// Every effect, on a transparent background, to play over a conversation. The message itself is
     /// not drawn: the shell shows it in its bubble (ADR-0019).
     Over,
@@ -150,7 +154,7 @@ pub enum FrameLayer {
 impl From<FrameLayer> for kd_fx::render::Layer {
     fn from(l: FrameLayer) -> Self {
         match l {
-            FrameLayer::Opaque => Self::Opaque,
+            FrameLayer::Opaque | FrameLayer::Sticker => Self::Opaque,
             FrameLayer::Over => Self::Over,
             FrameLayer::Back => Self::Back,
             FrameLayer::Front => Self::Front,
@@ -285,7 +289,7 @@ impl Animator {
     /// RGBA, premultiplied alpha, row by row from the top left (`width * height * 4` bytes).
     /// `layer` picks what is drawn: two layers of the same instant line up when stretched to the same
     /// screen area, whatever their pixel sizes. With a `stage`, the overlay layers frame the bubble
-    /// there and fill the rest of the screen (ADR-0020); the opaque layer ignores it.
+    /// there and fill the rest of the screen (ADR-0020); the opaque and sticker layers ignore it.
     /// The text is only drawn: it is never logged, stored or put in an error.
     #[allow(clippy::too_many_arguments)]
     pub fn render(
@@ -307,9 +311,15 @@ impl Animator {
             }
             let message: String = message.chars().take(MAX_ANIMATED_CHARS).collect();
             let level = animation_level(&self.theme, &emotion_id, writing_level);
-            let frame =
-                kd_fx::scene::sample(&level, message.chars().count(), t_ms, seed, mode.into());
-            let pixmap = match stage.filter(|_| layer != FrameLayer::Opaque) {
+            let glyphs = message.chars().count();
+            let (frame, opaque) = if layer == FrameLayer::Sticker {
+                let frame = kd_fx::scene::sample_sticker(&level, glyphs, t_ms, seed, mode.into());
+                (frame, true)
+            } else {
+                let frame = kd_fx::scene::sample(&level, glyphs, t_ms, seed, mode.into());
+                (frame, layer == FrameLayer::Opaque)
+            };
+            let pixmap = match stage.filter(|_| !opaque) {
                 Some(s) => self.renderer.render_layer_on(
                     &frame,
                     width,
@@ -522,6 +532,34 @@ mod tests {
             draw("energie", MotionMode::Full, end + 5000)
         );
         assert!(a.duration_ms("energie".into(), 3, MotionMode::Minimal, 7) < end);
+    }
+
+    #[test]
+    fn sticker_frames_end_on_the_whole_scene() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let side = 96;
+        let draw = |layer, mode, t| {
+            a.render(
+                "amour".into(),
+                3,
+                mode,
+                "Bravo !".into(),
+                t,
+                side,
+                side,
+                1,
+                layer,
+                None,
+            )
+            .unwrap()
+        };
+        let end = a.duration_ms("amour".into(), 3, MotionMode::Full, 7);
+        let sticker = draw(FrameLayer::Sticker, MotionMode::Full, end);
+        assert!(sticker.chunks(4).all(|px| px[3] == 255), "opaque");
+        // The export fades its panel out at the end; the sticker keeps it.
+        assert_ne!(sticker, draw(FrameLayer::Opaque, MotionMode::Full, end));
+        // With reduced motion, the sticker is that settled scene from the first instant.
+        assert_eq!(sticker, draw(FrameLayer::Sticker, MotionMode::Minimal, 0));
     }
 
     #[test]

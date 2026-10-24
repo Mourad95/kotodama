@@ -1,6 +1,6 @@
 # ADR-0017 — Render the animation in two layers at the screen's resolution
 
-**Status:** accepted · 2026-10-23 · amended by ADR-0019 (sharp effects move to the front layer; no message in the overlay)
+**Status:** accepted · 2026-10-23 · amended by ADR-0019 (sharp effects move to the front layer; no message in the overlay) · display superseded by ADR-0023
 
 ## Context
 Beta 2 drew each frame at most 540 px wide on the CPU and stretched it to the screen: letters and lines

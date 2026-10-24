@@ -1,6 +1,6 @@
 # ADR-0020 — Effects anchored on the bubble, full-screen manga panels
 
-**Status:** accepted · 2026-10-23 (owner request)
+**Status:** accepted · 2026-10-23 (owner request) · display superseded by ADR-0023
 
 ## Context
 

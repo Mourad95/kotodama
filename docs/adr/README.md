@@ -27,3 +27,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0020](0020-anchored-stage-and-manga-panels.md) | Effects anchored on the bubble, full-screen manga panels | accepted |
 | [0021](0021-neutral-and-calm.md) | Separate `neutre` (fallback, tiny animation) from `calme` | accepted |
 | [0022](0022-frozen-scene-in-settled-bubbles.md) | The settled bubble keeps a frozen scene, scaled by the writing level | accepted |
+| [0023](0023-sent-messages-as-stickers.md) | Sent messages show as stickers that play, then stay on their last frame | accepted |

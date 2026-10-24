@@ -194,8 +194,37 @@ pub fn duration_ms(level: &Level, glyph_count: usize, motion: Motion) -> u32 {
 }
 
 /// Samples `level` at `t_ms` after the start of the message, for a message of `glyph_count`
-/// letters. The same arguments always give the same frame.
+/// letters. The same arguments always give the same frame. The manga panel fades out at the end,
+/// so the message is left alone where the animation played over a conversation.
 pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: Motion) -> Frame {
+    sample_with(level, glyph_count, t_ms, seed, motion, false)
+}
+
+/// Like [`sample`], for a sticker (ADR-0023): the manga panel stays at the end, so the last frame is
+/// the whole scene the message settles into, as a friend sees it once the animation has played.
+/// When motion is reduced, every instant is that settled scene, still.
+pub fn sample_sticker(
+    level: &Level,
+    glyph_count: usize,
+    t_ms: u32,
+    seed: u64,
+    motion: Motion,
+) -> Frame {
+    if motion == Motion::Reduced {
+        let end = duration_ms(level, glyph_count, Motion::Full);
+        return sample_with(level, glyph_count, end, seed, Motion::Full, true);
+    }
+    sample_with(level, glyph_count, t_ms, seed, motion, true)
+}
+
+fn sample_with(
+    level: &Level,
+    glyph_count: usize,
+    t_ms: u32,
+    seed: u64,
+    motion: Motion,
+    hold_panel: bool,
+) -> Frame {
     let t = t_ms as f32;
     if motion == Motion::Reduced {
         let alpha = (t / REDUCED_FADE_MS).clamp(0.0, 1.0);
@@ -293,7 +322,12 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         manga: level.manga.as_ref().map(|style| MangaState {
             style: style.clone(),
             progress: t / end.max(1.0),
-            alpha: ((t / 250.0).min(1.0) * ((end - t) / 450.0).clamp(0.0, 1.0)),
+            alpha: (t / 250.0).min(1.0)
+                * if hold_panel {
+                    1.0
+                } else {
+                    ((end - t) / 450.0).clamp(0.0, 1.0)
+                },
             strength: level_strength(level.level) * if gentle { 0.55 } else { 1.0 },
         }),
         glyphs,
@@ -829,5 +863,32 @@ mod tests {
         assert!(level_strength(1) <= 0.3 + f32::EPSILON);
         assert!(level_strength(2) > level_strength(1) + 0.3);
         assert!((level_strength(3) - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn a_sticker_keeps_its_panel_at_the_end() {
+        let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+        let level = theme.level(Emotion::Love, Intensity::Full);
+        let end = duration_ms(level, 12, Motion::Full);
+        let panel = |f: Frame| f.manga.expect("love has a manga panel").alpha;
+        assert!(panel(sample(level, 12, end, 3, Motion::Full)) < 0.01);
+        assert!(panel(sample_sticker(level, 12, end, 3, Motion::Full)) > 0.99);
+        // The same instant before the end is unchanged.
+        let mid = end / 2;
+        assert_eq!(
+            sample(level, 12, mid, 3, Motion::Full),
+            sample_sticker(level, 12, mid, 3, Motion::Full)
+        );
+    }
+
+    #[test]
+    fn a_reduced_motion_sticker_is_the_settled_scene_still() {
+        let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+        let level = theme.level(Emotion::Joy, Intensity::Full);
+        let first = sample_sticker(level, 8, 0, 3, Motion::Reduced);
+        assert_eq!(first, sample_sticker(level, 8, 250, 3, Motion::Reduced));
+        assert!(first.manga.is_some());
+        assert!(first.particles.is_empty() && first.screen.is_empty());
+        assert_eq!(first.shake, (0.0, 0.0));
     }
 }

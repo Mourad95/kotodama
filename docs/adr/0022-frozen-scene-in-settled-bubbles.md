@@ -1,6 +1,6 @@
 # ADR-0022 — The settled bubble keeps a frozen scene, scaled by the writing level
 
-**Status:** accepted · 2026-10-24 (owner request) · extends ADR-0018 and ADR-0020
+**Status:** accepted · 2026-10-24 (owner request) · extends ADR-0018 and ADR-0020 · display superseded by ADR-0023
 
 ## Context
 

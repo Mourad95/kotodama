@@ -1,6 +1,6 @@
 # ADR-0019 — Textless overlay, lettered bubble, sharp front layer
 
-**Status:** accepted · 2026-10-23 (owner request) · amended by ADR-0020
+**Status:** accepted · 2026-10-23 (owner request) · amended by ADR-0020 · display superseded by ADR-0023
 
 ## Decision
 

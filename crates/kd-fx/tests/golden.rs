@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use kd_core::{Emotion, Intensity};
 use kd_fx::render::{Layer, Renderer, Stage};
-use kd_fx::scene::{sample, Motion};
+use kd_fx::scene::{duration_ms, sample, sample_sticker, Motion};
 use kd_fx::Theme;
 use tiny_skia::Pixmap;
 
@@ -348,6 +348,24 @@ fn manga_situations_and_settled_bubbles() {
                 &renderer.render_bubble(level, 320, 140, dark).unwrap(),
             );
         }
+    }
+}
+
+#[test]
+fn stickers_settle_into_their_whole_scene() {
+    // ADR-0023: the last frame of a sticker keeps the panel, the motifs and the lettered message,
+    // and fits a square.
+    let theme = Theme::from_json(include_str!("../../../themes/anime/theme.json")).unwrap();
+    let renderer = Renderer::new();
+    for emotion in Emotion::ALL {
+        let level = theme.level(emotion, Intensity::Full);
+        let glyphs = MESSAGE.chars().count();
+        let end = duration_ms(level, glyphs, Motion::Full);
+        let frame = sample_sticker(level, glyphs, end, SEED, Motion::Full);
+        check(
+            &format!("{}-sticker", emotion.id()),
+            &renderer.render(&frame, MESSAGE, 256, 256).unwrap(),
+        );
     }
 }
 
