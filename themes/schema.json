@@ -66,6 +66,11 @@
       "additionalProperties": false,
       "required": ["levels"],
       "properties": {
+        "animated": {
+          "type": "boolean",
+          "default": true,
+          "description": "false: messages with this emotion show as plain text, without animation."
+        },
         "levels": {
           "type": "array",
           "minItems": 3,

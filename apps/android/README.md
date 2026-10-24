@@ -123,7 +123,8 @@ passes the privacy gate and lint, but is **not verified on device**. Last succes
 A sent message shows as a square sticker, as a chat app shows one: it plays its animation once,
 then stays on its last frame, the whole scene with the message (`FrameLayer::Sticker`). Tap it to
 play it again; TalkBack reads its text; the minimal mode shows the still at once. Frames are drawn
-off the UI thread at the card's pixel size (720 px at most). Received messages stay plain bubbles.
+off the UI thread at the card's pixel size (720 px at most). Received messages stay plain bubbles,
+and so do sent messages whose emotion the theme does not animate (`neutre`, ADR-0024).
 The settings include embarrassment (`genance`). A legacy seven-label head cannot select it
 automatically; install a head trained with Dataset emotions to enable that category in detection.
 

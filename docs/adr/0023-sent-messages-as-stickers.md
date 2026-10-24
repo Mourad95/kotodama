@@ -1,6 +1,6 @@
 # ADR-0023 — Sent messages show as stickers that play, then stay on their last frame
 
-**Status:** accepted · 2026-10-24 (owner request) · supersedes, for the app's display, the
+**Status:** accepted · 2026-10-24 (owner request) · amended by ADR-0024 · supersedes, for the app's display, the
 full-screen overlay of ADR-0016, ADR-0017, ADR-0019 and ADR-0020, and the decorated bubble of ADR-0022
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0021 — Separate `neutre` from `calme`
 
-**Status:** accepted · 2026-10-24 (owner request)
+**Status:** accepted · 2026-10-24 (owner request) · display amended by ADR-0024
 
 ## Context
 

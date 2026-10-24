@@ -59,8 +59,20 @@ pub struct Theme {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EmotionMotion {
+    /// Whether messages with this emotion are animated at all. `false` shows them as plain
+    /// text, like any chat message; the levels still serve exports and previews.
+    #[serde(default = "animated_by_default", skip_serializing_if = "is_true")]
+    pub animated: bool,
     /// Levels 1, 2 and 3, in this order.
     pub levels: Vec<Level>,
+}
+
+fn animated_by_default() -> bool {
+    true
+}
+
+fn is_true(value: &bool) -> bool {
+    *value
 }
 
 /// Everything that plays for one emotion at one intensity level.
@@ -331,6 +343,15 @@ impl Theme {
         &motion.levels[usize::from(intensity.level() - 1)]
     }
 
+    /// Whether messages with this emotion are animated, falling back to `neutre` like
+    /// [`Theme::level`].
+    pub fn is_animated(&self, emotion: Emotion) -> bool {
+        self.emotions
+            .get(&emotion)
+            .or_else(|| self.emotions.get(&Emotion::Neutral))
+            .is_none_or(|motion| motion.animated)
+    }
+
     fn validate(&self) -> Result<(), ThemeError> {
         let fail = |reason: String| ThemeError::Invalid {
             theme: self.id.clone(),
@@ -521,6 +542,25 @@ mod tests {
         let neutral = theme.level(Emotion::Neutral, Intensity::Low);
         let missing = theme.level(Emotion::Sadness, Intensity::Low);
         assert_eq!(neutral, missing);
+    }
+
+    #[test]
+    fn neutral_is_plain_text_in_the_anime_theme() {
+        let theme = Theme::from_json(ANIME).unwrap();
+        assert!(!theme.is_animated(Emotion::Neutral));
+        assert!(theme.is_animated(Emotion::Joy));
+        assert!(theme.is_animated(Emotion::Calm));
+    }
+
+    #[test]
+    fn animated_defaults_to_true_and_round_trips() {
+        let mut theme = Theme::from_json(ANIME).unwrap();
+        let joy = serde_json::to_string(&theme.emotions[&Emotion::Joy]).unwrap();
+        assert!(!joy.contains("animated"), "the default is not written out");
+        theme.emotions.remove(&Emotion::Sadness);
+        assert!(!theme.is_animated(Emotion::Sadness), "falls back to neutre");
+        let again = Theme::from_json(&serde_json::to_string(&theme).unwrap()).unwrap();
+        assert_eq!(again, theme);
     }
 
     #[test]

@@ -42,6 +42,8 @@ class ChatMessage(
     val mine: Boolean,
     val emotion: String,
     val writingLevel: Int,
+    /** False when the theme shows this emotion as plain text (neutre, ADR-0024). */
+    val sticker: Boolean,
 ) {
     /** Bumped to play the sticker again. */
     var playToken by mutableIntStateOf(0)
@@ -111,7 +113,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         private set
     /** The conversation, in memory only. */
     val messages = mutableStateListOf(
-        ChatMessage(0, "Salut ! Écris-moi un message et regarde-le s'animer.", false, "neutre", 3),
+        ChatMessage(0, "Salut ! Écris-moi un message et regarde-le s'animer.", false, "neutre", 3, false),
     )
     private var nextId = 1
     /** Dark conversation background, to check the message stays readable over it. */
@@ -193,7 +195,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
                 done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, writingLevel)
                 else -> app.getString(R.string.caption_fallback, writingLevel)
             }
-            val message = ChatMessage(nextId++, input, true, emotion, writingLevel)
+            val message = ChatMessage(nextId++, input, true, emotion, writingLevel, animator?.isAnimated(emotion) == true)
             messages.add(message)
         }
     }

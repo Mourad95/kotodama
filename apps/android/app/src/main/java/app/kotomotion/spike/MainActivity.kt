@@ -149,7 +149,11 @@ private fun Bubble(vm: SpikeViewModel, message: ChatMessage) {
     ) {
         if (message.mine) {
             Column(horizontalAlignment = Alignment.End) {
-                StickerCard(vm, message)
+                if (message.sticker) {
+                    StickerCard(vm, message)
+                } else {
+                    TextBubble(message.text, mine = true, dark = dark)
+                }
                 Text(
                     message.emotion,
                     style = MaterialTheme.typography.labelSmall,
@@ -158,18 +162,30 @@ private fun Bubble(vm: SpikeViewModel, message: ChatMessage) {
                 )
             }
         } else {
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = if (dark) Color(0xFF2A2A2E) else Color.White,
-                modifier = Modifier.widthIn(max = 300.dp),
-            ) {
-                Text(
-                    message.text,
-                    Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    color = if (dark) Color.White else Color(0xFF222222),
-                )
-            }
+            TextBubble(message.text, mine = false, dark = dark)
         }
+    }
+}
+
+/** A plain chat bubble, for received messages and for emotions the theme does not animate. */
+@Composable
+private fun TextBubble(text: String, mine: Boolean, dark: Boolean) {
+    val fill = when {
+        mine && dark -> Color(0xFF1F5C4B)
+        mine -> Color(0xFFD9FDD3)
+        dark -> Color(0xFF2A2A2E)
+        else -> Color.White
+    }
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = fill,
+        modifier = Modifier.widthIn(max = 300.dp),
+    ) {
+        Text(
+            text,
+            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            color = if (dark) Color.White else Color(0xFF222222),
+        )
     }
 }
 

@@ -233,6 +233,13 @@ impl Animator {
         })
     }
 
+    /// Whether a message of this emotion is animated; `false` means the shell shows it as plain
+    /// text, like any chat message. Unknown ids answer like `neutre`.
+    pub fn is_animated(&self, emotion_id: String) -> bool {
+        let emotion = kd_core::Emotion::from_id(&emotion_id).unwrap_or(kd_core::Emotion::Neutral);
+        self.theme.is_animated(emotion)
+    }
+
     /// Duration of the animation in milliseconds: after it, the frame no longer changes.
     /// `emotion_id` is an id such as `joie` (unknown ids play `neutre`); `writing_level` is 1 to 3
     /// (3 when the message has no mistake). Only the length of the message is used, not its text.
@@ -532,6 +539,15 @@ mod tests {
             draw("energie", MotionMode::Full, end + 5000)
         );
         assert!(a.duration_ms("energie".into(), 3, MotionMode::Minimal, 7) < end);
+    }
+
+    #[test]
+    fn neutral_messages_are_not_animated() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        assert!(!a.is_animated("neutre".into()));
+        assert!(!a.is_animated("inconnue".into()));
+        assert!(a.is_animated("calme".into()));
+        assert!(a.is_animated("joie".into()));
     }
 
     #[test]
