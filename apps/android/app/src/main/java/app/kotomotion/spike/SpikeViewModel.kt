@@ -105,7 +105,13 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Null if the theme could not be loaded: the screen then shows no animation. */
     val animator: Animator? = try {
-        Animator(app.assets.open("theme.json").bufferedReader().use { it.readText() })
+        Animator(app.assets.open("theme.json").bufferedReader().use { it.readText() }).also { animator ->
+            // The manga emoji art the theme draws next to the bubble (ADR-0027).
+            app.assets.list("emoji").orEmpty().filter { it.endsWith(".png") }.forEach { file ->
+                // A broken image only loses its art, never the animation.
+                runCatching { animator.addImage("emoji/$file", app.assets.open("emoji/$file").use { it.readBytes() }) }
+            }
+        }
     } catch (_: Exception) {
         null
     }

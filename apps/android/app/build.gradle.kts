@@ -167,7 +167,7 @@ val benchMessages = tasks.register("generateBenchMessages") {
 // --- Theme ------------------------------------------------------------------------------------
 val copyTheme = tasks.register<Copy>("copyTheme") {
     group = "build"
-    description = "Copies themes/anime/theme.json, the bubble lettering font and the French dictionary (with their licences) into the app assets."
+    description = "Copies themes/anime/theme.json with its emoji art, the bubble lettering font and the French dictionary (with their licences) into the app assets."
     from(repoRoot.resolve("themes/anime/theme.json"))
     // The font the engine draws with also letters the bubbles; its OFL text ships with it (docs/legal.md L11).
     from(repoRoot.resolve("crates/kd-fx/assets/fonts")) {
@@ -180,6 +180,11 @@ val copyTheme = tasks.register<Copy>("copyTheme") {
         into("grammar")
     }
     from(repoRoot.resolve("grammar/fr/allowlist.txt")) { into("grammar") }
+    // The manga emoji art the theme names (ADR-0027); not publishable yet (docs/legal.md).
+    from(repoRoot.resolve("themes/anime/emoji")) {
+        include("*.png")
+        into("emoji")
+    }
     into(layout.buildDirectory.dir("generated/theme-assets"))
 }
 

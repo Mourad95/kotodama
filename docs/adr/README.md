@@ -31,3 +31,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0024](0024-unanimated-emotions.md) | A theme can show an emotion as plain text (`neutre` is not animated) | accepted |
 | [0025](0025-french-speller-and-gif-share.md) | French speller on spellbook (comprehensive dictionary) and GIF sharing of stickers | accepted |
 | [0026](0026-threshold-emoji-and-gif-quality.md) | Confidence threshold 0.5, colour emoji in stickers, sharper GIFs | accepted |
+| [0027](0027-manga-emoji-art-and-power-aura.md) | Manga emoji art next to the bubble, power aura for energy, bigger sticker text | accepted |

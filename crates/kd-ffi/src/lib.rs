@@ -237,6 +237,17 @@ impl Animator {
         })
     }
 
+    /// Registers a theme image, a PNG file shipped next to the theme, under its path relative to the
+    /// theme folder (`emoji/joie.png`, as the theme's `emoji_art` names it, ADR-0027). Call it once
+    /// per image after building the animator; frames draw the images the message's emoji call up.
+    pub fn add_image(&self, name: String, png: Vec<u8>) -> Result<(), EngineError> {
+        guarded(|| {
+            self.renderer
+                .add_image(&name, &png)
+                .map_err(|e| EngineError::Animation(e.to_string()))
+        })
+    }
+
     /// Whether a message of this emotion is animated; `false` means the shell shows it as plain
     /// text, like any chat message. Unknown ids answer like `neutre`.
     pub fn is_animated(&self, emotion_id: String) -> bool {
@@ -323,13 +334,20 @@ impl Animator {
             let message: String = message.chars().take(MAX_ANIMATED_CHARS).collect();
             let level = animation_level(&self.theme, &emotion_id, writing_level);
             let glyphs = message.chars().count();
-            let (frame, opaque) = if layer == FrameLayer::Sticker {
-                let frame = kd_fx::scene::sample_sticker(&level, glyphs, t_ms, seed, mode.into());
+            let art = self.theme.emoji_art_for(&message);
+            let (mut frame, opaque) = if layer == FrameLayer::Sticker {
+                let mut frame =
+                    kd_fx::scene::sample_sticker(&level, glyphs, t_ms, seed, mode.into());
+                frame.art = kd_fx::scene::sample_art(&art, t_ms, None, mode.into());
                 (frame, true)
             } else {
                 let frame = kd_fx::scene::sample(&level, glyphs, t_ms, seed, mode.into());
                 (frame, layer == FrameLayer::Opaque)
             };
+            if layer != FrameLayer::Sticker {
+                let end = kd_fx::scene::duration_ms(&level, glyphs, mode.into());
+                frame.art = kd_fx::scene::sample_art(&art, t_ms, Some(end), mode.into());
+            }
             let pixmap = match stage.filter(|_| !opaque) {
                 Some(s) => self.renderer.render_layer_on(
                     &frame,
@@ -377,8 +395,17 @@ impl Animator {
             }
             let message: String = message.chars().take(MAX_ANIMATED_CHARS).collect();
             let level = animation_level(&self.theme, &emotion_id, writing_level);
-            kd_fx::export::sticker_gif(&self.renderer, &level, &message, side, seed, mode.into())
-                .map_err(|e| EngineError::Animation(e.to_string()))
+            let art = self.theme.emoji_art_for(&message);
+            kd_fx::export::sticker_gif(
+                &self.renderer,
+                &level,
+                &message,
+                &art,
+                side,
+                seed,
+                mode.into(),
+            )
+            .map_err(|e| EngineError::Animation(e.to_string()))
         })
     }
 }
@@ -585,6 +612,32 @@ mod tests {
         assert!(animator
             .render_bubble("genance".into(), 3, 4096, 80, false)
             .is_err());
+    }
+
+    #[test]
+    fn emoji_art_is_drawn_once_its_image_is_added() {
+        let a = Animator::new(ANIME.into()).unwrap();
+        let draw = |message: &str| {
+            a.render(
+                "joie".into(),
+                3,
+                MotionMode::Full,
+                message.into(),
+                3000,
+                90,
+                90,
+                1,
+                FrameLayer::Sticker,
+                None,
+            )
+            .unwrap()
+        };
+        let before = draw("trop bien 😂");
+        assert!(a.add_image("emoji/joie.png".into(), vec![1, 2, 3]).is_err());
+        let png = include_bytes!("../../../themes/anime/emoji/joie.png");
+        a.add_image("emoji/joie.png".into(), png.to_vec()).unwrap();
+        assert_ne!(draw("trop bien 😂"), before);
+        assert_eq!(draw("trop bien"), draw("trop bien"), "no emoji, no art");
     }
 
     #[test]

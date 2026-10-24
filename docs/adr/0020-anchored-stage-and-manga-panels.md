@@ -32,7 +32,7 @@ Amending ADR-0019:
   the panel: each word is sized to the room above or below the bubble (up to 90 % of the width,
   62 % of the room's height, four times the theme scale); when one side is too short its words
   move to the other side, stacked in two rows.
-- **Energy is neon.** A `neon` motif (zigzag bolts with an accent glow) and `sparks` particles;
+- **Energy is neon** (superseded by ADR-0027: energy is now a power aura). A `neon` motif (zigzag bolts with an accent glow) and `sparks` particles;
   any flicker stays between 85 % and 100 % brightness for photosensitivity.
 
 ## Consequences

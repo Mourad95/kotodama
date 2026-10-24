@@ -40,7 +40,7 @@ const EMOJI_HEIGHT: f32 = 1.05;
 /// Advance of an emoji, in em of the message font.
 const EMOJI_ADVANCE: f32 = 1.2;
 /// Message font size as a fraction of the size unit.
-const TEXT_SIZE: f32 = 0.058;
+const TEXT_SIZE: f32 = 0.082;
 /// Widest a line of the message may be, as a fraction of the frame width.
 const TEXT_WIDTH: f32 = 0.80;
 /// Characters that never start a line: they stay with the word they follow.
@@ -90,8 +90,20 @@ pub struct Renderer {
     emoji_font: FontRef<'static>,
     /// Decoded emoji bitmaps, `None` when a glyph has no bitmap.
     emoji: Mutex<HashMap<GlyphId, Option<Pixmap>>>,
+    /// Theme images (emoji illustrations, ADR-0027), by name.
+    images: Mutex<HashMap<String, Pixmap>>,
     background: Rgb,
 }
+
+/// An image given to [`Renderer::add_image`] could not be used.
+#[derive(Debug, thiserror::Error)]
+#[error("image `{0}` is not a valid PNG or is too large")]
+pub struct ImageError(pub String);
+
+/// Longest side an added image may have, in pixels.
+const MAX_IMAGE_SIDE: u32 = 1024;
+/// Designed size of an emoji illustration, as a fraction of the size unit.
+const ART_SIZE: f32 = 0.24;
 
 /// Which font draws a character.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -150,7 +162,70 @@ impl Renderer {
             font: FontRef::new(FONT).expect("the bundled font is valid"),
             emoji_font: FontRef::new(EMOJI_FONT).expect("the bundled emoji font is valid"),
             emoji: Mutex::new(HashMap::new()),
+            images: Mutex::new(HashMap::new()),
             background: crate::scene::LIGHT_BACKGROUND,
+        }
+    }
+
+    /// Registers a theme image under `name` (for example `emoji/joie.png`), replacing any image of
+    /// that name. Frames refer to it by name; an unknown name is simply not drawn.
+    pub fn add_image(&self, name: &str, png: &[u8]) -> Result<(), ImageError> {
+        let image = Pixmap::decode_png(png)
+            .ok()
+            .filter(|p| p.width().max(p.height()) <= MAX_IMAGE_SIDE)
+            .ok_or_else(|| ImageError(name.to_owned()))?;
+        self.images
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(name.to_owned(), image);
+        Ok(())
+    }
+
+    /// Draws the frame's emoji illustrations around the bubble `bounds` (pixels): top left, bottom
+    /// right, then top right, overlapping its corners and kept inside the frame.
+    fn draw_art(
+        &self,
+        pixmap: &mut Pixmap,
+        frame: &Frame,
+        bounds: (f32, f32, f32, f32),
+        u: f32,
+        shake: Transform,
+    ) {
+        if frame.art.is_empty() {
+            return;
+        }
+        let images = self.images.lock().unwrap_or_else(|e| e.into_inner());
+        let (w, h) = (pixmap.width() as f32, pixmap.height() as f32);
+        let side = ART_SIZE * u;
+        for art in &frame.art {
+            let Some(image) = images.get(&art.image) else {
+                continue;
+            };
+            if art.alpha <= 0.0 || art.scale <= 0.0 {
+                continue;
+            }
+            let (bx, by, bw, bh) = bounds;
+            let (cx, cy) = match art.slot {
+                0 => (bx + side * 0.15, by - side * 0.2),
+                1 => (bx + bw - side * 0.15, by + bh + side * 0.2),
+                _ => (bx + bw - side * 0.1, by - side * 0.25),
+            };
+            let half = side / 2.0;
+            let cx = cx.clamp(half.min(w / 2.0), (w - half).max(w / 2.0));
+            let cy = cy.clamp(half.min(h / 2.0), (h - half).max(h / 2.0)) + art.dy * u;
+            let (iw, ih) = (image.width() as f32, image.height() as f32);
+            let fit = side / iw.max(ih) * art.scale;
+            let t = Transform::from_translate(cx, cy)
+                .pre_rotate(art.rotation)
+                .pre_scale(fit, fit)
+                .pre_translate(-iw / 2.0, -ih / 2.0)
+                .post_concat(shake);
+            let paint = PixmapPaint {
+                opacity: art.alpha.clamp(0.0, 1.0),
+                quality: tiny_skia::FilterQuality::Bicubic,
+                ..PixmapPaint::default()
+            };
+            pixmap.draw_pixmap(0, 0, image.as_ref(), &paint, t, None);
         }
     }
 
@@ -417,6 +492,7 @@ impl Renderer {
         if let Some(m) = &frame.manga {
             crate::manga::draw_scene(&mut pixmap, m, ink, bounds, shake, true, panel);
         }
+        self.draw_art(&mut pixmap, frame, hole.unwrap_or(bounds), u, shake);
         for p in frame.particles.iter().filter(|p| p.depth > 0.68) {
             particle(&mut pixmap, p);
         }

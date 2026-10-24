@@ -56,6 +56,23 @@ pub struct Theme {
     pub version: String,
     /// Motion per emotion. `neutre` is mandatory: it is the fallback for any missing emotion.
     pub emotions: BTreeMap<Emotion, EmotionMotion>,
+    /// Manga illustrations drawn around the message when it contains one of their emoji
+    /// (ADR-0027). Images are registered with the renderer under their `image` name.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub emoji_art: Vec<EmojiArt>,
+}
+
+/// Most emoji illustrations drawn around one message.
+pub const MAX_EMOJI_ART: usize = 3;
+
+/// One manga illustration and the emoji that call it up.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmojiArt {
+    /// Image name, relative to the theme folder (`emoji/joie.png`).
+    pub image: String,
+    /// Emoji that show this image; variation selectors (U+FE0F) are ignored when matching.
+    pub emoji: Vec<String>,
 }
 
 /// Motion of one emotion: exactly three levels, from [`Intensity::Low`] to [`Intensity::Full`].
@@ -171,6 +188,8 @@ pub enum MangaMotif {
     Blush,
     /// Electric neon: a glowing tube around the message and crackling lightning arcs.
     Neon,
+    /// Power aura: pulsing yellow-orange flame tongues around the message and a few lightning bolts.
+    Power,
 }
 
 /// Letter entrance animation.
@@ -355,6 +374,31 @@ impl Theme {
             .is_none_or(|motion| motion.animated)
     }
 
+    /// Images to draw around `message`: at most [`MAX_EMOJI_ART`] distinct ones, in the order their
+    /// emoji first appear in the message.
+    pub fn emoji_art_for(&self, message: &str) -> Vec<&str> {
+        let plain = strip_variation(message);
+        let mut found: Vec<(usize, &str)> = self
+            .emoji_art
+            .iter()
+            .filter_map(|art| {
+                art.emoji
+                    .iter()
+                    .filter_map(|e| plain.find(strip_variation(e).as_str()))
+                    .min()
+                    .map(|at| (at, art.image.as_str()))
+            })
+            .collect();
+        found.sort_by_key(|&(at, _)| at);
+        let mut images: Vec<&str> = Vec::new();
+        for (_, image) in found {
+            if !images.contains(&image) && images.len() < MAX_EMOJI_ART {
+                images.push(image);
+            }
+        }
+        images
+    }
+
     fn validate(&self) -> Result<(), ThemeError> {
         let fail = |reason: String| ThemeError::Invalid {
             theme: self.id.clone(),
@@ -368,6 +412,16 @@ impl Theme {
         }
         if !self.emotions.contains_key(&Emotion::Neutral) {
             return Err(fail("`neutre` must be defined (fallback emotion)".into()));
+        }
+        for art in &self.emoji_art {
+            if art.image.is_empty()
+                || art.emoji.is_empty()
+                || art.emoji.iter().any(|e| strip_variation(e).is_empty())
+            {
+                return Err(fail(
+                    "emoji art needs an image name and at least one emoji".into(),
+                ));
+            }
         }
         for (emotion, motion) in &self.emotions {
             let numbers: Vec<u8> = motion.levels.iter().map(|l| l.level).collect();
@@ -506,6 +560,11 @@ fn photosensitivity_violation(level: &Level) -> Option<String> {
     None
 }
 
+/// `text` without emoji variation selectors, so `❤` and `❤️` match alike.
+fn strip_variation(text: &str) -> String {
+    text.chars().filter(|&c| c != '\u{FE0F}').collect()
+}
+
 fn is_hex_color(s: &str) -> bool {
     s.len() == 7 && s.starts_with('#') && s[1..].chars().all(|c| c.is_ascii_hexdigit())
 }
@@ -616,6 +675,34 @@ mod tests {
     }
 
     #[test]
+    fn emoji_art_keeps_three_distinct_images_in_message_order() {
+        let theme = Theme::from_json(ANIME).unwrap();
+        assert!(theme.emoji_art_for("bonjour").is_empty());
+        assert_eq!(theme.emoji_art_for("trop bien 😂😂🤣"), ["emoji/joie.png"]);
+        assert_eq!(
+            theme.emoji_art_for("😡 puis 🔥, ❤ 😢 😌"),
+            [
+                "emoji/colere.png",
+                "emoji/energie.png",
+                "emoji/amour_coeur.png"
+            ]
+        );
+        assert_eq!(
+            theme.emoji_art_for("❤️"),
+            theme.emoji_art_for("❤"),
+            "variation selectors are ignored"
+        );
+    }
+
+    #[test]
+    fn emoji_art_needs_an_image_and_emoji() {
+        let mut theme = Theme::from_json(ANIME).unwrap();
+        theme.emoji_art[0].emoji = vec!["\u{FE0F}".into()];
+        let json = serde_json::to_string(&theme).unwrap();
+        assert!(Theme::from_json(&json).is_err());
+    }
+
+    #[test]
     fn invalid_themes_are_rejected() {
         let no_neutral = ANIME.replace("\"neutre\"", "\"amour\"");
         assert!(matches!(
@@ -623,7 +710,7 @@ mod tests {
             Err(ThemeError::Invalid { .. })
         ));
 
-        let bad_color = ANIME.replacen("#0C447C", "blue", 1);
+        let bad_color = ANIME.replacen("#7A2E00", "blue", 1);
         assert!(Theme::from_json(&bad_color).is_err());
 
         let unknown_field = ANIME.replacen("\"name\"", "\"nmae\"", 1);

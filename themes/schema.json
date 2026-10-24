@@ -11,6 +11,18 @@
     "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
     "name": { "type": "string", "minLength": 1 },
     "version": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "emoji_art": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["image", "emoji"],
+        "properties": {
+          "image": { "type": "string", "minLength": 1 },
+          "emoji": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } }
+        }
+      }
+    },
     "emotions": {
       "type": "object",
       "additionalProperties": false,
@@ -35,7 +47,7 @@
       "additionalProperties": false,
       "required": ["motif", "accent_color", "depth"],
       "properties": {
-        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush", "neon"] },
+        "motif": { "enum": ["radiance", "pressure", "orbit", "tension", "rainfall", "blossom", "breeze", "blush", "neon", "power"] },
         "accent_color": { "$ref": "#/$defs/color" },
         "depth": { "type": "number", "minimum": 0, "maximum": 1 },
         "palette": { "type": "array", "items": { "$ref": "#/$defs/color" } },

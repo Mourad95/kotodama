@@ -343,7 +343,7 @@ pub(crate) fn draw_scene(
     };
     // Localised ink rays/hatching: empty reading centre and transparent outer corners.
     match style.motif {
-        MangaMotif::Radiance | MangaMotif::Pressure | MangaMotif::Tension => {
+        MangaMotif::Radiance | MangaMotif::Pressure | MangaMotif::Tension | MangaMotif::Power => {
             let count = if style.motif == MangaMotif::Radiance {
                 32
             } else {
@@ -568,7 +568,7 @@ fn accents(
                 );
             }
         }
-        MangaMotif::Neon => {
+        MangaMotif::Neon | MangaMotif::Power => {
             // Small electric bolts at opposite corners, accent fill with an ink edge.
             let r = if compact { 0.05 } else { 0.10 };
             for (x, y) in [(right, top), (outer, 0.80 + drift)] {

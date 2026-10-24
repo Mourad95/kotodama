@@ -27,11 +27,13 @@ pub enum ExportError {
 }
 
 /// Encodes the sticker of `message` (ADR-0023) as a `side` x `side` looping GIF. With reduced
-/// motion the GIF is the settled scene, still (one frame). Deterministic for the same inputs.
+/// motion the GIF is the settled scene, still (one frame). `art` names the emoji illustrations to
+/// draw around the message (see [`crate::Theme::emoji_art_for`]). Deterministic for the same inputs.
 pub fn sticker_gif(
     renderer: &Renderer,
     level: &Level,
     message: &str,
+    art: &[&str],
     side: u32,
     seed: u64,
     motion: Motion,
@@ -68,7 +70,8 @@ pub fn sticker_gif(
         let last = instants.len() - 1;
         let mut previous: Option<Vec<u8>> = None;
         for (i, &t) in instants.iter().enumerate() {
-            let frame = scene::sample_sticker(level, glyphs, t, seed, motion);
+            let mut frame = scene::sample_sticker(level, glyphs, t, seed, motion);
+            frame.art = scene::sample_art(art, t, None, motion);
             let pixmap = renderer
                 .render_layer(&frame, message, side, side, Layer::Opaque)
                 .ok_or(ExportError::Size)?;
@@ -125,7 +128,7 @@ mod tests {
     #[test]
     fn plays_once_then_holds_the_settled_scene() {
         let renderer = Renderer::new();
-        let gif = sticker_gif(&renderer, &level(), "trop bien", 96, 7, Motion::Full).unwrap();
+        let gif = sticker_gif(&renderer, &level(), "trop bien", &[], 96, 7, Motion::Full).unwrap();
         assert_eq!(&gif[..6], b"GIF89a");
         let delays = frames(&gif);
         assert!(delays.len() > 5 && delays.len() as u32 <= MAX_FRAMES + 1);
@@ -146,17 +149,58 @@ mod tests {
     #[test]
     fn reduced_motion_is_one_still_frame() {
         let renderer = Renderer::new();
-        let gif = sticker_gif(&renderer, &level(), "trop bien", 64, 7, Motion::Reduced).unwrap();
+        let gif = sticker_gif(
+            &renderer,
+            &level(),
+            "trop bien",
+            &[],
+            64,
+            7,
+            Motion::Reduced,
+        )
+        .unwrap();
         assert_eq!(frames(&gif).len(), 1);
     }
 
     #[test]
     fn is_deterministic_and_rejects_bad_sizes() {
         let renderer = Renderer::new();
-        let a = sticker_gif(&renderer, &level(), "salut", 48, 3, Motion::Gentle).unwrap();
-        let b = sticker_gif(&renderer, &level(), "salut", 48, 3, Motion::Gentle).unwrap();
+        let a = sticker_gif(&renderer, &level(), "salut", &[], 48, 3, Motion::Gentle).unwrap();
+        let b = sticker_gif(&renderer, &level(), "salut", &[], 48, 3, Motion::Gentle).unwrap();
         assert_eq!(a, b);
-        assert!(sticker_gif(&renderer, &level(), "salut", 0, 3, Motion::Full).is_err());
-        assert!(sticker_gif(&renderer, &level(), "salut", 70_000, 3, Motion::Full).is_err());
+        assert!(sticker_gif(&renderer, &level(), "salut", &[], 0, 3, Motion::Full).is_err());
+        assert!(sticker_gif(&renderer, &level(), "salut", &[], 70_000, 3, Motion::Full).is_err());
+    }
+
+    #[test]
+    fn registered_emoji_art_is_drawn_and_bad_images_are_refused() {
+        let renderer = Renderer::new();
+        let art = ["emoji/joie.png"];
+        let plain = sticker_gif(
+            &renderer,
+            &level(),
+            "trop bien",
+            &art,
+            64,
+            7,
+            Motion::Reduced,
+        );
+        assert!(renderer.add_image("emoji/joie.png", b"not a png").is_err());
+        let png = include_bytes!("../../../themes/anime/emoji/joie.png");
+        renderer.add_image("emoji/joie.png", png).unwrap();
+        let drawn = sticker_gif(
+            &renderer,
+            &level(),
+            "trop bien",
+            &art,
+            64,
+            7,
+            Motion::Reduced,
+        );
+        assert_ne!(
+            plain.unwrap(),
+            drawn.unwrap(),
+            "the image appears once registered"
+        );
     }
 }

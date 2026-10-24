@@ -47,6 +47,7 @@ fn props(motif: MangaMotif) -> &'static [Prop] {
         MangaMotif::Radiance => &[Sun, Star, Bubble, Star, Sparkle],
         MangaMotif::Pressure => &[Anger, Smoke, Bolt, Anger],
         MangaMotif::Neon => &[Bolt, Shard, Sparkle, Crack, Bolt],
+        MangaMotif::Power => &[Bolt, Sparkle, Star, Bolt],
         MangaMotif::Orbit => &[Shard, Sparkle, Shard, Bolt],
         MangaMotif::Tension => &[Spiral, Sweat, Spiral, Sparkle],
         MangaMotif::Rainfall => &[Tear, Sweat, Tear],
@@ -203,6 +204,7 @@ pub(crate) fn draw_scatter(
         MangaMotif::Rainfall => rain(&mut pen, &palette, p, strength, frame, keep, shake),
         MangaMotif::Blush => blush_bands(&mut pen, &palette, p, strength, frame, keep, shake),
         MangaMotif::Neon => neon_tube(&mut pen, accent, &palette, p, strength, keep, shake),
+        MangaMotif::Power => power_aura(&mut pen, accent, &palette, p, strength, keep, shake),
         _ => {}
     }
     // A jittered grid over the frame: each cell may hold one prop, never over the bubble.
@@ -862,6 +864,109 @@ fn neon_tube(
     }
 }
 
+/// A power aura: layered flame tongues licking outwards all around the bubble, the whole aura
+/// breathing in size, and a few lightning bolts crackling off it.
+fn power_aura(
+    pen: &mut Pen<'_>,
+    accent: Rgb,
+    palette: &[Rgb],
+    p: f32,
+    strength: f32,
+    keep: Bounds,
+    shake: Transform,
+) {
+    let u = pen.u;
+    let tone = |i: usize, fallback: Rgb| palette.get(i).copied().unwrap_or(fallback);
+    let (yellow, orange, red, core) = (
+        tone(0, Rgb(255, 210, 31)),
+        tone(1, accent),
+        tone(2, Rgb(255, 77, 0)),
+        tone(3, Rgb(255, 243, 176)),
+    );
+    // The aura breathes in size only, a few times per loop; its brightness never jumps
+    // (photosensitivity, gpu-effects skill).
+    let pulse = 0.88 + 0.12 * (p * TAU * 6.0).sin();
+    let halo = (0.65 + 0.35 * strength) * (0.8 + 0.2 * pulse);
+    for (pad, tint, width, alpha) in [
+        (0.05 * u, orange, 0.10 * u, 0.22),
+        (0.02 * u, yellow, 0.04 * u, 0.5),
+    ] {
+        let b = (
+            keep.0 - pad,
+            keep.1 - pad,
+            keep.2 + 2.0 * pad,
+            keep.3 + 2.0 * pad,
+        );
+        let mut pb = PathBuilder::new();
+        push_round_rect(&mut pb, b, 0.2 * b.2.min(b.3));
+        if let Some(ring) = pb.finish() {
+            pen.stroke(&ring, tint, width, alpha * halo, shake);
+        }
+    }
+    let (cx, cy) = (keep.0 + keep.2 / 2.0, keep.1 + keep.3 / 2.0);
+    // Where the ray from the bubble's centre at angle `a` leaves the bubble, and its direction.
+    let edge = |a: f32| {
+        let (dx, dy) = (a.cos(), a.sin());
+        let t = (keep.2 / 2.0 / dx.abs().max(1e-3)).min(keep.3 / 2.0 / dy.abs().max(1e-3));
+        (cx + dx * t, cy + dy * t, dx, dy)
+    };
+    let perimeter = 2.0 * (keep.2 + keep.3);
+    let n = (perimeter / (u * 0.07)).clamp(12.0, 48.0) as u32;
+    let half = perimeter / n as f32 * 0.55;
+    // Three passes from the outside in: red-orange inked tongues, orange, then a yellow core.
+    for (layer, (tint, size)) in [(red, 1.0), (orange, 0.72), (yellow, 0.45)]
+        .into_iter()
+        .enumerate()
+    {
+        for i in 0..n {
+            let key = 1300 + i as u64;
+            let a = TAU * (i as f32 + 0.5 * layer as f32 + 0.3 * hash(key, 0)) / n as f32;
+            let (x, y, dx, dy) = edge(a);
+            let lick = 0.8 + 0.2 * (p * TAU * 8.0 + TAU * hash(key, 1)).sin();
+            let height =
+                u * (0.09 + 0.08 * hash(key, 2)) * (0.6 + 0.4 * strength) * pulse * lick * size;
+            let at = Transform::from_rotate(dx.atan2(-dy).to_degrees())
+                .post_translate(x + dx * 0.012 * u, y + dy * 0.012 * u)
+                .post_concat(shake);
+            let Some(tongue) = flame_path(half * size, height) else {
+                continue;
+            };
+            if layer == 0 {
+                pen.inked(&tongue, tint, half, at);
+            } else {
+                pen.fill(&tongue, tint, 0.95, at);
+            }
+        }
+    }
+    // A pale core line hugging the bubble, where the flames are hottest.
+    let mut pb = PathBuilder::new();
+    push_round_rect(&mut pb, keep, 0.2 * keep.2.min(keep.3));
+    if let Some(ring) = pb.finish() {
+        pen.stroke(&ring, core, 0.012 * u, 0.9 * halo, shake);
+    }
+    // Bolts jump to new places a few times per loop.
+    let bolts = (1.0 + 3.0 * strength) as u64;
+    let jump = (p * 6.0) as u64;
+    for i in 0..bolts {
+        let key = 1500 + i * 31 + jump * 7;
+        let (sx, sy, dx, dy) = edge(TAU * hash(key, 0));
+        let (sx, sy) = (sx + dx * 0.1 * u, sy + dy * 0.1 * u);
+        let length = u * (0.08 + 0.08 * hash(key, 1));
+        let mut pb = PathBuilder::new();
+        pb.move_to(sx, sy);
+        for s in 1..=4 {
+            let along = length * s as f32 / 4.0;
+            let side = u * 0.03 * (hash(key, 10 + s as u64) - 0.5) * 2.0;
+            pb.line_to(sx + dx * along - dy * side, sy + dy * along + dx * side);
+        }
+        if let Some(path) = pb.finish() {
+            pen.stroke(&path, OUTLINE, 0.014 * u, 0.8, shake);
+            pen.stroke(&path, yellow, 0.009 * u, 1.0, shake);
+            pen.stroke(&path, WHITE, 0.003 * u, 1.0, shake);
+        }
+    }
+}
+
 fn glow(pen: &mut Pen<'_>, radius: f32, rgb: Rgb, alpha: f32, at: Transform) {
     let stops = vec![
         GradientStop::new(0.0, color(rgb, alpha * pen.alpha)),
@@ -1046,6 +1151,7 @@ mod tests {
             MangaMotif::Breeze,
             MangaMotif::Blush,
             MangaMotif::Neon,
+            MangaMotif::Power,
         ] {
             let mut image = Pixmap::new(240, 400).expect("pixmap");
             let s = state(motif);
@@ -1057,6 +1163,27 @@ mod tests {
             }
             assert!(alpha_at(&image, 10, 10) > 0, "{motif:?}: no backdrop");
         }
+    }
+
+    #[test]
+    fn power_aura_breathes_around_the_bubble() {
+        let draw = |progress: f32| {
+            let mut image = Pixmap::new(240, 400).expect("pixmap");
+            let s = MangaState {
+                progress,
+                style: MangaStyle {
+                    backdrop: None,
+                    ..state(MangaMotif::Power).style
+                },
+                ..state(MangaMotif::Power)
+            };
+            draw_scatter(&mut image, &s, (240.0, 400.0), KEEP, Transform::identity());
+            image
+        };
+        let (a, b) = (draw(0.04), draw(0.12));
+        // Flames lick just outside the bubble's top edge, and the aura moves between frames.
+        assert!((140..158).any(|y| alpha_at(&a, 120, y) > 0));
+        assert_ne!(a.data(), b.data());
     }
 
     #[test]

@@ -131,6 +131,26 @@ pub struct Frame {
     pub onomatopoeias: Vec<OnomatopoeiaState>,
     /// Offset applied to the whole frame, as a fraction of its size.
     pub shake: (f32, f32),
+    /// Emoji illustrations around the message (ADR-0027); empty unless the caller adds them with
+    /// [`sample_art`].
+    pub art: Vec<ArtState>,
+}
+
+/// One emoji illustration around the message at one instant.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ArtState {
+    /// Image name, as registered with the renderer.
+    pub image: String,
+    /// Slot around the message: 0 top left, 1 bottom right, 2 top right.
+    pub slot: usize,
+    /// Size relative to the designed size (pops past 1.0 on entrance).
+    pub scale: f32,
+    /// Vertical bob, as a fraction of the frame's size unit.
+    pub dy: f32,
+    /// Tilt, in degrees.
+    pub rotation: f32,
+    /// Opacity, between zero and one.
+    pub alpha: f32,
 }
 
 /// How much motion the viewer accepts (docs/legal.md L26).
@@ -246,6 +266,7 @@ fn sample_with(
             screen: Vec::new(),
             onomatopoeias: Vec::new(),
             shake: (0.0, 0.0),
+            art: Vec::new(),
         };
     }
     let end = duration_ms(level, glyph_count, motion) as f32;
@@ -335,7 +356,67 @@ fn sample_with(
         screen,
         onomatopoeias,
         shake,
+        art: Vec::new(),
     }
+}
+
+/// First illustration pops in this long after the message starts, in milliseconds.
+const ART_DELAY_MS: f32 = 200.0;
+/// Each next illustration pops in this much later, in milliseconds.
+const ART_STAGGER_MS: f32 = 220.0;
+/// How long the pop-in lasts, in milliseconds.
+const ART_POP_MS: f32 = 450.0;
+/// Peak bob of an illustration, as a fraction of the size unit (halved in gentle mode).
+const ART_BOB: f32 = 0.008;
+/// Resting tilt of each slot, in degrees.
+const ART_TILT: [f32; 3] = [-12.0, 10.0, 8.0];
+
+/// Samples the emoji illustrations `images` (in slot order, see [`crate::Theme::emoji_art_for`]) at
+/// `t_ms`: each pops in after the previous one, then bobs gently. With `fade_out_at`, they fade out
+/// over the last 450 ms before that instant, like the manga panel of an overlay. With reduced motion
+/// they are shown still.
+pub fn sample_art(
+    images: &[&str],
+    t_ms: u32,
+    fade_out_at: Option<u32>,
+    motion: Motion,
+) -> Vec<ArtState> {
+    let t = t_ms as f32;
+    let fade = fade_out_at.map_or(1.0, |end| ((end as f32 - t) / 450.0).clamp(0.0, 1.0));
+    images
+        .iter()
+        .take(ART_TILT.len())
+        .enumerate()
+        .map(|(slot, image)| {
+            let tilt = ART_TILT[slot];
+            if motion == Motion::Reduced {
+                return ArtState {
+                    image: (*image).to_owned(),
+                    slot,
+                    scale: 1.0,
+                    dy: 0.0,
+                    rotation: tilt,
+                    alpha: 1.0,
+                };
+            }
+            let since = t - ART_DELAY_MS - slot as f32 * ART_STAGGER_MS;
+            let p = (since / ART_POP_MS).clamp(0.0, 1.0);
+            let phase = since.max(0.0) / 1000.0 * std::f32::consts::TAU * 0.8 + slot as f32 * 2.1;
+            let bob = if motion == Motion::Gentle {
+                ART_BOB * 0.5
+            } else {
+                ART_BOB
+            };
+            ArtState {
+                image: (*image).to_owned(),
+                slot,
+                scale: if p > 0.0 { ease_out_back(p) } else { 0.0 },
+                dy: phase.sin() * bob * p,
+                rotation: tilt + phase.cos() * 4.0 * p,
+                alpha: (p * 3.0).min(1.0) * fade,
+            }
+        })
+        .collect()
 }
 
 /// Strength of the manga panel for a writing level (1 to 3): sober at 1, full at 3, so that writing
@@ -890,5 +971,32 @@ mod tests {
         assert!(first.manga.is_some());
         assert!(first.particles.is_empty() && first.screen.is_empty());
         assert_eq!(first.shake, (0.0, 0.0));
+    }
+
+    #[test]
+    fn emoji_art_pops_in_in_turn_then_bobs_and_holds_still_when_reduced() {
+        let images = ["emoji/joie.png", "emoji/colere.png"];
+        assert!(sample_art(&[], 1000, None, Motion::Full).is_empty());
+        let start = sample_art(&images, 0, None, Motion::Full);
+        assert!(start.iter().all(|a| a.scale == 0.0 && a.alpha == 0.0));
+        let early = sample_art(&images, 500, None, Motion::Full);
+        assert!(
+            early[0].alpha > early[1].alpha,
+            "the second one comes later"
+        );
+        let settled = sample_art(&images, 2000, None, Motion::Full);
+        assert!(settled
+            .iter()
+            .all(|a| (a.scale - 1.0).abs() < 1e-3 && a.alpha == 1.0));
+        assert_eq!(settled[1].slot, 1);
+        let gentle = sample_art(&images, 2000, None, Motion::Gentle);
+        assert!(gentle[0].dy.abs() <= ART_BOB * 0.5 + 1e-6);
+        let faded = sample_art(&images, 2000, Some(2000), Motion::Full);
+        assert!(faded.iter().all(|a| a.alpha == 0.0));
+        let reduced = sample_art(&images, 0, None, Motion::Reduced);
+        assert_eq!(reduced, sample_art(&images, 900, None, Motion::Reduced));
+        assert!(reduced.iter().all(|a| a.alpha == 1.0 && a.dy == 0.0));
+        let four = ["a", "b", "c", "d"];
+        assert_eq!(sample_art(&four, 0, None, Motion::Full).len(), 3);
     }
 }
