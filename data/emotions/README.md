@@ -56,3 +56,9 @@ User-supplied training material plus the Claude-written `calme` sheet and emoji 
 verified. This is not a new collection of private conversations. Do not add real minors'
 conversations without satisfying the project's data-consent gate (docs/legal.md L23).
 The prior research protocols, datasets and reported benchmark results remain historical records.
+
+## Emoji
+
+`emoji.json` maps each animated emotion id to the emoji that reveal it (ADR-0028). When a message
+contains one of them, it decides the emotion to animate; the model handles messages without
+them. Add an emoji under exactly one emotion; U+FE0F is ignored when matching.

@@ -76,8 +76,11 @@ pub struct EmotionProbability {
 pub struct EmotionResult {
     /// Most probable emotion id.
     pub choice: String,
-    /// Emotion id to animate: `choice`, or `neutre` below the confidence threshold (ADR-0008, ADR-0021).
+    /// Emotion id to animate: the emoji's emotion when the message has a known emoji (ADR-0028),
+    /// else `choice`, or `neutre` below the confidence threshold (ADR-0008, ADR-0021).
     pub effective: String,
+    /// `effective` was revealed by the message's emoji rather than by the model (ADR-0028).
+    pub from_emoji: bool,
     /// Confidence in [0, 1]: 1 when all probability mass is on one emotion.
     pub confidence: f32,
     /// Probability of every emotion.
@@ -89,6 +92,7 @@ impl From<&EmotionAnalysis> for EmotionResult {
         Self {
             choice: a.scores.choice.id().to_owned(),
             effective: a.effective.id().to_owned(),
+            from_emoji: a.from_emoji,
             confidence: a.scores.confidence,
             probabilities: a
                 .scores
@@ -587,6 +591,24 @@ mod tests {
     const ANIME: &str = include_str!("../../../themes/anime/theme.json");
 
     #[test]
+    fn theme_emoji_art_agrees_with_the_emoji_emotions() {
+        let theme = kd_fx::Theme::from_json(ANIME).unwrap();
+        let map = kd_emotion::EmojiMap::builtin();
+        for art in &theme.emoji_art {
+            // `emoji/amour_coeur.png` belongs to `amour`.
+            let stem = art
+                .image
+                .trim_start_matches("emoji/")
+                .trim_end_matches(".png");
+            let id = stem.split('_').next().unwrap();
+            for e in &art.emoji {
+                let emotion = map.emotion(e).map(|x| x.id());
+                assert_eq!(emotion, Some(id), "{e} in {}", art.image);
+            }
+        }
+    }
+
+    #[test]
     fn bubble_decoration_is_separate_from_text_and_rejects_invalid_sizes() {
         let animator = Animator::new(ANIME.into()).unwrap();
         let light = animator
@@ -997,6 +1019,7 @@ mod tests {
         let analysis = EmotionAnalysis {
             effective: scores.effective(0.2),
             scores,
+            from_emoji: false,
         };
         let r = EmotionResult::from(&analysis);
         assert_eq!(r.effective, "neutre");

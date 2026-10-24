@@ -6,10 +6,12 @@
 //! [`Bundle`]; the engine is fully testable with any [`Embedder`].
 
 pub mod bundle;
+pub mod emoji;
 #[cfg(feature = "ort")]
 pub mod ort_embedder;
 
 pub use bundle::{Bundle, Manifest};
+pub use emoji::EmojiMap;
 #[cfg(feature = "ort")]
 pub use ort_embedder::OrtEmbedder;
 
@@ -44,6 +46,9 @@ pub enum EmotionError {
         /// Checksum of the file on disk.
         got: String,
     },
+    /// The emoji map could not be parsed.
+    #[error("invalid emoji map: {0}")]
+    InvalidEmoji(String),
     /// The embedder failed.
     #[error("embedder failed: {0}")]
     Embedder(String),
@@ -153,15 +158,19 @@ impl EmotionHead {
 pub struct EmotionAnalysis {
     /// Raw scores from the engine.
     pub scores: EmotionScores,
-    /// Emotion to animate after the confidence threshold (ADR-0008).
+    /// Emotion to animate: the emoji's emotion when the message has a known emoji (ADR-0028),
+    /// otherwise the model's choice after the confidence threshold (ADR-0008).
     pub effective: Emotion,
+    /// `effective` was revealed by the message's emoji rather than by the model.
+    pub from_emoji: bool,
 }
 
-/// The emotion engine: embedder + head + confidence threshold.
+/// The emotion engine: embedder + head + confidence threshold, with emoji first (ADR-0028).
 pub struct EmotionEngine<E: Embedder> {
     embedder: E,
     head: EmotionHead,
     threshold: f32,
+    emoji: EmojiMap,
 }
 
 impl<E: Embedder> EmotionEngine<E> {
@@ -174,6 +183,7 @@ impl<E: Embedder> EmotionEngine<E> {
             embedder,
             head,
             threshold: Self::DEFAULT_THRESHOLD,
+            emoji: EmojiMap::builtin(),
         }
     }
 
@@ -184,11 +194,25 @@ impl<E: Embedder> EmotionEngine<E> {
     }
 
     /// Analyzes one message.
+    ///
+    /// The model always scores the message; a known emoji then decides the emotion to animate,
+    /// whatever the model's confidence (ADR-0028).
     pub fn analyze(&self, text: &str) -> Result<EmotionAnalysis, EmotionError> {
         let embedding = self.embedder.embed(text)?;
         let scores = self.head.score(&embedding)?;
-        let effective = scores.effective(self.threshold);
-        Ok(EmotionAnalysis { scores, effective })
+        let analysis = match self.emoji.emotion(text) {
+            Some(effective) => EmotionAnalysis {
+                scores,
+                effective,
+                from_emoji: true,
+            },
+            None => EmotionAnalysis {
+                effective: scores.effective(self.threshold),
+                scores,
+                from_emoji: false,
+            },
+        };
+        Ok(analysis)
     }
 }
 
@@ -236,6 +260,27 @@ mod tests {
         let unsure = engine.analyze("ok").unwrap();
         assert!(unsure.scores.confidence < 0.2);
         assert_eq!(unsure.effective, Emotion::Neutral);
+    }
+
+    #[test]
+    fn emoji_decide_the_emotion_and_the_model_stays_the_fallback() {
+        let engine = EmotionEngine::new(KeywordEmbedder, EmotionHead::from_json(HEAD).unwrap());
+
+        // The model reads joy, the emoji reveal energy.
+        let fire = engine.analyze("bravo 🔥💪").unwrap();
+        assert_eq!(fire.scores.choice, Emotion::Joy);
+        assert_eq!(fire.effective, Emotion::Energy);
+        assert!(fire.from_emoji);
+
+        // Below the threshold the emoji still decide.
+        let unsure = engine.analyze("ok 😭").unwrap();
+        assert!(unsure.scores.confidence < 0.2);
+        assert_eq!(unsure.effective, Emotion::Sadness);
+
+        // No known emoji: the model decides.
+        let plain = engine.analyze("bravo 👍").unwrap();
+        assert_eq!(plain.effective, Emotion::Joy);
+        assert!(!plain.from_emoji);
     }
 
     #[test]

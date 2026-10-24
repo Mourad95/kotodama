@@ -1,6 +1,6 @@
 # ADR-0008 — Low-confidence results fall back to `calme`
 
-**Status:** accepted · 2026-10-22 · amended by ADR-0021: the fallback is now `neutre`; amended by ADR-0026: the threshold is 0.5
+**Status:** accepted · 2026-10-22 · amended by ADR-0021: the fallback is now `neutre`; amended by ADR-0026: the threshold is 0.5; amended by ADR-0028: a known emoji in the message decides the emotion, without threshold
 
 ## Context
 A wrong emotion (confetti on a sad message) is worse than a neutral animation. The engine returns

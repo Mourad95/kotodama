@@ -32,3 +32,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0025](0025-french-speller-and-gif-share.md) | French speller on spellbook (comprehensive dictionary) and GIF sharing of stickers | accepted |
 | [0026](0026-threshold-emoji-and-gif-quality.md) | Confidence threshold 0.5, colour emoji in stickers, sharper GIFs | accepted |
 | [0027](0027-manga-emoji-art-and-power-aura.md) | Manga emoji art next to the bubble, power aura for energy, bigger sticker text | accepted |
+| [0028](0028-emoji-first-emotion.md) | Emoji in a message reveal the main emotion; the model is the fallback | accepted |

@@ -40,6 +40,7 @@
     <string name="hide_measures">Masquer les mesures</string>
     <string name="close_button">Fermer</string>
     <string name="caption_detected">%1$s · confiance %2$.2f · niveau %3$d</string>
+    <string name="caption_emoji">%1$s (emoji) · niveau %2$d</string>
     <string name="caption_forced">%1$s (choisie) · niveau %2$d</string>
     <string name="caption_fallback">calme (repli, aucun modèle) · niveau %1$d</string>
     <string name="send_button">Envoyer</string>

@@ -276,6 +276,7 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             val app = getApplication<Application>()
             caption = when {
                 forced != null -> app.getString(R.string.caption_forced, forced, level)
+                done.result?.fromEmoji == true -> app.getString(R.string.caption_emoji, emotion, level)
                 done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, level)
                 else -> app.getString(R.string.caption_fallback, level)
             }
