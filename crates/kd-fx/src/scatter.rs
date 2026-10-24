@@ -196,7 +196,10 @@ pub(crate) fn draw_scatter(
     let p = state.progress;
     let strength = state.strength.clamp(0.0, 1.0);
     match style.motif {
-        MangaMotif::Pressure => flames(&mut pen, &palette, p, strength, frame, shake),
+        MangaMotif::Pressure => {
+            smoke(&mut pen, accent, p, strength, frame, keep, shake);
+            flames(&mut pen, &palette, p, strength, frame, shake);
+        }
         MangaMotif::Rainfall => rain(&mut pen, &palette, p, strength, frame, keep, shake),
         MangaMotif::Blush => blush_bands(&mut pen, &palette, p, strength, frame, keep, shake),
         MangaMotif::Neon => neon_tube(&mut pen, accent, &palette, p, strength, keep, shake),
@@ -228,7 +231,12 @@ pub(crate) fn draw_scatter(
             }
             let index = (hash(key, 3) * kinds.len() as f32) as usize % kinds.len();
             let kind = kinds[index];
-            let tint = palette[(index + (hash(key, 4) * 3.0) as usize) % palette.len()];
+            // The vein-pop mark always takes the accent, like the 💢 it draws.
+            let tint = if kind == Prop::Anger {
+                accent
+            } else {
+                palette[(index + (hash(key, 4) * 3.0) as usize) % palette.len()]
+            };
             // Each prop pops in at its own time, then bobs and wobbles in place.
             let delay = 0.25 * hash(key, 5);
             let pop = ease_out_back(((p - delay) / 0.08).clamp(0.0, 1.0));
@@ -248,7 +256,7 @@ pub(crate) fn draw_scatter(
 }
 
 /// Bold drawing in pixels: fills edged with the black outline.
-struct Pen<'a> {
+pub(crate) struct Pen<'a> {
     image: &'a mut Pixmap,
     alpha: f32,
     u: f32,
@@ -330,25 +338,20 @@ fn draw_prop(pen: &mut Pen<'_>, kind: Prop, r: f32, tint: Rgb, t: f32, at: Trans
             }
         }
         Prop::Anger => {
-            // Four curved brackets around an empty centre: the vein-pop mark.
-            for i in 0..4 {
-                let rot = at.pre_rotate(90.0 * i as f32);
-                let mut pb = PathBuilder::new();
-                pb.move_to(-r * 0.75, -r * 0.22);
-                pb.quad_to(-r * 0.22, -r * 0.22, -r * 0.22, -r * 0.75);
-                if let Some(path) = pb.finish() {
-                    pen.brush(&path, tint, r * 0.16, rot);
-                }
-            }
+            // The vein-pop mark: four bold crescents around a cross-shaped gap, throbbing.
+            let beat = 1.0 + 0.08 * (t * TAU * 5.0).sin().max(0.0);
+            anger_mark(pen, r, tint, at.pre_scale(beat, beat));
         }
         Prop::Smoke => {
-            let mut pb = PathBuilder::new();
-            for &(x, y, s) in &[(-0.4, 0.15, 0.45), (0.1, -0.2, 0.55), (0.45, 0.2, 0.4)] {
-                pb.push_circle(x * r, y * r, s * r);
-            }
-            if let Some(puff) = pb.finish() {
-                pen.inked(&puff, lighten(tint, 0.15), r, at);
-            }
+            const PUFF: [(f32, f32, f32); 5] = [
+                (-0.55, 0.18, 0.40),
+                (-0.18, -0.22, 0.50),
+                (0.32, -0.12, 0.46),
+                (0.62, 0.24, 0.34),
+                (0.05, 0.30, 0.42),
+            ];
+            let lobes = PUFF.map(|(x, y, s)| (x * r, y * r, s * r));
+            puff(pen, &lobes, r, smoke_tone(tint), at);
         }
         Prop::Bolt => {
             const BOLT: [(f32, f32); 7] = [
@@ -464,6 +467,201 @@ fn draw_prop(pen: &mut Pen<'_>, kind: Prop, r: f32, tint: Rgb, t: f32, at: Trans
             }
         }
     }
+}
+
+/// The vein-pop mark (💢) of radius `r`: four filled crescents, each bowing toward the centre,
+/// edged in black ink with a light rim, leaving a cross-shaped gap between them.
+pub(crate) fn anger_mark(pen: &mut Pen<'_>, r: f32, tint: Rgb, at: Transform) {
+    for i in 0..4 {
+        let rot = at.pre_rotate(90.0 * i as f32);
+        let mut pb = PathBuilder::new();
+        pb.move_to(-r * 0.84, -r * 0.12);
+        pb.quad_to(-r * 0.14, -r * 0.14, -r * 0.12, -r * 0.84);
+        pb.line_to(-r * 0.45, -r * 0.96);
+        pb.quad_to(-r * 0.56, -r * 0.56, -r * 0.96, -r * 0.45);
+        pb.close();
+        if let Some(vein) = pb.finish() {
+            pen.inked(&vein, tint, r, rot);
+        }
+        let mut pb = PathBuilder::new();
+        pb.move_to(-r * 0.74, -r * 0.24);
+        pb.quad_to(-r * 0.30, -r * 0.30, -r * 0.24, -r * 0.74);
+        if let Some(rim) = pb.finish() {
+            let width = r * 0.07;
+            pen.stroke(&rim, lighten(tint, 0.55), width, 0.9, rot);
+        }
+    }
+}
+
+/// Draws the vein-pop mark of radius `r` pixels at `at`, faded by `alpha`: the bubble accents use
+/// the same mark as the scattered props.
+pub(crate) fn draw_anger_mark(image: &mut Pixmap, r: f32, tint: Rgb, alpha: f32, at: Transform) {
+    let mut pen = Pen {
+        image,
+        alpha,
+        u: r * 8.0,
+    };
+    anger_mark(&mut pen, r, tint, at);
+}
+
+/// Freezes the full-screen scene inside a settled bubble: the backdrop, its speed lines and, at the
+/// top writing level, the motif's props, all clipped to `clip` (the bubble's panel) and kept off
+/// `card` (the reading area). The scene grows with the writing `level` (1 to 3); `dark` dims it.
+pub(crate) fn draw_frozen_scene(
+    image: &mut Pixmap,
+    style: &crate::MangaStyle,
+    level: u8,
+    clip: &Path,
+    card: Bounds,
+    dark: bool,
+) {
+    let Some(backdrop) = &style.backdrop else {
+        return;
+    };
+    let level = level.clamp(1, 3);
+    let (w, h) = (image.width(), image.height());
+    let (Some(mut scene), Some(mut mask)) = (Pixmap::new(w, h), tiny_skia::Mask::new(w, h)) else {
+        return;
+    };
+    // Level 1 is a tint, level 2 adds the speed lines, level 3 the props as well.
+    let mut style = style.clone();
+    if level < 2 {
+        style.backdrop = Some(crate::Backdrop {
+            rays: None,
+            ..backdrop.clone()
+        });
+    }
+    let state = MangaState {
+        style,
+        progress: 0.42,
+        alpha: [0.45, 0.75, 1.0][usize::from(level - 1)],
+        strength: f32::from(level) / 3.0,
+    };
+    let frame = (w as f32, h as f32);
+    draw_backdrop(&mut scene, &state, frame, None);
+    if level == 3 {
+        draw_scatter(&mut scene, &state, frame, card, Transform::identity());
+    }
+    if dark {
+        // Dim the scene toward the dark reading surface.
+        if let Some(rect) = Rect::from_xywh(0.0, 0.0, frame.0, frame.1) {
+            scene.fill_rect(
+                rect,
+                &paint(Rgb(20, 22, 30), 0.45),
+                Transform::identity(),
+                None,
+            );
+        }
+    }
+    mask.fill_path(clip, FillRule::Winding, true, Transform::identity());
+    image.draw_pixmap(
+        0,
+        0,
+        scene.as_ref(),
+        &tiny_skia::PixmapPaint::default(),
+        Transform::identity(),
+        Some(&mask),
+    );
+}
+
+/// The two tones of a smoke puff: a light top and a shaded underside, a cool grey warmed by `tint`.
+fn smoke_tone(tint: Rgb) -> (Rgb, Rgb) {
+    let shade = mix(Rgb(150, 144, 162), tint, 0.18);
+    (lighten(shade, 0.82), shade)
+}
+
+/// A cel-shaded cloud made of overlapping `lobes` (x, y, radius in pixels): one black contour
+/// around all of them, a shaded underside and a light top, like an inked smoke puff.
+fn puff(pen: &mut Pen<'_>, lobes: &[(f32, f32, f32)], r: f32, tone: (Rgb, Rgb), at: Transform) {
+    let (light, shade) = tone;
+    let width = 2.0 * pen.ink(r);
+    // Outlines first, then every fill over them: only the outer contour stays visible.
+    for &(x, y, s) in lobes {
+        if let Some(lobe) = circle(x, y, s) {
+            pen.stroke(&lobe, OUTLINE, width, 1.0, at);
+        }
+    }
+    for &(x, y, s) in lobes {
+        if let Some(lobe) = circle(x, y, s) {
+            pen.fill(&lobe, shade, 1.0, at);
+        }
+    }
+    // The lit part sits up and to the left inside each lobe, leaving a shaded crescent below.
+    for &(x, y, s) in lobes {
+        if let Some(lobe) = circle(x - s * 0.10, y - s * 0.14, s * 0.80) {
+            pen.fill(&lobe, light, 1.0, at);
+        }
+    }
+    if let Some(&(x, y, s)) = lobes.iter().max_by(|a, b| a.2.total_cmp(&b.2)) {
+        highlight(pen, x - s * 0.38, y - s * 0.40, s * 0.12, at);
+    }
+}
+
+/// Columns of smoke rising from the bottom of the frame: puffs are born small behind the flames,
+/// swell and sway as they climb, then shrink away. Each column is one merged cloud.
+fn smoke(
+    pen: &mut Pen<'_>,
+    accent: Rgb,
+    p: f32,
+    strength: f32,
+    frame: (f32, f32),
+    keep: Bounds,
+    shake: Transform,
+) {
+    let (w, h) = frame;
+    let u = pen.u;
+    let columns = (3.0 + 3.0 * strength).round() as u32;
+    let per_column = 9;
+    let tone = smoke_tone(accent);
+    let margin = 0.03 * u;
+    for c in 0..columns {
+        let key = 1300 + u64::from(c);
+        let base = (c as f32 + 0.5 + 0.5 * (hash(key, 0) - 0.5)) * w / columns as f32;
+        let speed = 0.9 + 0.5 * hash(key, 1);
+        let lean = (hash(key, 2) - 0.5) * 0.25 * w;
+        let mut lobes = Vec::new();
+        let mut big = 0.0_f32;
+        for j in 0..per_column {
+            let life = (hash(key, 3) + p * speed + j as f32 / per_column as f32).fract();
+            let grow =
+                (life / 0.12).clamp(0.0, 1.0) * (1.0 - ((life - 0.78) / 0.22).clamp(0.0, 1.0));
+            let s = u * (0.03 + 0.06 * life) * grow * (0.7 + 0.3 * strength);
+            if s < 1.0 {
+                continue;
+            }
+            let phase = TAU * hash(key, 10 + j as u64);
+            let x = base + lean * life + 0.05 * u * (life * TAU * 1.5 + phase).sin();
+            let y = h * (0.95 - 0.5 * life);
+            let reach = 1.6 * s + margin;
+            if x + reach > keep.0
+                && x - reach < keep.0 + keep.2
+                && y + reach > keep.1
+                && y - reach < keep.1 + keep.3
+            {
+                continue;
+            }
+            // Three lobes per puff, tilted at random.
+            for (k, &(dx, dy, ds)) in [(-0.55, 0.15, 0.7), (0.0, -0.2, 1.0), (0.6, 0.1, 0.75)]
+                .iter()
+                .enumerate()
+            {
+                let a = phase + k as f32;
+                let (ox, oy) = (dx * s, dy * s);
+                lobes.push((x + ox * a.cos() * 0.3 + ox * 0.7, y + oy, ds * s));
+            }
+            big = big.max(s);
+        }
+        if !lobes.is_empty() {
+            puff(pen, &lobes, big, tone, shake);
+        }
+    }
+}
+
+/// `a` mixed toward `b` by `amount` (0 to 1).
+fn mix(a: Rgb, b: Rgb, amount: f32) -> Rgb {
+    let t = amount.clamp(0.0, 1.0);
+    let m = |x: u8, y: u8| (x as f32 + (y as f32 - x as f32) * t).round() as u8;
+    Rgb(m(a.0, b.0), m(a.1, b.1), m(a.2, b.2))
 }
 
 /// A row of flames along the bottom of the frame, licking up and down.

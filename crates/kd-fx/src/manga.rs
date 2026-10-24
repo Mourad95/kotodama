@@ -271,26 +271,10 @@ fn flower(c: &mut InkCanvas<'_>, x: f32, y: f32, r: f32, color: Rgb) {
 }
 
 fn anger(c: &mut InkCanvas<'_>, x: f32, y: f32, r: f32, color: Rgb) {
-    for i in 0..4 {
-        let a = i as f32 * PI / 2.0;
-        let rotate = |u: f32, v: f32| {
-            (
-                x + r * (u * a.cos() - v * a.sin()),
-                y + r * (u * a.sin() + v * a.cos()),
-            )
-        };
-        c.curve(
-            [
-                rotate(-0.85, -0.30),
-                rotate(-0.30, -0.32),
-                rotate(-0.30, -0.34),
-                rotate(-0.32, -0.95),
-            ],
-            color,
-            0.016,
-            0.95,
-        );
-    }
+    let (px, py) = c.point(x, y);
+    let radius = r * c.bounds.2.min(c.bounds.3) * if c.compact { 1.7 } else { 1.0 };
+    let at = Transform::from_translate(px, py).post_concat(c.transform);
+    crate::scatter::draw_anger_mark(c.image, radius, color, c.alpha, at);
 }
 
 fn orbit(c: &mut InkCanvas<'_>, color: Rgb, progress: f32, front: bool, strength: f32) {
@@ -454,15 +438,44 @@ pub(crate) fn draw_bubble(image: &mut Pixmap, style: &MangaStyle, ink: Rgb, dark
     let accent = Rgb::from_hex(&style.accent_color);
     let border = if dark { pale(accent) } else { ink };
     if let Some(body) = panel(&c, style.motif) {
-        c.fill(
-            &body,
-            if dark {
-                Rgb(35, 38, 48)
-            } else {
-                panel_fill(style, accent)
-            },
-            1.0,
-        );
+        let surface = if dark {
+            Rgb(35, 38, 48)
+        } else {
+            panel_fill(style, accent)
+        };
+        c.fill(&body, surface, 1.0);
+        if style.backdrop.is_some() {
+            // The animation's scene stays in the bubble, frozen, around a clear reading card.
+            let (x0, y0) = c.point(0.11, 0.20);
+            let (x1, y1) = c.point(0.89, 0.80);
+            let card = (x0, y0, x1 - x0, y1 - y0);
+            crate::scatter::draw_frozen_scene(c.image, style, level, &body, card, dark);
+            let radius = 0.22 * card.2.min(card.3);
+            let unit = bounds.2.min(bounds.3);
+            for (grow, alpha) in [(0.05, 0.35), (0.025, 0.7)] {
+                let pad = grow * unit;
+                let mut pb = PathBuilder::new();
+                crate::scatter::push_round_rect(
+                    &mut pb,
+                    (
+                        card.0 - pad,
+                        card.1 - pad,
+                        card.2 + 2.0 * pad,
+                        card.3 + 2.0 * pad,
+                    ),
+                    radius + pad,
+                );
+                if let Some(halo) = pb.finish() {
+                    c.fill(&halo, surface, alpha);
+                }
+            }
+            let mut pb = PathBuilder::new();
+            crate::scatter::push_round_rect(&mut pb, card, radius);
+            if let Some(face) = pb.finish() {
+                c.fill(&face, surface, 1.0);
+                c.stroke(&face, border, 0.005, 0.35);
+            }
+        }
         c.stroke(&body, border, 0.009, 0.65);
         // A second incomplete contour gives a hand-inked rather than widget-like edge.
         c.curve(

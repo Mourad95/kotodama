@@ -93,3 +93,43 @@ fn tall_bubbles_keep_the_reading_surface_behind_first_and_last_lines() {
         }
     }
 }
+
+#[test]
+fn the_frozen_scene_grows_with_the_writing_level() {
+    let theme = theme();
+    let renderer = Renderer::new();
+    // Ink of the frame: how far its opaque pixels are from white, summed.
+    let ink = |emotion: Emotion, intensity: Intensity| -> u64 {
+        let bubble = renderer
+            .render_bubble(theme.level(emotion, intensity), 320, 140, false)
+            .unwrap();
+        bubble
+            .pixels()
+            .iter()
+            .map(|p| {
+                let away = 765 - (u32::from(p.red()) + u32::from(p.green()) + u32::from(p.blue()));
+                u64::from(away * u32::from(p.alpha()) / 255)
+            })
+            .sum()
+    };
+    for emotion in Emotion::ALL {
+        if theme
+            .level(emotion, Intensity::Full)
+            .manga
+            .as_ref()
+            .and_then(|m| m.backdrop.as_ref())
+            .is_none()
+        {
+            continue;
+        }
+        let (low, medium, full) = (
+            ink(emotion, Intensity::Low),
+            ink(emotion, Intensity::Medium),
+            ink(emotion, Intensity::Full),
+        );
+        assert!(
+            low < medium && medium < full,
+            "{emotion}: {low} {medium} {full}"
+        );
+    }
+}

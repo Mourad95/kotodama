@@ -26,6 +26,7 @@ fn main() {
         "Tu me manques.",
         "On prend notre temps.",
         "Vous avez tout entendu ?",
+        "Je passe vers 18 h.",
     ];
     for (emotion, message) in Emotion::ALL.into_iter().zip(messages) {
         let level = theme.level(emotion, Intensity::Full);
@@ -37,16 +38,23 @@ fn main() {
                 .save_png(out.join(format!("{}-{t}.png", emotion.id())))
                 .expect("write overlay");
         }
-        for dark in [false, true] {
-            renderer
-                .render_bubble(level, 320, 128, dark)
-                .expect("draw bubble")
-                .save_png(out.join(format!(
-                    "{}-bubble-{}.png",
-                    emotion.id(),
-                    if dark { "dark" } else { "light" }
-                )))
-                .expect("write bubble");
+        // Settled bubbles at each writing level (1 = many mistakes, 3 = well written).
+        for (n, intensity) in [Intensity::Low, Intensity::Medium, Intensity::Full]
+            .into_iter()
+            .enumerate()
+        {
+            for dark in [false, true] {
+                renderer
+                    .render_bubble(theme.level(emotion, intensity), 320, 128, dark)
+                    .expect("draw bubble")
+                    .save_png(out.join(format!(
+                        "{}-bubble{}-{}.png",
+                        emotion.id(),
+                        n + 1,
+                        if dark { "dark" } else { "light" }
+                    )))
+                    .expect("write bubble");
+            }
         }
     }
 }
