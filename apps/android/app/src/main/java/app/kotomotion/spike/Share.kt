@@ -18,7 +18,7 @@ import java.io.File
  */
 internal object StickerShare {
     /** Side of the shared GIF in pixels: sharp in a chat, a few hundred kilobytes. */
-    private const val GIF_SIDE = 480u
+    private const val GIF_SIDE = 600u
     private const val SEED = 1UL
 
     suspend fun share(context: Context, animator: Animator?, message: ChatMessage, mode: MotionMode) {

@@ -12,7 +12,7 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0005](0005-themes-as-data.md) | Themes are data interpreted by one renderer | accepted |
 | [0006](0006-grammar-providers.md) | One grammar provider per language | accepted |
 | [0007](0007-on-device-only.md) | All analysis on device, no message leaves the phone | accepted |
-| [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | amended by 0021 |
+| [0008](0008-confidence-threshold.md) | Low-confidence results fall back to `calme` | amended by 0021, 0026 |
 | [0009](0009-own-french-checker.md) | French checker built in-house (Grammalecte is GPL-3) | accepted |
 | [0010](0010-open-licence-models-only.md) | Shipped models must carry an OSI-approved licence | accepted |
 | [0011](0011-embeddinggemma-2-pruned-q4.md) | Ship EmbeddingGemma 2, pruned and Q4 | accepted |
@@ -30,3 +30,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0023](0023-sent-messages-as-stickers.md) | Sent messages show as stickers that play, then stay on their last frame | accepted |
 | [0024](0024-unanimated-emotions.md) | A theme can show an emotion as plain text (`neutre` is not animated) | accepted |
 | [0025](0025-french-speller-and-gif-share.md) | French speller on spellbook (comprehensive dictionary) and GIF sharing of stickers | accepted |
+| [0026](0026-threshold-emoji-and-gif-quality.md) | Confidence threshold 0.5, colour emoji in stickers, sharper GIFs | accepted |

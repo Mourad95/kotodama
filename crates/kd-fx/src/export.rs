@@ -6,12 +6,12 @@ use crate::render::{Layer, Renderer};
 use crate::scene::{self, Motion};
 use crate::Level;
 
-/// Time between two frames, in hundredths of a second (GIF delays are in that unit): ~14 fps.
-const FRAME_DELAY_CS: u16 = 7;
+/// Time between two frames, in hundredths of a second (GIF delays are in that unit): 20 fps.
+const FRAME_DELAY_CS: u16 = 5;
 /// How long the last frame stays, in hundredths of a second, before the GIF loops.
 const HOLD_CS: u16 = 250;
 /// Most frames in one GIF, so a long message stays a few megabytes.
-const MAX_FRAMES: u32 = 80;
+const MAX_FRAMES: u32 = 90;
 /// Colour quantization effort: 1 is the best and slowest, 30 the fastest.
 const QUANTIZE_SPEED: i32 = 10;
 
@@ -66,21 +66,38 @@ pub fn sticker_gif(
             .set_repeat(gif::Repeat::Infinite)
             .map_err(|e| ExportError::Encode(e.to_string()))?;
         let last = instants.len() - 1;
+        let mut previous: Option<Vec<u8>> = None;
         for (i, &t) in instants.iter().enumerate() {
             let frame = scene::sample_sticker(level, glyphs, t, seed, motion);
             let pixmap = renderer
                 .render_layer(&frame, message, side, side, Layer::Opaque)
                 .ok_or(ExportError::Size)?;
-            let mut rgba = pixmap.take();
+            let rgba = pixmap.take();
+            let mut delta = rgba.clone();
+            if let Some(previous) = &previous {
+                transparent_where_unchanged(&mut delta, previous);
+            }
             let mut gif_frame =
-                gif::Frame::from_rgba_speed(gif_side, gif_side, &mut rgba, QUANTIZE_SPEED);
+                gif::Frame::from_rgba_speed(gif_side, gif_side, &mut delta, QUANTIZE_SPEED);
+            gif_frame.dispose = gif::DisposalMethod::Keep;
             gif_frame.delay = if i == last { HOLD_CS } else { FRAME_DELAY_CS };
             encoder
                 .write_frame(&gif_frame)
                 .map_err(|e| ExportError::Encode(e.to_string()))?;
+            previous = Some(rgba);
         }
     }
     Ok(out)
+}
+
+/// Makes the pixels of `frame` that equal those of `previous` fully transparent, so the GIF
+/// keeps the previous frame there: only what moved is stored, which keeps the file small.
+fn transparent_where_unchanged(frame: &mut [u8], previous: &[u8]) {
+    for (pixel, before) in frame.chunks_exact_mut(4).zip(previous.chunks_exact(4)) {
+        if pixel == before {
+            pixel[3] = 0;
+        }
+    }
 }
 
 #[cfg(test)]
@@ -116,6 +133,14 @@ mod tests {
         assert!(delays[..delays.len() - 1]
             .iter()
             .all(|&d| d == FRAME_DELAY_CS));
+    }
+
+    #[test]
+    fn only_changed_pixels_stay_opaque() {
+        let previous = [1, 2, 3, 255, 9, 9, 9, 255];
+        let mut frame = [1, 2, 3, 255, 8, 9, 9, 255];
+        transparent_where_unchanged(&mut frame, &previous);
+        assert_eq!(frame, [1, 2, 3, 0, 8, 9, 9, 255]);
     }
 
     #[test]
