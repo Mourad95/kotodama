@@ -217,7 +217,7 @@ pub(crate) fn draw_scatter(
         keep.2 + 2.0 * margin,
         keep.3 + 2.0 * margin,
     );
-    let shown = 0.40 + 0.45 * strength;
+    let shown = 0.15 + 0.70 * strength;
     for row in 0..rows {
         for col in 0..cols {
             let key = (row * 64 + col) as u64;
@@ -244,7 +244,7 @@ pub(crate) fn draw_scatter(
                 continue;
             }
             let phase = TAU * hash(key, 6);
-            let r = cell * (0.24 + 0.12 * hash(key, 7)) * pop;
+            let r = cell * (0.24 + 0.12 * hash(key, 7)) * (0.75 + 0.25 * strength) * pop;
             let bob = 0.06 * r * (p * TAU * 3.0 + phase).sin();
             let turn = 0.5 * (hash(key, 8) - 0.5) + 0.08 * (p * TAU * 2.0 + phase).sin();
             let at = Transform::from_translate(x, y + bob)
@@ -535,7 +535,7 @@ pub(crate) fn draw_frozen_scene(
         style,
         progress: 0.42,
         alpha: [0.45, 0.75, 1.0][usize::from(level - 1)],
-        strength: f32::from(level) / 3.0,
+        strength: crate::scene::level_strength(level),
     };
     let frame = (w as f32, h as f32);
     draw_backdrop(&mut scene, &state, frame, None);
@@ -610,7 +610,7 @@ fn smoke(
 ) {
     let (w, h) = frame;
     let u = pen.u;
-    let columns = (3.0 + 3.0 * strength).round() as u32;
+    let columns = (1.0 + 5.0 * strength).round() as u32;
     let per_column = 9;
     let tone = smoke_tone(accent);
     let margin = 0.03 * u;
@@ -1074,8 +1074,8 @@ mod tests {
             draw_scatter(&mut image, &s, (240.0, 400.0), KEEP, Transform::identity());
             image.pixels().iter().filter(|p| p.alpha() > 0).count()
         };
-        assert!(count(1.0) > count(0.0));
-        assert!(count(0.0) > 0);
+        assert!(count(1.0) > count(0.3));
+        assert!(count(0.3) > 0, "level 1 keeps a few props");
     }
 
     #[test]

@@ -294,7 +294,7 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
             style: style.clone(),
             progress: t / end.max(1.0),
             alpha: ((t / 250.0).min(1.0) * ((end - t) / 450.0).clamp(0.0, 1.0)),
-            strength: (0.35 + 0.65 * level.level as f32 / 3.0) * if gentle { 0.55 } else { 1.0 },
+            strength: level_strength(level.level) * if gentle { 0.55 } else { 1.0 },
         }),
         glyphs,
         particles,
@@ -302,6 +302,12 @@ pub fn sample(level: &Level, glyph_count: usize, t_ms: u32, seed: u64, motion: M
         onomatopoeias,
         shake,
     }
+}
+
+/// Strength of the manga panel for a writing level (1 to 3): sober at 1, full at 3, so that writing
+/// well visibly earns a richer scene.
+pub(crate) fn level_strength(level: u8) -> f32 {
+    0.3 + 0.35 * f32::from(level.clamp(1, 3) - 1)
 }
 
 /// Peak shake displacement for `strength = 1`, as a fraction of the frame.
@@ -816,5 +822,12 @@ mod tests {
     fn colours_parse() {
         assert_eq!(Rgb::from_hex("#0C447C"), Rgb(12, 68, 124));
         assert_eq!(Rgb::from_hex("nope"), Rgb(0, 0, 0));
+    }
+
+    #[test]
+    fn the_panel_grows_clearly_with_the_writing_level() {
+        assert!(level_strength(1) <= 0.3 + f32::EPSILON);
+        assert!(level_strength(2) > level_strength(1) + 0.3);
+        assert!((level_strength(3) - 1.0).abs() < f32::EPSILON);
     }
 }

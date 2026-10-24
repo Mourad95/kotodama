@@ -20,6 +20,9 @@ grammar mistakes, M4) must stay visible there too: a well-written message earns 
   at a stronger opacity, and level 3 adds the frozen props. The scene's strength comes from the
   level number, not from per-emotion code. A test checks that the frame's ink grows strictly from
   level 1 to level 3 for every emotion with a backdrop.
+- **A wider gap between levels.** The panel's strength is 0.3, 0.65 and 1.0 for levels 1 to 3
+  (it was 0.57 to 1.0): level 1 shows few, smaller props and thin smoke, so a well-written
+  message is clearly richer, in the animation and in the bubble.
 - **No backdrop, no scene.** `neutre` keeps its plain bubble (ADR-0021).
 - **Same drawing code.** The frozen scene reuses the overlay's backdrop and scatter drawing, so a
   theme change shows in both places and stays data.
