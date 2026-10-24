@@ -165,8 +165,8 @@ pub struct EmotionEngine<E: Embedder> {
 }
 
 impl<E: Embedder> EmotionEngine<E> {
-    /// Default confidence threshold (ADR-0008).
-    pub const DEFAULT_THRESHOLD: f32 = 0.2;
+    /// Default confidence threshold (ADR-0008, raised by ADR-0026).
+    pub const DEFAULT_THRESHOLD: f32 = 0.5;
 
     /// Creates an engine with the default threshold.
     pub fn new(embedder: E, head: EmotionHead) -> Self {

@@ -42,7 +42,7 @@ def test_manifest_contract(tmp_path):
     proto = tmp_path / "p.json"
     proto.write_text("{}")
     m = em.build_manifest(em.LABELS, {"b": "2", "a": "1"}, proto, {"dev_v1": {"global_accuracy": 1.0}})
-    assert m["schema"] == 1 and m["embedding_dim"] == 768 and m["threshold"] == 0.2
+    assert m["schema"] == 1 and m["embedding_dim"] == 768 and m["threshold"] == 0.5
     assert m["prompt"] == "task: classification | query: "
     assert m["labels"] == em.LABELS and list(m["files"]) == ["a", "b"]
     assert m["prototypes"] == {"name": "p.json", "sha256": em.sha256(proto)}

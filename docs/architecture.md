@@ -49,7 +49,7 @@ text ──► kd-grammar.check(text, lang) ──► issues (spans, suggestions
 ```
 
 - Analysis runs on a **typing pause** (debounce ~300 ms), not on each keystroke.
-- If `scores.confidence < threshold` (0.2, see ADR-0008), the app uses `neutre` (ADR-0021).
+- If `scores.confidence < threshold` (0.5, see ADR-0008 and ADR-0026), the app uses `neutre` (ADR-0021).
 
 ## Emotion engine (ADR-0003, ADR-0004)
 
