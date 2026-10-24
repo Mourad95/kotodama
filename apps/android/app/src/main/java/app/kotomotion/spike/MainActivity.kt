@@ -44,13 +44,23 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import uniffi.kd_ffi.SpellingIssue
 
 /**
  * Beta of KotoMotion: a small conversation shown as a chat app would show it. A sent message appears
@@ -105,6 +115,7 @@ private fun ChatScreen(vm: SpikeViewModel) {
                         color = if (vm.darkChat) Color(0xB3FFFFFF) else Color(0x99000000),
                     )
                 }
+                SpellingBar(vm)
                 InputBar(vm)
             }
         }
@@ -154,15 +165,93 @@ private fun Bubble(vm: SpikeViewModel, message: ChatMessage) {
                 } else {
                     TextBubble(message.text, mine = true, dark = dark)
                 }
-                Text(
-                    message.emotion,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (dark) Color(0x99FFFFFF) else Color(0x80000000),
-                    modifier = Modifier.padding(horizontal = 6.dp),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        message.emotion,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (dark) Color(0x99FFFFFF) else Color(0x80000000),
+                        modifier = Modifier.padding(horizontal = 6.dp),
+                    )
+                    ShareButton(vm, message)
+                }
             }
         } else {
             TextBubble(message.text, mine = false, dark = dark)
+        }
+    }
+}
+
+/** Sends the message to another app (WhatsApp, …) through the system share sheet, as a GIF sticker. */
+@Composable
+private fun ShareButton(vm: SpikeViewModel, message: ChatMessage) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    TextButton(
+        enabled = !busy,
+        onClick = {
+            busy = true
+            scope.launch {
+                try {
+                    StickerShare.share(context, vm.animator, message, vm.effectiveMode)
+                } catch (_: Exception) {
+                    // Nothing to share with, or the GIF failed: never crash; the text is not in any error.
+                } finally {
+                    busy = false
+                }
+            }
+        },
+    ) { Text(stringResource(if (busy) R.string.share_preparing else R.string.share_button), style = MaterialTheme.typography.labelMedium) }
+}
+
+/** Underlines the misspelled words of the input in red (UTF-16 ranges from the speller). */
+private class SpellingUnderline(private val issues: List<SpellingIssue>) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val style = SpanStyle(color = Color(0xFFD32F2F), textDecoration = TextDecoration.Underline)
+        val marked = AnnotatedString.Builder(text).apply {
+            issues.forEach { issue ->
+                val start = issue.start.toInt()
+                val end = issue.end.toInt()
+                if (end <= text.length && start < end) addStyle(style, start, end)
+            }
+        }.toAnnotatedString()
+        return TransformedText(marked, OffsetMapping.Identity)
+    }
+
+    override fun equals(other: Any?): Boolean = other is SpellingUnderline && other.issues == issues
+    override fun hashCode(): Int = issues.hashCode()
+}
+
+/** The spelling mistakes of the message being typed and the suggestions for the first one. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SpellingBar(vm: SpikeViewModel) {
+    if (vm.text.isBlank()) return
+    val count = vm.spellingIssues.size
+    val muted = if (vm.darkChat) Color(0xB3FFFFFF) else Color(0x99000000)
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Text(
+            if (count == 0) stringResource(R.string.spelling_ok, vm.writingLevel)
+            else pluralStringResource(R.plurals.spelling_line, count, count, vm.writingLevel),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (count == 0) muted else MaterialTheme.colorScheme.error,
+        )
+        vm.suggestions?.let { (issue, words) ->
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.Center) {
+                Text(
+                    stringResource(R.string.suggestions_for, issue.word),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = muted,
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                )
+                if (words.isEmpty()) {
+                    Text(stringResource(R.string.no_suggestion), style = MaterialTheme.typography.labelSmall, color = muted,
+                        modifier = Modifier.align(Alignment.CenterVertically))
+                }
+                words.forEach { word ->
+                    FilterChip(selected = false, onClick = { vm.applySuggestion(issue, word) }, label = { Text(word) })
+                }
+            }
         }
     }
 }
@@ -198,7 +287,8 @@ private fun InputBar(vm: SpikeViewModel) {
     ) {
         OutlinedTextField(
             value = vm.text,
-            onValueChange = { vm.text = it },
+            onValueChange = vm::updateText,
+            visualTransformation = SpellingUnderline(vm.spellingIssues),
             placeholder = { Text(stringResource(R.string.message_label)) },
             modifier = Modifier.weight(1f),
             maxLines = 4,
@@ -286,13 +376,14 @@ private fun AnimationSettings(vm: SpikeViewModel) {
         Text(stringResource(R.string.reduced_motion_forced), style = MaterialTheme.typography.bodySmall)
     }
     Text(stringResource(R.string.writing_level_label, vm.writingLevel), style = MaterialTheme.typography.titleSmall)
+    val levels = listOf(null, 1, 2, 3)
     SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-        (1..3).forEach { level ->
+        levels.forEachIndexed { index, level ->
             SegmentedButton(
-                selected = vm.writingLevel == level,
+                selected = vm.forcedWritingLevel == level,
                 onClick = { vm.chooseWritingLevel(level) },
-                shape = SegmentedButtonDefaults.itemShape(level - 1, 3),
-            ) { Text(level.toString()) }
+                shape = SegmentedButtonDefaults.itemShape(index, levels.size),
+            ) { Text(level?.toString() ?: stringResource(R.string.writing_level_auto)) }
         }
     }
 }

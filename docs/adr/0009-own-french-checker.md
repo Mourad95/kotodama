@@ -1,6 +1,6 @@
 # ADR-0009 — French checker built in-house on permissive components
 
-**Status:** accepted · 2026-10-22 · supersedes the French provider choice of [ADR-0006](0006-grammar-providers.md)
+**Status:** accepted · 2026-10-22 · supersedes the French provider choice of [ADR-0006](0006-grammar-providers.md) · spelling amended by [ADR-0025](0025-french-speller-and-gif-share.md) (comprehensive dictionary, `spellbook` reader)
 
 ## Context
 ADR-0006 chose Grammalecte for French. Checking its licences (legal gate L7) showed that the

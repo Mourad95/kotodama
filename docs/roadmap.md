@@ -87,6 +87,9 @@ a new level can be added by editing JSON only.
 - Own labelled French error corpus (written independently) to measure detection and false positives.
 - Intensity scoring: errors per word → intensity level → effects.
 - Correction UX data: error spans, suggestion, one-line explanation.
+- Done (ADR-0025): spelling with the comprehensive MPL-2.0 dictionary through `spellbook`, slang
+  allow-list, mistake count → writing level, underlined mistakes and suggestions in the Android spike,
+  and sharing a sticker as a GIF through the share sheet (an M5 item, brought forward for WhatsApp tests).
 - Grammalecte is GPL-3.0 and is never shipped (ADR-0009); it may be used on a developer machine
   only, as a reference to measure our detection rate.
 

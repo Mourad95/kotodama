@@ -28,8 +28,8 @@ Below the analysis, the spike plays the theme animation (`themes/anime/theme.jso
 assets at build time) for the effective emotion of the message, then keeps the last frame, the settled
 message. The Rust core draws each frame (CPU renderer, `kd_ffi::Animator`) and the shell only shows it.
 Controls: the **intensity setting** (full, gentle, minimal; stored in app-private preferences, forced to
-minimal when the system animator duration scale is 0), the writing level (1 to 3, chosen by hand until the
-grammar loop exists in M4) and a replay button. The screen reports the drawing time per frame against the
+minimal when the system animator duration scale is 0), the writing level (automatic from the spelling
+mistakes since ADR-0025, or forced from 1 to 3) and a replay button. The screen reports the drawing time per frame against the
 16.7 ms budget of 60 fps: this is the measurement for the M3 exit criterion, to read on a real phone.
 
 ## Prerequisites
@@ -133,3 +133,15 @@ Actual CPU keyframes and bubble decorations can be generated without Android:
 ```bash
 cargo run -p kd-fx --features cpu-render --example manga_preview -- output/manga
 ```
+
+## Spelling and sharing (ADR-0025)
+
+The French dictionary and the slang allow-list are copied into the assets (`grammar/`, with the
+MPL-2.0 text). While the user types, the message is checked off the UI thread after a 250 ms pause:
+unknown words are underlined in red, a line shows the count and the writing level it gives, and
+suggestions for the first mistake replace it on tap. The level of a sent message comes from that count
+unless the tester forces one in the settings.
+
+**Partager** under a sent message opens the system share sheet: the sticker as a looping 480 px GIF
+(through a non-exported `FileProvider`, file in `cache/shared/`, replaced at each share), or the plain
+text for a message that is not animated. Pick WhatsApp to send it there. No permission is needed.

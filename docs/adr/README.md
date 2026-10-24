@@ -29,3 +29,4 @@ supersedes the old one. Format: context, decision, consequences, status.
 | [0022](0022-frozen-scene-in-settled-bubbles.md) | The settled bubble keeps a frozen scene, scaled by the writing level | accepted |
 | [0023](0023-sent-messages-as-stickers.md) | Sent messages show as stickers that play, then stay on their last frame | accepted |
 | [0024](0024-unanimated-emotions.md) | A theme can show an emotion as plain text (`neutre` is not animated) | accepted |
+| [0025](0025-french-speller-and-gif-share.md) | French speller on spellbook (comprehensive dictionary) and GIF sharing of stickers | accepted |

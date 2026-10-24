@@ -55,4 +55,16 @@
     <string name="emotion_love">Amour</string>
     <string name="emotion_embarrassment">Gêne</string>
     <string name="emotion_calm">Calme</string>
+    <string name="share_button">Partager</string>
+    <string name="share_preparing">Préparation…</string>
+    <string name="share_title">Envoyer le message avec</string>
+    <string name="spelling_ok">Aucune faute · niveau %1$d</string>
+    <plurals name="spelling_line">
+        <item quantity="one">%1$d mot à corriger · niveau %2$d</item>
+        <item quantity="many">%1$d mots à corriger · niveau %2$d</item>
+        <item quantity="other">%1$d mots à corriger · niveau %2$d</item>
+    </plurals>
+    <string name="suggestions_for">« %1$s » →</string>
+    <string name="no_suggestion">pas de suggestion</string>
+    <string name="writing_level_auto">Auto</string>
 </resources>

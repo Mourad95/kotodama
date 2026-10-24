@@ -167,13 +167,19 @@ val benchMessages = tasks.register("generateBenchMessages") {
 // --- Theme ------------------------------------------------------------------------------------
 val copyTheme = tasks.register<Copy>("copyTheme") {
     group = "build"
-    description = "Copies themes/anime/theme.json and the bubble lettering font (with its licence) into the app assets."
+    description = "Copies themes/anime/theme.json, the bubble lettering font and the French dictionary (with their licences) into the app assets."
     from(repoRoot.resolve("themes/anime/theme.json"))
     // The font the engine draws with also letters the bubbles; its OFL text ships with it (docs/legal.md L11).
     from(repoRoot.resolve("crates/kd-fx/assets/fonts")) {
         include("NotoSansJP-Bold-subset.ttf", "OFL.txt")
         into("fonts")
     }
+    // The spelling dictionary (MPL-2.0, shipped unmodified with its licence text) and the slang allow-list (ADR-0025).
+    from(repoRoot.resolve("grammar/fr/hunspell")) {
+        include("fr.aff", "fr.dic", "LICENSE-MPL-2.0.txt")
+        into("grammar")
+    }
+    from(repoRoot.resolve("grammar/fr/allowlist.txt")) { into("grammar") }
     into(layout.buildDirectory.dir("generated/theme-assets"))
 }
 

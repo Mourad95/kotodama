@@ -54,4 +54,15 @@
     <string name="emotion_love">Love</string>
     <string name="emotion_embarrassment">Embarrassment</string>
     <string name="emotion_calm">Calm</string>
+    <string name="share_button">Share</string>
+    <string name="share_preparing">Preparing…</string>
+    <string name="share_title">Send the message with</string>
+    <string name="spelling_ok">No mistakes · level %1$d</string>
+    <plurals name="spelling_line">
+        <item quantity="one">%1$d word to fix · level %2$d</item>
+        <item quantity="other">%1$d words to fix · level %2$d</item>
+    </plurals>
+    <string name="suggestions_for">“%1$s” →</string>
+    <string name="no_suggestion">no suggestion</string>
+    <string name="writing_level_auto">Auto</string>
 </resources>

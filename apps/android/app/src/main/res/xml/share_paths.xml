@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the cache folder of the GIF being shared is exposed, read-only, to the app the user picks (ADR-0025). -->
+<paths>
+    <cache-path name="shared" path="shared/" />
+</paths>

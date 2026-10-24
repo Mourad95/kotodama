@@ -14,10 +14,15 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uniffi.kd_ffi.EmotionEngine
 import uniffi.kd_ffi.EmotionResult
+import uniffi.kd_ffi.Speller
+import uniffi.kd_ffi.SpellingIssue
+import uniffi.kd_ffi.intensityLevel
 import java.io.File
 
 /** What the engine panel shows. */
@@ -74,7 +79,14 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     var bundleDir: File by mutableStateOf(File(app.filesDir, "models"))
         private set
 
+    /** The message being typed; setting it re-checks its spelling after a short pause. */
     var text by mutableStateOf("")
+        private set
+
+    fun updateText(value: String) {
+        text = value
+        scheduleSpellCheck()
+    }
     var engineState: EngineState by mutableStateOf(EngineState.Loading)
         private set
     var analysis: AnalysisUi? by mutableStateOf(null)
@@ -106,9 +118,30 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         Intensity.entries.firstOrNull { it.name == prefs.getString("intensity", null) } ?: Intensity.FULL,
     )
         private set
-    /** How well the message is written, 1 (several mistakes) to 3 (none); chosen by hand in this spike. */
-    var writingLevel by mutableIntStateOf(3)
+    /**
+     * How well the message is written, 1 (several mistakes) to 3 (none). Null: counted from the spelling
+     * mistakes of the message (M4); a number: forced by the tester.
+     */
+    var forcedWritingLevel: Int? by mutableStateOf(null)
         private set
+
+    /** The writing level the next message gets. */
+    val writingLevel: Int
+        get() = forcedWritingLevel ?: intensityLevel(spellingIssues.size.toUInt()).toInt()
+
+    // --- Spelling (M4, ADR-0025) ------------------------------------------------------------------
+    /** Null until the dictionary is loaded, or if it could not be. */
+    @Volatile
+    private var speller: Speller? = null
+
+    /** Misspelled words of [text] (UTF-16 offsets), from its last check. */
+    var spellingIssues: List<SpellingIssue> by mutableStateOf(emptyList())
+        private set
+
+    /** The word the suggestions are for, and the suggestions; empty when there is none. */
+    var suggestions: Pair<SpellingIssue, List<String>>? by mutableStateOf(null)
+        private set
+    private var spellJob: Job? = null
     var renderStats: RenderStats? by mutableStateOf(null)
         private set
     /** The conversation, in memory only. */
@@ -139,8 +172,43 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
         forcedEmotion = id
     }
 
-    fun chooseWritingLevel(value: Int) {
-        writingLevel = value
+    fun chooseWritingLevel(value: Int?) {
+        forcedWritingLevel = value
+    }
+
+    private fun scheduleSpellCheck() {
+        spellJob?.cancel()
+        val input = text
+        if (input.isBlank()) {
+            spellingIssues = emptyList()
+            suggestions = null
+            return
+        }
+        spellJob = viewModelScope.launch {
+            delay(SPELL_DEBOUNCE_MS)
+            val s = speller ?: return@launch
+            val issues = withContext(Dispatchers.Default) { s.check(input) }
+            if (text != input) return@launch
+            spellingIssues = issues
+            // Suggestions for the first mistake, computed only when it changed (tens of ms).
+            val first = issues.firstOrNull()
+            val known = suggestions?.takeIf { it.first.word == first?.word }?.second
+            val words = when {
+                first == null -> null
+                known != null -> known
+                else -> withContext(Dispatchers.Default) { s.suggest(first.word) }
+            }
+            if (text == input) suggestions = if (first == null || words == null) null else first to words
+        }
+    }
+
+    /** Replaces the misspelled word of [issue] by [word]. */
+    fun applySuggestion(issue: SpellingIssue, word: String) {
+        val start = issue.start.toInt()
+        val end = issue.end.toInt()
+        if (end > text.length || text.substring(start, end) != issue.word) return
+        suggestions = null
+        updateText(text.substring(0, start) + word + text.substring(end))
     }
 
     /** Plays the sticker of a message again (tap on it). */
@@ -154,6 +222,15 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     init {
+        viewModelScope.launch(Dispatchers.IO) {
+            speller = try {
+                fun asset(name: String) = app.assets.open("grammar/$name").bufferedReader().use { it.readText() }
+                Speller(asset("fr.aff"), asset("fr.dic"), asset("allowlist.txt"))
+            } catch (_: Exception) {
+                null // no spelling check: the writing level stays at its maximum
+            }
+            if (speller != null) withContext(Dispatchers.Main) { scheduleSpellCheck() }
+        }
         val ortPath = app.applicationInfo.nativeLibraryDir + "/libonnxruntime.so"
         // Private storage: only the app can write the receipt that lets later opens skip the checksums.
         val receipt = File(app.filesDir, "bundle.receipt")
@@ -183,7 +260,8 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
     fun send() {
         val input = text.trim()
         if (input.isEmpty()) return
-        text = ""
+        val level = writingLevel
+        updateText("")
         viewModelScope.launch {
             val forced = forcedEmotion
             val done = if (forced == null) withContext(engineDispatcher) { analyseOnce(input) } else AnalysisUi(null, 0.0)
@@ -191,11 +269,11 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
             val emotion = forced ?: done.result?.effective ?: "neutre"
             val app = getApplication<Application>()
             caption = when {
-                forced != null -> app.getString(R.string.caption_forced, forced, writingLevel)
-                done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, writingLevel)
-                else -> app.getString(R.string.caption_fallback, writingLevel)
+                forced != null -> app.getString(R.string.caption_forced, forced, level)
+                done.result != null -> app.getString(R.string.caption_detected, emotion, done.result.confidence, level)
+                else -> app.getString(R.string.caption_fallback, level)
             }
-            val message = ChatMessage(nextId++, input, true, emotion, writingLevel, animator?.isAnimated(emotion) == true)
+            val message = ChatMessage(nextId++, input, true, emotion, level, animator?.isAnimated(emotion) == true)
             messages.add(message)
         }
     }
@@ -255,5 +333,6 @@ class SpikeViewModel(app: Application) : AndroidViewModel(app) {
 
     private companion object {
         const val WARM_UP = 5
+        const val SPELL_DEBOUNCE_MS = 250L
     }
 }
