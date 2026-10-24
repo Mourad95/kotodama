@@ -171,7 +171,7 @@ val copyTheme = tasks.register<Copy>("copyTheme") {
     from(repoRoot.resolve("themes/anime/theme.json"))
     // The font the engine draws with also letters the bubbles; its OFL text ships with it (docs/legal.md L11).
     from(repoRoot.resolve("crates/kd-fx/assets/fonts")) {
-        include("NotoSansJP-Bold-subset.ttf", "OFL.txt")
+        include("NotoSansJP-Bold-subset.ttf", "OFL.txt", "OFL-NotoColorEmoji.txt")
         into("fonts")
     }
     // The spelling dictionary (MPL-2.0, shipped unmodified with its licence text) and the slang allow-list (ADR-0025).

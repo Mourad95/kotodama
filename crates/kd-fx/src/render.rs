@@ -17,18 +17,28 @@
 //! frame, less for a wide or short one, so the message and the effects keep their proportions on any
 //! screen shape.
 
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+use skrifa::bitmap::{BitmapData, BitmapStrikes};
 use skrifa::instance::{LocationRef, Size};
 use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::{FontRef, GlyphId, MetadataProvider};
 use tiny_skia::{
     Color, FillRule, GradientStop, LineCap, LinearGradient, Mask, Paint, Path, PathBuilder, Pixmap,
-    Point, RadialGradient, SpreadMode, Stroke, Transform,
+    PixmapPaint, Point, RadialGradient, SpreadMode, Stroke, Transform,
 };
 
 use crate::scene::{Frame, GlyphState, OnomatopoeiaState, ParticleState, Rgb, ScreenState};
 use crate::{Level, ParticleKind, ScreenKind};
 
 const FONT: &[u8] = include_bytes!("../assets/fonts/NotoSansJP-Bold-subset.ttf");
+/// Colour emoji drawn for the characters [`FONT`] lacks (ADR-0026).
+const EMOJI_FONT: &[u8] = include_bytes!("../assets/fonts/NotoColorEmoji-base.ttf");
+/// Height of an emoji, in em of the message font.
+const EMOJI_HEIGHT: f32 = 1.05;
+/// Advance of an emoji, in em of the message font.
+const EMOJI_ADVANCE: f32 = 1.2;
 /// Message font size as a fraction of the size unit.
 const TEXT_SIZE: f32 = 0.058;
 /// Widest a line of the message may be, as a fraction of the frame width.
@@ -77,7 +87,22 @@ pub fn size_unit(width: f32, height: f32) -> f32 {
 /// Draws frames. Cheap to build; reuse it across frames.
 pub struct Renderer {
     font: FontRef<'static>,
+    emoji_font: FontRef<'static>,
+    /// Decoded emoji bitmaps, `None` when a glyph has no bitmap.
+    emoji: Mutex<HashMap<GlyphId, Option<Pixmap>>>,
     background: Rgb,
+}
+
+/// Which font draws a character.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Glyph {
+    /// An outline of the message font (`.notdef` for an unknown character).
+    Text(GlyphId),
+    /// A colour bitmap of the emoji font.
+    Emoji(GlyphId),
+    /// A character that only modifies the emoji before it (variation selector, joiner, skin tone):
+    /// without shaping it is not drawn.
+    Hidden,
 }
 
 /// A glyph outline in font units (y up), ready to be scaled and drawn.
@@ -104,7 +129,7 @@ impl OutlinePen for Outline {
 /// One letter placed by the layout, before the frame's animation is applied.
 struct Placed {
     index: usize,
-    glyph: GlyphId,
+    glyph: Glyph,
     /// Centre of the letter's advance box, in pixels.
     cx: f32,
     /// Baseline, in pixels.
@@ -123,6 +148,8 @@ impl Renderer {
     pub fn new() -> Self {
         Self {
             font: FontRef::new(FONT).expect("the bundled font is valid"),
+            emoji_font: FontRef::new(EMOJI_FONT).expect("the bundled emoji font is valid"),
+            emoji: Mutex::new(HashMap::new()),
             background: crate::scene::LIGHT_BACKGROUND,
         }
     }
@@ -471,14 +498,26 @@ impl Renderer {
         font_px / f32::from(metrics.units_per_em)
     }
 
-    fn advance(&self, ch: char, font_px: f32) -> (GlyphId, f32) {
-        let gid = self.font.charmap().map(ch).unwrap_or(GlyphId::NOTDEF);
+    fn advance(&self, ch: char, font_px: f32) -> (Glyph, f32) {
+        if matches!(
+            ch,
+            '\u{200D}' | '\u{FE0E}' | '\u{FE0F}' | '\u{20E3}' | '\u{1F3FB}'..='\u{1F3FF}'
+        ) {
+            return (Glyph::Hidden, 0.0);
+        }
+        let gid = match self.font.charmap().map(ch) {
+            Some(gid) => gid,
+            None => match self.emoji_font.charmap().map(ch) {
+                Some(gid) => return (Glyph::Emoji(gid), EMOJI_ADVANCE * font_px),
+                None => GlyphId::NOTDEF,
+            },
+        };
         let units = self
             .font
             .glyph_metrics(Size::unscaled(), LocationRef::default())
             .advance_width(gid)
             .unwrap_or(500.0);
-        (gid, units * self.scale(font_px))
+        (Glyph::Text(gid), units * self.scale(font_px))
     }
 
     /// Greedy word wrap, centred on the frame.
@@ -521,7 +560,7 @@ impl Renderer {
         let top = h * 0.5 - line_px * (lines.len() as f32 - 1.0) / 2.0;
         let mut out = Vec::new();
         for (n, line) in lines.iter().enumerate() {
-            let advances: Vec<(GlyphId, f32)> = line
+            let advances: Vec<(Glyph, f32)> = line
                 .iter()
                 .map(|&(_, c)| self.advance(c, font_px))
                 .collect();
@@ -542,7 +581,11 @@ impl Renderer {
         out
     }
 
-    fn outline(&self, glyph: GlyphId) -> Option<Path> {
+    /// The outline of a message-font glyph; `None` for an emoji or a hidden character.
+    fn outline(&self, glyph: Glyph) -> Option<Path> {
+        let Glyph::Text(glyph) = glyph else {
+            return None;
+        };
         let mut b = Outline(PathBuilder::new());
         let outline = self.font.outline_glyphs().get(glyph)?;
         let settings = DrawSettings::unhinted(Size::unscaled(), LocationRef::default());
@@ -565,6 +608,10 @@ impl Renderer {
             accent,
         } = *style;
         if g.alpha <= 0.0 {
+            return;
+        }
+        if let Glyph::Emoji(gid) = p.glyph {
+            self.draw_emoji(pixmap, p, g, gid, style);
             return;
         }
         let Some(path) = self.outline(p.glyph) else {
@@ -641,6 +688,49 @@ impl Renderer {
         pixmap.fill_path(&path, &paint, FillRule::Winding, t, None);
     }
 
+    /// Draws an emoji of the message, centred in its advance box and animated like a letter, without
+    /// the letter slant, outline or glow: its colours are its own.
+    fn draw_emoji(
+        &self,
+        pixmap: &mut Pixmap,
+        p: &Placed,
+        g: &GlyphState,
+        gid: GlyphId,
+        style: &TextStyle,
+    ) {
+        let mut cache = self.emoji.lock().unwrap_or_else(|e| e.into_inner());
+        let bitmap = cache.entry(gid).or_insert_with(|| {
+            let glyph =
+                BitmapStrikes::new(&self.emoji_font).glyph_for_size(Size::unscaled(), gid)?;
+            match glyph.data {
+                BitmapData::Png(bytes) => Pixmap::decode_png(bytes).ok(),
+                _ => None,
+            }
+        });
+        let Some(bitmap) = bitmap.as_ref() else {
+            return;
+        };
+        let font_px = style.font_px;
+        let k = EMOJI_HEIGHT * font_px / bitmap.height() as f32;
+        let (bw, bh) = (bitmap.width() as f32 * k, bitmap.height() as f32 * k);
+        let centre = (
+            p.cx + g.dx * font_px,
+            p.baseline - font_px * 0.3 + g.dy * font_px,
+        );
+        let t = Transform::from_translate(centre.0, centre.1)
+            .pre_rotate(g.rotation.to_degrees())
+            .pre_scale(g.scale, g.scale)
+            .pre_translate(-bw / 2.0, -bh / 2.0)
+            .pre_scale(k, k)
+            .post_concat(style.shake);
+        let paint = PixmapPaint {
+            opacity: g.alpha.clamp(0.0, 1.0),
+            quality: tiny_skia::FilterQuality::Bicubic,
+            ..PixmapPaint::default()
+        };
+        pixmap.draw_pixmap(0, 0, bitmap.as_ref(), &paint, t, None);
+    }
+
     fn draw_onomatopoeia(
         &self,
         pixmap: &mut Pixmap,
@@ -655,7 +745,7 @@ impl Renderer {
         }
         let size = font_px * o.scale;
         let s = self.scale(size);
-        let glyphs: Vec<(GlyphId, f32)> = o.text.chars().map(|c| self.advance(c, size)).collect();
+        let glyphs: Vec<(Glyph, f32)> = o.text.chars().map(|c| self.advance(c, size)).collect();
         let total: f32 = glyphs.iter().map(|g| g.1).sum();
         // Keep the whole word on screen: clamp its centre by its measured width.
         let half = (total / 2.0 + 0.03 * w).min(w / 2.0);
